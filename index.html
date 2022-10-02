@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta chartset = "utf-8">
+    <meta name = "viewport" content = "width=device-width">
+    <title>Sandwitches!</title>
+    <link href = "style.css" rel = "stylesheet" type = "text/css" />
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
+        integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
+        crossorigin="anonymous" defer
+    >
+    </script>
+</head>
+
+<body>
+
+    <div id = "menu">
+        <button id = "startButton">Start</button>
+
+        <input type = "file" id = "fileSelector">
+
+    </div>
+
+    <div id = "hud">
+        <div id = "info"></div>
+
+
+    </div>
+
+
+    <canvas id = "canvas">your browser does not support canvases</canvas>
+
+    <script src = "script.js"></script>
+    <script src = "update.js"></script>
+    <script src = "interaction.js"></script>
+    <script src = "3d-geometry.js"></script>
+    <script src = "webgl.js"></script>
+    <script src = "file-handling.js"></script>
+    <script src = "3d-object.js"></script>
+
+</body>
+
+</html>

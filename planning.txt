@@ -1,0 +1,19 @@
+
+
+
+In a 3d object:
+    polys:
+        3 individual points for every poly
+        3 individual point colors for every point
+    
+    normals:
+        1 for every poly
+
+    colors:
+        1 for every poly
+
+
+To make a poly:
+    option 1: give it 3 raw positions and it makes points on it's own
+
+    option 2: make three point objects and feed it the three points
