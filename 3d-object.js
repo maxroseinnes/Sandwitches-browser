@@ -6,20 +6,41 @@ class Mesh {
 
 
 
-        // for each triangle: make three new points and a poly
+		this.x = Math.random() * 10
+		this.y = 0
+		this.z = Math.random() * 10
 
 
+        let smooth = false
         this.polys = []
 
-        for (let i = 0; i < vertexIndices.length; i++) {
-            let r = 1
-            let g = 1
-            let b = 1
-            let point1 = new Point(positions[vertexIndices[i][0]][0], positions[vertexIndices[i][0]][1], positions[vertexIndices[i][0]][2], r, g, b)
-            let point2 = new Point(positions[vertexIndices[i][1]][0], positions[vertexIndices[i][1]][1], positions[vertexIndices[i][1]][2], r, g, b)
-            let point3 = new Point(positions[vertexIndices[i][2]][0], positions[vertexIndices[i][2]][1], positions[vertexIndices[i][2]][2], r, g, b)
+        if (!smooth) {
+            // for each triangle: make three new points and a poly
+    
+    
+    
+            for (let i = 0; i < vertexIndices.length; i++) {
+                let r = .5
+                let g = .5
+                let b = .5
+                let point1 = new Point(positions[vertexIndices[i][0]][0] + this.x, positions[vertexIndices[i][0]][1] + this.y, positions[vertexIndices[i][0]][2] + this.z, normals[normalIndices[i][0]][0], normals[normalIndices[i][0]][1], normals[normalIndices[i][0]][2], r, g, b)
+                let point2 = new Point(positions[vertexIndices[i][1]][0] + this.x, positions[vertexIndices[i][1]][1] + this.y, positions[vertexIndices[i][1]][2] + this.z, normals[normalIndices[i][1]][0], normals[normalIndices[i][1]][1], normals[normalIndices[i][1]][2], r, g, b)
+                let point3 = new Point(positions[vertexIndices[i][2]][0] + this.x, positions[vertexIndices[i][2]][1] + this.y, positions[vertexIndices[i][2]][2] + this.z, normals[normalIndices[i][2]][0], normals[normalIndices[i][2]][1], normals[normalIndices[i][2]][2], r, g, b)
+    
+                this.polys.push(new Poly(point1, point2, point3))
+            }
 
-            this.polys.push(new Poly(point1, point2, point3))
+        }
+
+        else {
+            let points = []
+            for (let i = 0; i < positions.length; i++) {
+                points.push(new Point(positions[i][0], positions[i][1], positions[i][2], normals[i][0], normals[i][1], normals[i][2], .5, .5, .5))
+            }
+            
+            for (let i = 0; i < vertexIndices.length; i++) {
+                this.polys.push(new Poly(points[vertexIndices[i][0]], points[vertexIndices[i][1]], points[vertexIndices[i][2]]))
+            }
         }
 
 
@@ -194,7 +215,10 @@ function parseCollada(fileText) {
 
     let organizedTriangleNormals = []
     for (let i = 0; i < trianglesGroups.NORMAL.length; i += 3) {
-        organizedTriangleNormals.push(trianglesGroups.NORMAL[i])
+        organizedTriangleNormals.push([])
+        for (let j = 0; j < 3; j++) {
+            organizedTriangleNormals[organizedTriangleNormals.length - 1].push(trianglesGroups.NORMAL[i+j])
+        }
     }
 
     console.log(organizedTriangleNormals)

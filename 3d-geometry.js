@@ -9,14 +9,14 @@ class Poly {
 		this.polyIndex = glPolys.length;
 		glPolys.push(point1.pointIndex, point2.pointIndex, point3.pointIndex);
 		this.existant = true;
-
+/*
 		this.linePoint1 = new Point(this.point1.x, this.point1.y, this.point1.z, 0, 0, 0)
 		this.linePoint2 = new Point(this.point2.x, this.point2.y, this.point2.z, 0, 0, 0)
 		this.linePoint3 = new Point(this.point3.x, this.point3.y, this.point3.z, 0, 0, 0)
 		this.line1 = new Line(this.linePoint1, this.linePoint2)
 		this.line2 = new Line(this.linePoint2, this.linePoint3)
 		this.line3 = new Line(this.linePoint3, this.linePoint1)
-		
+		*/
 	}
 
 	delete() {
@@ -27,14 +27,19 @@ class Poly {
 
 var glPoints = [];
 var glPointColors = [];
+var glPointNormals = [];
 var glPointSizes = [];
 
 class Point {
 
-	constructor(x, y, z, r, g, b) {
+	constructor(x, y, z, n1, n2, n3, r, g, b) {
 		this.x = x;
 		this.y = y;
 		this.z = z;
+		
+		this.n1 = n1;
+		this.n2 = n2;
+		this.n3 = n3;
 
 		this.r = r;
 		this.g = g;
@@ -42,10 +47,12 @@ class Point {
 
 		this.pointIndex = glPoints.length / 3;
 		this.pointColorIndex = glPointColors.length / 4;
+		this.pointNormalIndex = glPointNormals.length / 3;
 		this.pointSizeIndex = glPointSizes.length;
 		
 		glPoints.push(this.x, this.y, this.z);
 		glPointColors.push(this.r, this.g, this.b, 1)
+		glPointNormals.push(this.n1, this.n2, this.n3)
 		glPointSizes.push(1.0);
 	}
 
@@ -121,7 +128,7 @@ class Dot {
 }
 
 
-let originPoint = new Point(0, 0, 0, 1, 1, 1)
+let originPoint = new Point(0, 0, 0, 1, 1, 1, 1, 1, 1)
 let origin = new Dot(originPoint, 10)
 
 /*
@@ -154,10 +161,10 @@ let gridSize = 30;
 let gridSpacing = 2;
 
 for (let i = -gridSize; i < gridSize; i++) {
-	gridPointsMX.push(new Point(i * gridSpacing, 0, -gridSpacing * gridSize, 0.75, 0.75, 0.75))
-	gridPointsPX.push(new Point(i * gridSpacing, 0,  gridSpacing * gridSize, 0.75, 0.75, 0.75))
-	gridPointsMZ.push(new Point(-gridSpacing * gridSize, 0, i * gridSpacing, 0.75, 0.75, 0.75))
-	gridPointsPZ.push(new Point( gridSpacing * gridSize, 0, i * gridSpacing, 0.75, 0.75, 0.75))
+	gridPointsMX.push(new Point(i * gridSpacing, 0, -gridSpacing * gridSize, 1, 1, 1, 10, 10, 10))
+	gridPointsPX.push(new Point(i * gridSpacing, 0,  gridSpacing * gridSize, 1, 1, 1, 10, 10, 10))
+	gridPointsMZ.push(new Point(-gridSpacing * gridSize, 0, i * gridSpacing, 1, 1, 1, 10, 10, 10))
+	gridPointsPZ.push(new Point( gridSpacing * gridSize, 0, i * gridSpacing, 1, 1, 1, 10, 10, 10))
 }
 
 let gridLinesX = []

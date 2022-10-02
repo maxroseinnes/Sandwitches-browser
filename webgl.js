@@ -12,16 +12,28 @@ precision mediump float;
 attribute vec4 vertPosition;
 attribute vec4 aVertColor;
 attribute float aPointSize;
+attribute vec3 aVertNormal;
 
 uniform mat4 pMatrix;
 uniform mat4 tMatrix;
+uniform mat4 nMatrix;
 
 varying mediump vec4 vColor;
 
 void main() {
   gl_Position = pMatrix * tMatrix * vertPosition;
 	gl_PointSize = aPointSize;
-  vColor = aVertColor;
+
+  highp vec3 ambientLight = vec3(0.5, 0.5, 0.5);
+  highp vec3 directionalLightColor = vec3(1, 1, 1);
+  highp vec3 directionalVector = normalize(vec3(0.0, 0.5, 1.0));
+
+  highp vec4 transformedNormal = nMatrix * vec4(aVertNormal, 1.0);
+
+  highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+  highp vec3 lighting = ambientLight + (directionalLightColor * directional);
+
+  vColor = aVertColor * vec4(lighting, 1.0);
 }
 `;
 
@@ -46,6 +58,7 @@ var program = gl.createProgram();
 // buffers //
 var pointsBuffer = gl.createBuffer();
 var colorsBuffer = gl.createBuffer();
+var normalsBuffer = gl.createBuffer();
 var polysBuffer = gl.createBuffer();
 
 var linePointsBuffer = gl.createBuffer();
@@ -73,6 +86,10 @@ gl.attachShader(program, vertexShader);
 gl.attachShader(program, fragmentShader);
 gl.linkProgram(program);
 gl.validateProgram(program);
+
+if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+  console.log(`Unable to initialize the shader program: ${gl.getProgramInfoLog(program)}`);
+}
 
 
 const aspect = canvas.width / canvas.height;
@@ -102,6 +119,17 @@ function renderFrame() {
   gl.vertexAttribPointer(posAttribLocation, vSize, gl.FLOAT, false, vSize * Float32Array.BYTES_PER_ELEMENT, 0);
   gl.enableVertexAttribArray(posAttribLocation);
 
+  
+	var nSize = 3;
+	
+  gl.bindBuffer(gl.ARRAY_BUFFER, normalsBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(glPointNormals), gl.DYNAMIC_DRAW);
+
+  var pointNormalAttribLocation = gl.getAttribLocation(program, "aVertNormal");
+  gl.vertexAttribPointer(3, nSize, gl.FLOAT, false, nSize * Float32Array.BYTES_PER_ELEMENT, 0);
+  gl.enableVertexAttribArray(3);
+
+
 
 	var psSize = 1;
 	
@@ -113,6 +141,9 @@ function renderFrame() {
   gl.enableVertexAttribArray(pointSizeAttribLocation);
 
 	
+	
+
+
 	
 	var pSize = 3;
 	
@@ -143,6 +174,15 @@ function renderFrame() {
   var pMatrixLocation = gl.getUniformLocation(program, "pMatrix");
   gl.uniformMatrix4fv(pMatrixLocation, false, pMatrix);
 
+
+
+  var nMatrix = mat4.create();
+
+  mat4.invert(nMatrix, tMatrix);
+  mat4.transpose(nMatrix, nMatrix);
+  
+  var nMatrixLocation = gl.getUniformLocation(program, "nMatrix");
+  gl.uniformMatrix4fv(nMatrixLocation, false, nMatrix);
 
 
   gl.clearColor(0.5, 0.5, 0.5, 1);
