@@ -11,7 +11,7 @@ class Mesh {
 		this.z = Math.random() * 10
 
 
-        let smooth = false
+        let smooth = true
         this.polys = []
 
         if (!smooth) {
@@ -35,7 +35,29 @@ class Mesh {
         else {
             let points = []
             for (let i = 0; i < positions.length; i++) {
-                points.push(new Point(positions[i][0], positions[i][1], positions[i][2], normals[i][0], normals[i][1], normals[i][2], .5, .5, .5))
+                let connectedPolys = []
+                for (let j = 0; j < vertexIndices.length; j++) {
+                    for (let k = 0; k < vertexIndices[i].length; k++) {
+                        if (vertexIndices[j][k] == i) connectedPolys.push({ index: j, vertex: k })
+                    }
+                }
+
+                let averageNormalX = 0
+                let averageNormalY = 0
+                let averageNormalZ = 0
+
+                for (let j = 0; j < connectedPolys.length; j++) {
+                    averageNormalX += normals[normalIndices[connectedPolys[j].index][connectedPolys[j].vertex]][0]
+                    averageNormalY += normals[normalIndices[connectedPolys[j].index][connectedPolys[j].vertex]][1]
+                    averageNormalZ += normals[normalIndices[connectedPolys[j].index][connectedPolys[j].vertex]][2]
+                }
+
+                averageNormalX /= connectedPolys.length
+                averageNormalY /= connectedPolys.length
+                averageNormalZ /= connectedPolys.length
+
+
+                points.push(new Point(positions[i][0] + this.x, positions[i][1] + this.y, positions[i][2] + this.z, averageNormalX, averageNormalY, averageNormalZ, .5, .5, .5))
             }
             
             for (let i = 0; i < vertexIndices.length; i++) {
