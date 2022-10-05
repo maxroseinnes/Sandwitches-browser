@@ -2,7 +2,7 @@
 var sprites = []
 
 class Mesh {
-    constructor(positions, normals, vertexIndices, normalIndices) {
+    constructor(positions, normals, vertexIndices, normalIndices, smooth) {
 
 
 
@@ -11,7 +11,6 @@ class Mesh {
 		this.z = Math.random() * 10
 
 
-        let smooth = true
         this.polys = []
 
         if (!smooth) {
@@ -252,4 +251,133 @@ function parseCollada(fileText) {
         normalIndices: organizedTriangleNormals
     }
 
+}
+
+
+
+
+function parseWavefront(fileText) {
+    let lines = parseLines(fileText)
+
+    let name
+    let positions = []
+    let normals = []
+    let texcoords = []
+    let smooth // boolean
+    let material // string
+    let indices = []
+
+
+    for (let i = 0; i < lines.length; i++) {
+
+        // find first word in line
+        let identifier = lines[i].slice(0, lines[i].indexOf(" "))
+
+        // get line after identifier
+        let currentLine = lines[i].slice(lines[i].indexOf(" ") + 1)
+        
+        if (identifier == "o") name = currentLine
+        
+        if (identifier == "v") positions.push(parseFloats(parseWords(currentLine)))
+
+        if (identifier == "vn") normals.push(parseFloats(parseWords(currentLine)))
+        
+        if (identifier == "vn") texcoords.push(parseFloats(parseWords(currentLine)))
+
+        if (identifier == "s") {
+            if (currentLine = "0") smooth = false
+            else smooth = true
+        }
+
+        if (identifier == "usemtl") material = currentLine
+
+        if (identifier == "f") {
+            let v = []
+            let t = []
+            let n = []
+
+            let words = parseWords(currentLine)
+            for (let j = 0; j < words.length; j++) {
+                v.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1)
+                words[j] = words[j].slice(words[j].indexOf("/") + 1)
+
+                t.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1)
+                words[j] = words[j].slice(words[j].indexOf("/") + 1)
+
+                n.push(parseInt(words[j], 10) - 1)
+            }
+
+            indices.push({
+                vertexes: v,
+                texcoords: t,
+                normals: n
+            })
+        }
+    }
+
+    return {
+        name: name,
+        positions: positions,
+        normals: normals,
+        texcoords: texcoords,
+        smooth: smooth,
+        material: material,
+        indices: triangulate(indices)
+    }
+}
+
+
+
+function triangulate(indices) {
+    let newIndices = []
+    for (let i = 0; i < indices.length; i++) {
+        let currentIndices = indices[i]
+
+        for (let j = 0; j < currentIndices.vertexes.length - 2; j++) {
+            newIndices.push({
+                vertexes: [currentIndices.vertexes[0], currentIndices.vertexes[j+1], currentIndices.vertexes[j+2]],
+                texcoords: [currentIndices.texcoords[0], currentIndices.texcoords[j+1], currentIndices.texcoords[j+2]],
+                normals: [currentIndices.normals[0], currentIndices.normals[j+1], currentIndices.normals[j+2]]
+            })
+        }
+
+    }
+    return newIndices
+}
+
+
+
+
+function parseFloats(words) {
+    let floats = []
+    for (let i = 0; i < words.length; i++) {
+        floats.push(parseFloat(words[i]))
+    }
+    return floats
+}
+
+function parseLines(string) {
+    let lines = []
+    let currentLine = ""
+    for (let i = 0; i < string.length; i++) {
+        if (string[i] != "\n") currentLine += string[i]
+        else {
+            lines.push(currentLine)
+            currentLine = ""
+        }
+    } lines.push(currentLine)
+    return lines
+}
+
+function parseWords(string) {
+    let words = []
+    let currentWord = ""
+    for (let i = 0; i < string.length; i++) {
+        if (string[i] != " ") currentWord += string[i]
+        else {
+            words.push(currentWord)
+            currentWord = ""
+        }
+    } words.push(currentWord)
+    return words
 }
