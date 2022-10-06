@@ -56,12 +56,12 @@ class Point {
 		glPointSizes.push(1.0);
 	}
 
-	setPosition(x, y, z) {
+	setPosition(angle, x, y, z) {
 		//this.x = x;
 		//this.y = y;
 		//this.z = z;
 
-		glPoints.splice(this.pointIndex * 3, 3, this.x + x, this.y + y, this.z + z);
+		glPoints.splice(this.pointIndex * 3, 3,this.x * Math.cos(angle) - this.z * Math.sin(angle) + x, this.y + y, this.x * Math.sin(angle) + this.z * Math.cos(angle) + z);
 	}
 
 	

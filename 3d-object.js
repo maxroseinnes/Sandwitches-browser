@@ -1,5 +1,5 @@
 
-var sprites = []
+var sandwichIngredients = []
 
 class Mesh {
     constructor(geometryInfo) {
@@ -8,7 +8,7 @@ class Mesh {
 
 
 		this.x = 0
-		this.y = 0
+		this.y = -1
 		this.z = 0
 
         let positions = geometryInfo.positions
@@ -83,9 +83,9 @@ class Mesh {
     }
 
 
-    setPosition(x, y, z) {
+    setPosition(angle, x, y, z) {
         for (let i = 0; i < this.points.length; i++) {
-            this.points[i].setPosition(x, y, z)
+            this.points[i].setPosition(angle, x, y, z)
         }
     }
 

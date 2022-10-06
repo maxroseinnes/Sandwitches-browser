@@ -15,7 +15,9 @@ function readFile(files, i) {
     fileReader.readAsText(files[i])
     fileReader.onload = () => {
 
-        sprites.push(new Mesh(parseWavefront(fileReader.result)))
+        //geometryInfos = []
+
+        sandwichIngredients.push(new Mesh(parseWavefront(fileReader.result)))
 
         //geometryInfo = parseCollada(fileReader.result)
         //sprites.push(new Mesh(geometryInfo.positions, geometryInfo.normals, geometryInfo.vertexIndices, geometryInfo.normalIndices, smooth))

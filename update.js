@@ -22,7 +22,9 @@ function update(now) {
 
 
 
-	if (sprites[0] != null) sprites[0].setPosition(playerPosition.x, playerPosition.y, playerPosition.z)
+	for (let i = 0; i < sandwichIngredients.length; i++) {
+		sandwichIngredients[i].setPosition(angleY - Math.PI, playerPosition.x, playerPosition.y, playerPosition.z)
+	}
 
 
 
