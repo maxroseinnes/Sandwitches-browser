@@ -2,15 +2,27 @@
 var sprites = []
 
 class Mesh {
-    constructor(positions, normals, vertexIndices, normalIndices, smooth) {
+    constructor(geometryInfo) {
 
 
 
-		this.x = Math.random() * 10
+
+		this.x = 0
 		this.y = 0
-		this.z = Math.random() * 10
+		this.z = 0
 
+        let positions = geometryInfo.positions
+        let normals = geometryInfo.normals
+        let smooth = geometryInfo.smooth
 
+        let vertexIndices = []
+        let normalIndices = []
+        for (let i = 0; i < geometryInfo.indices.length; i++) {
+            vertexIndices.push(geometryInfo.indices[i].vertexes)
+            normalIndices.push(geometryInfo.indices[i].normals)
+        }
+
+        this.points = []
         this.polys = []
 
         if (!smooth) {
@@ -26,6 +38,7 @@ class Mesh {
                 let point2 = new Point(positions[vertexIndices[i][1]][0] + this.x, positions[vertexIndices[i][1]][1] + this.y, positions[vertexIndices[i][1]][2] + this.z, normals[normalIndices[i][1]][0], normals[normalIndices[i][1]][1], normals[normalIndices[i][1]][2], r, g, b)
                 let point3 = new Point(positions[vertexIndices[i][2]][0] + this.x, positions[vertexIndices[i][2]][1] + this.y, positions[vertexIndices[i][2]][2] + this.z, normals[normalIndices[i][2]][0], normals[normalIndices[i][2]][1], normals[normalIndices[i][2]][2], r, g, b)
     
+                this.points.push(point1, point2, point3)
                 this.polys.push(new Poly(point1, point2, point3))
             }
 
@@ -62,10 +75,20 @@ class Mesh {
             for (let i = 0; i < vertexIndices.length; i++) {
                 this.polys.push(new Poly(points[vertexIndices[i][0]], points[vertexIndices[i][1]], points[vertexIndices[i][2]]))
             }
+
+            this.points = points
         }
 
 
     }
+
+
+    setPosition(x, y, z) {
+        for (let i = 0; i < this.points.length; i++) {
+            this.points[i].setPosition(x, y, z)
+        }
+    }
+
 }
 
 

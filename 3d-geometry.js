@@ -37,9 +37,9 @@ class Point {
 		this.y = y;
 		this.z = z;
 		
-		this.n1 = n1;
-		this.n2 = n2;
-		this.n3 = n3;
+		//this.n1 = n1;
+		//this.n2 = n2;
+		//this.n3 = n3;
 
 		this.r = r;
 		this.g = g;
@@ -50,18 +50,18 @@ class Point {
 		this.pointNormalIndex = glPointNormals.length / 3;
 		this.pointSizeIndex = glPointSizes.length;
 		
-		glPoints.push(this.x, this.y, this.z);
+		glPoints.push(x, y, z);
 		glPointColors.push(this.r, this.g, this.b, 1)
-		glPointNormals.push(this.n1, this.n2, this.n3)
+		glPointNormals.push(n1, n2, n3)
 		glPointSizes.push(1.0);
 	}
 
-	changePosition(x, y, z) {
-		this.x = x;
-		this.y = y;
-		this.z = z;
+	setPosition(x, y, z) {
+		//this.x = x;
+		//this.y = y;
+		//this.z = z;
 
-		glPoints.splice(this.pointIndex * 3, 3, this.x, this.y, this.z);
+		glPoints.splice(this.pointIndex * 3, 3, this.x + x, this.y + y, this.z + z);
 	}
 
 	

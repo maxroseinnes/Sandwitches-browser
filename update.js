@@ -22,6 +22,18 @@ function update(now) {
 
 
 
+	if (sprites[0] != null) sprites[0].setPosition(playerPosition.x, playerPosition.y, playerPosition.z)
+
+
+
+
+
+
+
+
+
+
+
 
     renderFrame();
     if (running) requestAnimationFrame(update)
@@ -30,13 +42,20 @@ function update(now) {
 var fixedUpdateInterval; // this is set in interactions -> pointer lock change
 var fixedUpdateThen; // this should be updated in interactions -> pointer lock change
 
+// movement global variables //
+var gravity = 0
+var crouching = false
+var onGround = true
+
+
 function fixedUpdate() {
     let deltaTime = Date.now() - fixedUpdateThen;
     if (deltaTime < 8 || isNaN(deltaTime)) deltaTime = 10;
     fixedUpdateThen = Date.now()
 
+	//  -- Movement -- //
 
-	let speed = .002;
+	let speed = .006;
 
 	if (w) {
 		playerPosition.x += speed * Math.cos(angleY - (Math.PI / 2)) * deltaTime
@@ -54,11 +73,24 @@ function fixedUpdate() {
 		playerPosition.x += speed * Math.cos(angleY) * deltaTime
 		playerPosition.z += speed * Math.sin(angleY) * deltaTime
 	}
-	if (shift) {
-		playerPosition.y -= speed * deltaTime
-	}
+
+	if (shift) crouching = true
+	else crouching = false
+
 	if (space) {
-		playerPosition.y += speed * deltaTime
+		if (onGround) gravity = .01
+	}
+
+
+	// gravity //
+	playerPosition.y += gravity * deltaTime
+	onGround = (playerPosition.y <= 1)
+	if (onGround) {
+		playerPosition.y = 1
+		gravity = 0
+	}
+	else {
+		gravity -= .00003 * deltaTime // subtract by gravitational constant (units/frames^2)
 	}
 
 
