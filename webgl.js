@@ -157,7 +157,7 @@ function renderFrame() {
 
   var tMatrix = mat4.create();
 
-	mat4.translate(tMatrix, tMatrix, [-2, 0, -4]);
+	mat4.translate(tMatrix, tMatrix, [-2, -1, -4]);
   mat4.rotateX(tMatrix, tMatrix, angleX);
   mat4.rotateY(tMatrix, tMatrix, angleY);
   mat4.translate(tMatrix, tMatrix, [-playerPosition.x, -playerPosition.y, -playerPosition.z]);

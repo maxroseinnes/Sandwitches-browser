@@ -25,26 +25,28 @@ document.addEventListener('keydown', function(event) {
   if (event.keyCode == 65) a = true
   if (event.keyCode == 68) d = true
 
-  if (event.keyCode == 16) shift = true
+  if (event.keyCode == 16) {
+    shift = true
+  }
   if (event.keyCode == 32) space = true
 });
 
 document.addEventListener('keyup', function(event) {
-    event.preventDefault();
+  event.preventDefault();
+
+  if (event.keyCode == 37) left = false
+  if (event.keyCode == 39) right = false
+  if (event.keyCode == 38) up = false
+  if (event.keyCode == 40) down = false
   
-    if (event.keyCode == 37) left = false
-    if (event.keyCode == 39) right = false
-    if (event.keyCode == 38) up = false
-    if (event.keyCode == 40) down = false
-    
-    if (event.keyCode == 87) w = false
-    if (event.keyCode == 83) s = false
-    if (event.keyCode == 65) a = false
-    if (event.keyCode == 68) d = false
-  
-    if (event.keyCode == 16) shift = false
-    if (event.keyCode == 32) space = false
-  });
+  if (event.keyCode == 87) w = false
+  if (event.keyCode == 83) s = false
+  if (event.keyCode == 65) a = false
+  if (event.keyCode == 68) d = false
+
+  if (event.keyCode == 16) shift = false
+  if (event.keyCode == 32) space = false
+});
 
 // -- mouse -- //
 
@@ -58,18 +60,18 @@ document.addEventListener("pointerlockchange", function () {
 			running = true
 			update()
 
-            fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
+      fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
 		}
 	} else {
-        console.log("stopped")
+    console.log("stopped")
 
 		pointerLocked = false
 		running = false
 
-        fixedUpdateThen = Date.now();
-        clearInterval(fixedUpdateInterval)
+    fixedUpdateThen = Date.now();
+    clearInterval(fixedUpdateInterval)
 
-        menu.style.display = ""
+    menu.style.display = ""
 	}
 }, false)
 

@@ -37,9 +37,9 @@ class Point {
 		this.y = y;
 		this.z = z;
 		
-		//this.n1 = n1;
-		//this.n2 = n2;
-		//this.n3 = n3;
+		this.n1 = n1;
+		this.n2 = n2;
+		this.n3 = n3;
 
 		this.r = r;
 		this.g = g;
@@ -56,13 +56,30 @@ class Point {
 		glPointSizes.push(1.0);
 	}
 
-	setPosition(angle, x, y, z) {
-		//this.x = x;
-		//this.y = y;
-		//this.z = z;
+	setPosition(angle, x, y, z, scale) {
 
-		glPoints.splice(this.pointIndex * 3, 3,this.x * Math.cos(angle) - this.z * Math.sin(angle) + x, this.y + y, this.x * Math.sin(angle) + this.z * Math.cos(angle) + z);
+		glPoints.splice(this.pointIndex * 3, 3, 	  this.x * scale  * Math.cos(angle) - this.z * scale  * Math.sin(angle) + x, this.y * scale + y, this.x * scale  * Math.sin(angle) + this.z * scale  * Math.cos(angle) + z);
+		glPointNormals.splice(this.pointIndex * 3, 3, this.n1 * Math.cos(angle) - this.n3 * Math.sin(angle)    , this.n2,    this.n1 * Math.sin(angle) + this.n3 * Math.cos(angle))
 	}
+
+	overridePosition(x, y, z) {
+
+		this.x = x;
+		this.y = y;
+		this.z = z;
+
+		glPoints.splice(this.pointIndex * 3, 3, x, y, z)
+	}
+
+	overrideNormal(n1, n2, n3) {
+
+		this.n1 = n1;
+		this.n2 = n2;
+		this.n3 = n3;
+
+		glPointNormals.splice(this.pointIndex * 3, 3, n1, n2, n3)
+	}
+
 
 	
 	changeColor(r, g, b) {

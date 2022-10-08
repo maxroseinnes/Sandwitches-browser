@@ -1,19 +1,27 @@
 
 var sandwichIngredients = []
+var player
+var modelInfos = []
 
-class Mesh {
-    constructor(geometryInfo) {
+class Model {
+    constructor(geometryInfo, scale) {
 
 
-
+        this.scale = scale
 
 		this.x = 0
-		this.y = -1
+		this.y = 0
 		this.z = 0
 
         let positions = geometryInfo.positions
         let normals = geometryInfo.normals
         let smooth = geometryInfo.smooth
+        //smooth = true
+
+        this.positions = positions
+        this.normals = normals
+        //smooth = true
+        this.smooth = smooth
 
         let vertexIndices = []
         let normalIndices = []
@@ -21,6 +29,9 @@ class Mesh {
             vertexIndices.push(geometryInfo.indices[i].vertexes)
             normalIndices.push(geometryInfo.indices[i].normals)
         }
+
+        this.vertexIndices = vertexIndices
+        this.normalIndices = normalIndices
 
         this.points = []
         this.polys = []
@@ -34,9 +45,9 @@ class Mesh {
                 let r = .5
                 let g = .5
                 let b = .5
-                let point1 = new Point(positions[vertexIndices[i][0]][0] + this.x, positions[vertexIndices[i][0]][1] + this.y, positions[vertexIndices[i][0]][2] + this.z, normals[normalIndices[i][0]][0], normals[normalIndices[i][0]][1], normals[normalIndices[i][0]][2], r, g, b)
-                let point2 = new Point(positions[vertexIndices[i][1]][0] + this.x, positions[vertexIndices[i][1]][1] + this.y, positions[vertexIndices[i][1]][2] + this.z, normals[normalIndices[i][1]][0], normals[normalIndices[i][1]][1], normals[normalIndices[i][1]][2], r, g, b)
-                let point3 = new Point(positions[vertexIndices[i][2]][0] + this.x, positions[vertexIndices[i][2]][1] + this.y, positions[vertexIndices[i][2]][2] + this.z, normals[normalIndices[i][2]][0], normals[normalIndices[i][2]][1], normals[normalIndices[i][2]][2], r, g, b)
+                let point1 = new Point(positions[vertexIndices[i][0]][0] * scale + this.x, positions[vertexIndices[i][0]][1] * scale + this.y, positions[vertexIndices[i][0]][2] * scale + this.z, normals[normalIndices[i][0]][0], normals[normalIndices[i][0]][1], normals[normalIndices[i][0]][2], r, g, b)
+                let point2 = new Point(positions[vertexIndices[i][1]][0] * scale + this.x, positions[vertexIndices[i][1]][1] * scale + this.y, positions[vertexIndices[i][1]][2] * scale + this.z, normals[normalIndices[i][1]][0], normals[normalIndices[i][1]][1], normals[normalIndices[i][1]][2], r, g, b)
+                let point3 = new Point(positions[vertexIndices[i][2]][0] * scale + this.x, positions[vertexIndices[i][2]][1] * scale + this.y, positions[vertexIndices[i][2]][2] * scale + this.z, normals[normalIndices[i][2]][0], normals[normalIndices[i][2]][1], normals[normalIndices[i][2]][2], r, g, b)
     
                 this.points.push(point1, point2, point3)
                 this.polys.push(new Poly(point1, point2, point3))
@@ -69,7 +80,7 @@ class Mesh {
                 averageNormalZ /= connectedPolys.length
 
 
-                points.push(new Point(positions[i][0] + this.x, positions[i][1] + this.y, positions[i][2] + this.z, averageNormalX, averageNormalY, averageNormalZ, .5, .5, .5))
+                points.push(new Point(positions[i][0] * scale + this.x, positions[i][1] * scale + this.y, positions[i][2] * scale + this.z, averageNormalX, averageNormalY, averageNormalZ, .5, .5, .5))
             }
             
             for (let i = 0; i < vertexIndices.length; i++) {
@@ -85,9 +96,73 @@ class Mesh {
 
     setPosition(angle, x, y, z) {
         for (let i = 0; i < this.points.length; i++) {
-            this.points[i].setPosition(angle, x, y, z)
+            this.points[i].setPosition(angle, x, y, z, this.scale)
         }
     }
+
+
+
+    interpolatePoints(mesh1, mesh2, stage) {
+        if (this.smooth) {
+            if (mesh1.positions.length != mesh2.positions.length) {
+                console.log(`meshes ${mesh1.name} and ${mesh2.name} have different numbers of points`)
+                return
+            }
+            for (let i = 0; i < mesh1.positions.length; i++) {
+                this.points[i].overridePosition(
+                    lerp(mesh1.positions[i][0] * this.scale, mesh2.positions[i][0] * this.scale, stage),
+                    lerp(mesh1.positions[i][1] * this.scale, mesh2.positions[i][1] * this.scale, stage),
+                    lerp(mesh1.positions[i][2] * this.scale, mesh2.positions[i][2] * this.scale, stage),
+                )
+            }
+
+            for (let i = 0; i < mesh1.normals.length; i++) {
+                this.points[i].overrideNormal(
+                    lerp(mesh1.normals[i][0] * this.scale, mesh2.normals[i][0] * this.scale, stage),
+                    lerp(mesh1.normals[i][1] * this.scale, mesh2.normals[i][1] * this.scale, stage),
+                    lerp(mesh1.normals[i][2] * this.scale, mesh2.normals[i][2] * this.scale, stage),
+                )
+            }
+        }
+        else {
+            for (let i = 0; i < mesh1.vertexIndices.length; i++) {
+                this.polys[i].point1.overridePosition(
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][0]][0] * this.scale, mesh2.positions[mesh2.vertexIndices[i][0]][0] * this.scale, stage),
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][0]][1] * this.scale, mesh2.positions[mesh2.vertexIndices[i][0]][1] * this.scale, stage),
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][0]][2] * this.scale, mesh2.positions[mesh2.vertexIndices[i][0]][2] * this.scale, stage)
+                )
+                this.polys[i].point2.overridePosition(
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][1]][0] * this.scale, mesh2.positions[mesh2.vertexIndices[i][1]][0] * this.scale, stage),
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][1]][1] * this.scale, mesh2.positions[mesh2.vertexIndices[i][1]][1] * this.scale, stage),
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][1]][2] * this.scale, mesh2.positions[mesh2.vertexIndices[i][1]][2] * this.scale, stage)
+                )
+                this.polys[i].point3.overridePosition(
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][2]][0] * this.scale, mesh2.positions[mesh2.vertexIndices[i][2]][0] * this.scale, stage),
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][2]][1] * this.scale, mesh2.positions[mesh2.vertexIndices[i][2]][1] * this.scale, stage),
+                    lerp(mesh1.positions[mesh1.vertexIndices[i][2]][2] * this.scale, mesh2.positions[mesh2.vertexIndices[i][2]][2] * this.scale, stage)
+                )
+
+                
+                this.polys[i].point1.overrideNormal(
+                    lerp(mesh1.normals[mesh1.normalIndices[i][0]][0], mesh2.normals[mesh2.normalIndices[i][0]][0], stage),
+                    lerp(mesh1.normals[mesh1.normalIndices[i][0]][1], mesh2.normals[mesh2.normalIndices[i][0]][1], stage),
+                    lerp(mesh1.normals[mesh1.normalIndices[i][0]][2], mesh2.normals[mesh2.normalIndices[i][0]][2], stage)
+                )
+                this.polys[i].point2.overrideNormal(
+                    lerp(mesh1.normals[mesh1.normalIndices[i][1]][0], mesh2.normals[mesh2.normalIndices[i][1]][0], stage),
+                    lerp(mesh1.normals[mesh1.normalIndices[i][1]][1], mesh2.normals[mesh2.normalIndices[i][1]][1], stage),
+                    lerp(mesh1.normals[mesh1.normalIndices[i][1]][2], mesh2.normals[mesh2.normalIndices[i][1]][2], stage)
+                )
+                this.polys[i].point3.overrideNormal(
+                    lerp(mesh1.normals[mesh1.normalIndices[i][2]][0], mesh2.normals[mesh2.normalIndices[i][2]][0], stage),
+                    lerp(mesh1.normals[mesh1.normalIndices[i][2]][1], mesh2.normals[mesh2.normalIndices[i][2]][1], stage),
+                    lerp(mesh1.normals[mesh1.normalIndices[i][2]][2], mesh2.normals[mesh2.normalIndices[i][2]][2], stage)
+                )
+                
+            }
+        }
+    }
+
 
 }
 
