@@ -357,71 +357,86 @@ function parseCollada(fileText) {
 function parseWavefront(fileText) {
     let lines = parseLines(fileText)
 
-    let name
-    let positions = []
-    let normals = []
-    let texcoords = []
-    let smooth // boolean
-    let material // string
-    let indices = []
-
-
+    // find all objects
+    let objectStartIndices = []
     for (let i = 0; i < lines.length; i++) {
-
-        // find first word in line
-        let identifier = lines[i].slice(0, lines[i].indexOf(" "))
-
-        // get line after identifier
-        let currentLine = lines[i].slice(lines[i].indexOf(" ") + 1)
-        
-        if (identifier == "o") name = currentLine
-        
-        if (identifier == "v") positions.push(parseFloats(parseWords(currentLine)))
-
-        if (identifier == "vn") normals.push(parseFloats(parseWords(currentLine)))
-        
-        if (identifier == "vn") texcoords.push(parseFloats(parseWords(currentLine)))
-
-        if (identifier == "s") {
-            if (currentLine = "0") smooth = false
-            else smooth = true
+        if (lines[i].slice(0, lines[i].indexOf(" ")) == "o") {
+            objectStartIndices.push(i)
         }
+    } objectStartIndices.push(lines.length)
 
-        if (identifier == "usemtl") material = currentLine
+    let objects = []
+    for (let o = 0; o < objectStartIndices.length - 1; o++) {
 
-        if (identifier == "f") {
-            let v = []
-            let t = []
-            let n = []
-
-            let words = parseWords(currentLine)
-            for (let j = 0; j < words.length; j++) {
-                v.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1)
-                words[j] = words[j].slice(words[j].indexOf("/") + 1)
-
-                t.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1)
-                words[j] = words[j].slice(words[j].indexOf("/") + 1)
-
-                n.push(parseInt(words[j], 10) - 1)
+        let name
+        let positions = []
+        let normals = []
+        let texcoords = []
+        let smooth // boolean
+        let material // string
+        let indices = []
+    
+    
+        for (let i = objectStartIndices[o]; i < objectStartIndices[o+1]; i++) {
+    
+            // find first word in line
+            let identifier = lines[i].slice(0, lines[i].indexOf(" "))
+    
+            // get line after identifier
+            let currentLine = lines[i].slice(lines[i].indexOf(" ") + 1)
+            
+            if (identifier == "o") name = currentLine
+            
+            if (identifier == "v") positions.push(parseFloats(parseWords(currentLine)))
+    
+            if (identifier == "vn") normals.push(parseFloats(parseWords(currentLine)))
+            
+            if (identifier == "vn") texcoords.push(parseFloats(parseWords(currentLine)))
+    
+            if (identifier == "s") {
+                if (currentLine = "0") smooth = false
+                else smooth = true
             }
-
-            indices.push({
-                vertexes: v,
-                texcoords: t,
-                normals: n
-            })
+    
+            if (identifier == "usemtl") material = currentLine
+    
+            if (identifier == "f") {
+                let v = []
+                let t = []
+                let n = []
+    
+                let words = parseWords(currentLine)
+                for (let j = 0; j < words.length; j++) {
+                    v.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1)
+                    words[j] = words[j].slice(words[j].indexOf("/") + 1)
+    
+                    t.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1)
+                    words[j] = words[j].slice(words[j].indexOf("/") + 1)
+    
+                    n.push(parseInt(words[j], 10) - 1)
+                }
+    
+                indices.push({
+                    vertexes: v,
+                    texcoords: t,
+                    normals: n
+                })
+            }
         }
+    
+        objects.push({
+            name: name,
+            positions: positions,
+            normals: normals,
+            texcoords: texcoords,
+            smooth: smooth,
+            material: material,
+            indices: triangulate(indices)
+        })
     }
 
-    return {
-        name: name,
-        positions: positions,
-        normals: normals,
-        texcoords: texcoords,
-        smooth: smooth,
-        material: material,
-        indices: triangulate(indices)
-    }
+    return objects
+
 }
 
 

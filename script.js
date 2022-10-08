@@ -87,3 +87,6 @@ var scene = {
 
 }
 
+console.log(parseWavefront(weaponData.tomato))
+
+new Model(parseWavefront(weaponData.tomato)[0], 1)
