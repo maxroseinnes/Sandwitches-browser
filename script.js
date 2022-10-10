@@ -15,6 +15,7 @@ var Point = webglStuff.Point
 var Line = webglStuff.Line
 var Dot = webglStuff.Dot
 var Model = webglStuff.Model
+var Player = webglStuff.Player
 
 
 
@@ -38,11 +39,6 @@ var gravity = 0
 var crouching = false
 var onGround = true
 
-var playerPosition = {
-    x: 0,
-    y: 0,
-    z: 0
-}
 
 var angleX = 0.0
 var angleY = 0.0
@@ -107,15 +103,8 @@ var playerGeometry = {
 	}
 }
 
-var frontSliceModel = new Model(playerGeometry.stepRightFoot.frontSlice, 1)
-var backSliceModel = new Model(playerGeometry.stepRightFoot.backSlice, 1)
-var cheeseModel = new Model(playerGeometry.stepRightFoot.cheese, 1)
-var meatModel = new Model(playerGeometry.stepRightFoot.meat, 1)
-var tomato1Model = new Model(playerGeometry.stepRightFoot.tomato1, 1)
-var tomato2Model = new Model(playerGeometry.stepRightFoot.tomato2, 1)
-var tomato3Model = new Model(playerGeometry.stepRightFoot.tomato3, 1)
-var tomato4Model = new Model(playerGeometry.stepRightFoot.tomato4, 1)
-
+var player = new Player(playerGeometry, 0, 0, 0, angleY, "steve")
+//var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
 
 
 let gridPointsMX = []
@@ -167,33 +156,16 @@ function update(now) {
 
 
 
+	player.angleY = angleY
+	player.updatePosition()
 
-
-
-	frontSliceModel.setPosition(angleY, playerPosition.x, breadY, playerPosition.z)
-	backSliceModel.setPosition(angleY, playerPosition.x, breadY, playerPosition.z)
-	cheeseModel.setPosition(angleY, playerPosition.x, cheeseY, playerPosition.z)
-	meatModel.setPosition(angleY, playerPosition.x, meatY, playerPosition.z)
-	tomato1Model.setPosition(angleY, playerPosition.x, tomatoY, playerPosition.z)
-	tomato2Model.setPosition(angleY, playerPosition.x, tomatoY, playerPosition.z)
-	tomato3Model.setPosition(angleY, playerPosition.x, tomatoY, playerPosition.z)
-	tomato4Model.setPosition(angleY, playerPosition.x, tomatoY, playerPosition.z)
-
-
-	frontSliceModel.updateAnimation()
-	backSliceModel.updateAnimation()
-	cheeseModel.updateAnimation()
-	meatModel.updateAnimation()
-	tomato1Model.updateAnimation()
-	tomato2Model.updateAnimation()
-	tomato3Model.updateAnimation()
-	tomato4Model.updateAnimation()
+	if (!player.activeAnimation()) player.startAnimation("idle", "stepRightFoot", 2, true)
+	player.updateAnimation()
 
 
 
 
-
-    webgl.renderFrame(playerPosition, angleX, angleY);
+    webgl.renderFrame(player.position, angleX, angleY);
     if (running) requestAnimationFrame(update)
 }
 
@@ -210,21 +182,21 @@ function fixedUpdate() {
 	let walkAnimationSpeed = .5
 
 	if (w) {
-		playerPosition.x += speed * Math.cos(angleY - (Math.PI / 2)) * deltaTime
-		playerPosition.z += speed * Math.sin(angleY - (Math.PI / 2)) * deltaTime
+		player.position.x += speed * Math.cos(angleY - (Math.PI / 2)) * deltaTime
+		player.position.z += speed * Math.sin(angleY - (Math.PI / 2)) * deltaTime
 
 	}
 	if (a) {
-		playerPosition.x -= speed * Math.cos(angleY) * deltaTime
-		playerPosition.z -= speed * Math.sin(angleY) * deltaTime
+		player.position.x -= speed * Math.cos(angleY) * deltaTime
+		player.position.z -= speed * Math.sin(angleY) * deltaTime
 	}
 	if (s) {
-		playerPosition.x -= speed * Math.cos(angleY - (Math.PI / 2)) * deltaTime
-		playerPosition.z -= speed * Math.sin(angleY - (Math.PI / 2)) * deltaTime
+		player.position.x -= speed * Math.cos(angleY - (Math.PI / 2)) * deltaTime
+		player.position.z -= speed * Math.sin(angleY - (Math.PI / 2)) * deltaTime
 	}
 	if (d) {
-		playerPosition.x += speed * Math.cos(angleY) * deltaTime
-		playerPosition.z += speed * Math.sin(angleY) * deltaTime
+		player.position.x += speed * Math.cos(angleY) * deltaTime
+		player.position.z += speed * Math.sin(angleY) * deltaTime
 	}
 
 	if (shift) crouching = true
@@ -236,12 +208,12 @@ function fixedUpdate() {
 
 
 	// gravity //
-	playerPosition.y += gravity * deltaTime
+	player.position.y += gravity * deltaTime
 
 
-	onGround = (playerPosition.y <= 0)
+	onGround = (player.position.y <= 0)
 	if (onGround) {
-		playerPosition.y = 0
+		player.position.y = 0
 		gravity = 0
 	}
 	else {
@@ -249,7 +221,7 @@ function fixedUpdate() {
 	}
 
 	// ingredient jiggle //
-	lastYPositions.splice(0, 0, playerPosition.y)
+	lastYPositions.splice(0, 0, player.position.y)
 	lastYPositions.splice(200)
 
 	let weight = .925

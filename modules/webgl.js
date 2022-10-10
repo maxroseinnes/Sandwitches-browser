@@ -487,50 +487,81 @@ class Model {
       }
     }
     else {
-      for (let i = 0; i < mesh1.vertexIndices.length; i++) {
+      for (let i = 0; i < mesh1.indices.length; i++) {
         this.polys[i].point1.overridePosition(
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][0]][0] * this.scale, mesh2.positions[mesh2.vertexIndices[i][0]][0] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][0]][1] * this.scale, mesh2.positions[mesh2.vertexIndices[i][0]][1] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][0]][2] * this.scale, mesh2.positions[mesh2.vertexIndices[i][0]][2] * this.scale, stage)
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[0]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[0]][0] * this.scale, stage),
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[0]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[0]][1] * this.scale, stage),
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[0]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[0]][2] * this.scale, stage)
         )
         this.polys[i].point2.overridePosition(
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][1]][0] * this.scale, mesh2.positions[mesh2.vertexIndices[i][1]][0] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][1]][1] * this.scale, mesh2.positions[mesh2.vertexIndices[i][1]][1] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][1]][2] * this.scale, mesh2.positions[mesh2.vertexIndices[i][1]][2] * this.scale, stage)
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[1]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[1]][0] * this.scale, stage),
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[1]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[1]][1] * this.scale, stage),
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[1]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[1]][2] * this.scale, stage)
         )
         this.polys[i].point3.overridePosition(
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][2]][0] * this.scale, mesh2.positions[mesh2.vertexIndices[i][2]][0] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][2]][1] * this.scale, mesh2.positions[mesh2.vertexIndices[i][2]][1] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.vertexIndices[i][2]][2] * this.scale, mesh2.positions[mesh2.vertexIndices[i][2]][2] * this.scale, stage)
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[2]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[2]][0] * this.scale, stage),
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[2]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[2]][1] * this.scale, stage),
+          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[2]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[2]][2] * this.scale, stage)
         )
 
 
         this.polys[i].point1.overrideNormal(
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][0]][0], mesh2.normals[mesh2.normalIndices[i][0]][0], stage),
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][0]][1], mesh2.normals[mesh2.normalIndices[i][0]][1], stage),
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][0]][2], mesh2.normals[mesh2.normalIndices[i][0]][2], stage)
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[0]][0], mesh2.normals[mesh2.indices[i].normals[0]][0], stage),
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[0]][1], mesh2.normals[mesh2.indices[i].normals[0]][1], stage),
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[0]][2], mesh2.normals[mesh2.indices[i].normals[0]][2], stage)
         )
         this.polys[i].point2.overrideNormal(
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][1]][0], mesh2.normals[mesh2.normalIndices[i][1]][0], stage),
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][1]][1], mesh2.normals[mesh2.normalIndices[i][1]][1], stage),
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][1]][2], mesh2.normals[mesh2.normalIndices[i][1]][2], stage)
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[1]][0], mesh2.normals[mesh2.indices[i].normals[1]][0], stage),
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[1]][1], mesh2.normals[mesh2.indices[i].normals[1]][1], stage),
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[1]][2], mesh2.normals[mesh2.indices[i].normals[1]][2], stage)
         )
         this.polys[i].point3.overrideNormal(
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][2]][0], mesh2.normals[mesh2.normalIndices[i][2]][0], stage),
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][2]][1], mesh2.normals[mesh2.normalIndices[i][2]][1], stage),
-          this.lerp(mesh1.normals[mesh1.normalIndices[i][2]][2], mesh2.normals[mesh2.normalIndices[i][2]][2], stage)
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[2]][0], mesh2.normals[mesh2.indices[i].normals[2]][0], stage),
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[2]][1], mesh2.normals[mesh2.indices[i].normals[2]][1], stage),
+          this.lerp(mesh1.normals[mesh1.indices[i].normals[2]][2], mesh2.normals[mesh2.indices[i].normals[2]][2], stage)
         )
+        
 
       }
     }
   }
 
 
-  startAnimation(mesh1, mesh2, speed, smooth) {
+
+}
+
+
+
+class Player {
+  constructor(geometries, x, y, z, angleY, userInfo) {
+    this.geometries = geometries
+    this.ingredientModels = {}
+    for (let ingredient in geometries.idle) {
+      this.ingredientModels[ingredient] = new Model(geometries.idle[ingredient], 1)
+    }
+
+    this.position = {
+      x: x,
+      y: y,
+      z: z
+    }
+    this.angleY = angleY
+
+    this.userInfo = userInfo
+  }
+
+  updatePosition() {
+    for (let ingredient in this.ingredientModels) {
+      this.ingredientModels[ingredient].setPosition(this.angleY, this.position.x, this.position.y, this.position.z)
+    }
+  }
+
+
+  startAnimation(startMeshName, endMeshName, speed, smooth) {
     this.animation = {
-      fromMesh: mesh1,
-      toMesh: mesh2,
-      currentMesh: mesh2,
+      startMeshName: startMeshName,
+      endMeshName: endMeshName,
+      currentMeshName: endMeshName,
       speed: speed,
       startTime: Date.now(),
       endTime: Date.now() + speed * 1000,
@@ -540,6 +571,7 @@ class Model {
   }
 
   activeAnimation() {
+    if (this.animation == null) return false
     if (Date.now() > this.animation.endTime && this.finished) return false
     else return true
   }
@@ -550,7 +582,10 @@ class Model {
     if (!this.animation.smooth) stage = (Date.now() - this.animation.startTime) / (this.animation.endTime - this.animation.startTime)
     else stage = (Math.cos(Math.PI * ((Date.now() - this.animation.startTime) / (this.animation.endTime - this.animation.startTime) - 1)) + 1) / 2
 
-    this.interpolatePoints(this.animation.mesh1, this.animation.mesh2, stage)
+    for (let ingredient in this.ingredientModels) {
+      console.log(this.geometries[this.animation.endMeshName])
+      this.ingredientModels[ingredient].interpolatePoints(this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], stage)
+    }
   }
 
 
@@ -558,4 +593,5 @@ class Model {
 }
 
 
-export default { webgl, Poly, Point, Line, Dot, Model }
+
+export default { webgl, Poly, Point, Line, Dot, Model, Player }
