@@ -73,6 +73,7 @@ const menu = document.getElementById("menu")
 const startButton = document.getElementById("startButton")
 const info = document.getElementById("info")
 const canvas = document.getElementById("canvas")
+const effectsCanvas = document.getElementById("effectsCanvas")
 
 
 // INITIALIZE WEBGL //
@@ -177,6 +178,17 @@ var groundPoly2 = new Poly(
     new Point(squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB),
     new Point(squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB)
 )
+
+// 2D EFFECTS //
+var ctx = effectsCanvas.getContext("2d")
+ctx.fillStyle = "white"
+var chOffset = 10
+ctx.fillRect(effectsCanvas.width / 2 - 1, effectsCanvas.height / 2 - 20, 2, 10)
+ctx.fillRect(effectsCanvas.width / 2 - 1, effectsCanvas.height / 2 + 10, 2, 10)
+ctx.fillRect(effectsCanvas.width / 2 - 20, effectsCanvas.height / 2 - 1, 10, 2)
+ctx.fillRect(effectsCanvas.width / 2 + 10, effectsCanvas.height / 2 + 1, 10, 2)
+
+
 
 // TESTING //
 

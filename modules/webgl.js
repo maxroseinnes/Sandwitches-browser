@@ -20,6 +20,8 @@ var webgl = {
     this.canvas = document.getElementById("canvas"),
     this.canvas.width = window.innerWidth // THESE HAVE TO BE SET BEFORE GL IS MADE
     this.canvas.height = window.innerHeight
+    document.getElementById("effectsCanvas").width = window.innerWidth
+    document.getElementById("effectsCanvas").height = window.innerHeight
     this.aspect = canvas.width / canvas.height
     this.gl = this.canvas.getContext("webgl"),
 
@@ -167,7 +169,7 @@ var webgl = {
 
     let tMatrix = mat4.create();
 
-  	mat4.translate(tMatrix, tMatrix, [-2, -1, -4]);
+  	mat4.translate(tMatrix, tMatrix, [-3, -2, -4]);
     mat4.rotateX(tMatrix, tMatrix, angleX);
     mat4.rotateY(tMatrix, tMatrix, angleY);
     mat4.translate(tMatrix, tMatrix, [-playerPosition.x, -playerPosition.y, -playerPosition.z]);
@@ -234,6 +236,13 @@ var webgl = {
 
 
 
+var points = []
+var pointColors = []
+var pointNormals = []
+var polys = []
+var pointSizes = []
+var dots = []
+var lines = []
 
 
 
@@ -357,7 +366,7 @@ class Line{
 class Dot{
   constructor(point, size) {
     this.point = point;
-    this.dotIndex = dots.length
+    this.dotIndex = webgl.dots.length
     webgl.dots.push(point.pointIndex)
 
     this.pointSize = size;
@@ -632,7 +641,7 @@ class Weapon {
     // default settings
     this.cooldown = 1 // seconds
     this.automatic = false
-    this.speed = .05 // units/millisecond
+    this.speed = .01 // units/millisecond
     this.manaCost = 20
     this.damage = 10 // this might be handled server
     this.chargeTime = 0 // seconds
@@ -693,6 +702,12 @@ class Weapon {
     let tempX = this.shootMovementVector.x
     this.shootMovementVector.z = Math.cos(angleY) * tempZ - Math.sin(angleY) * tempX
     this.shootMovementVector.x = Math.sin(angleY) * tempZ + Math.cos(angleY) * tempX
+
+    this.position.z += -Math.sin(angleY)
+    this.position.x += Math.cos(angleY)
+    this.position.y += Math.cos(angleX)
+    //this.position.z += Math.sin(angleX)
+
 
     this.shooted = true
 
