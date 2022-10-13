@@ -195,7 +195,7 @@ var webgl = {
     this.gl.uniformMatrix4fv(nMatrixLocation, false, nMatrix);
 
 
-    this.gl.clearColor(0.5, 0.5, 0.5, 1);
+    this.gl.clearColor(0.75, 0.9, 1, 1);
     this.gl.clearDepth(1);
     this.gl.enable(this.gl.DEPTH_TEST);
     this.gl.depthFunc(this.gl.LEQUAL);
@@ -240,11 +240,13 @@ var webgl = {
 
 
 class Poly{
+  static allPolys = []
   constructor(point1, point2, point3) {
+    Poly.allPolys.push(this)
     this.point1 = point1;
     this.point2 = point2;
     this.point3 = point3;
-    this.polyIndex = webgl.polys.length;
+    this.polyIndex = webgl.polys.length / 3;
     webgl.polys.push(point1.pointIndex, point2.pointIndex, point3.pointIndex);
     this.existant = true;
 /*
@@ -258,14 +260,17 @@ class Poly{
   }
 
   delete() {
-    polys.splice(this.polyIndex * 3, 3);
+    webgl.polys.splice(this.polyIndex * 3, 3, null, null, null);
     this.existant = false;
   }
+
 }
 
 
 class Point {
+  static allPoints = []
   constructor(x, y, z, n1, n2, n3, r, g, b) {
+    Point.allPoints.push(this)
     this.x = x;
     this.y = y;
     this.z = z;
@@ -280,8 +285,6 @@ class Point {
 
 
     this.pointIndex = webgl.points.length / 3;
-    this.pointColorIndex = webgl.pointColors.length / 4;
-    this.pointNormalIndex = webgl.pointNormals.length / 3;
     this.pointSizeIndex = webgl.pointsizes.length;
 
     webgl.points.push(x, y, z);
@@ -291,7 +294,6 @@ class Point {
   }
 
   setPosition(angle, x, y, z, scale) {
-
     webgl.points.splice(this.pointIndex * 3, 3, 	  this.x * scale  * Math.cos(angle) - this.z * scale  * Math.sin(angle) + x, this.y * scale + y, this.x * scale  * Math.sin(angle) + this.z * scale  * Math.cos(angle) + z);
     webgl.pointNormals.splice(this.pointIndex * 3, 3, this.n1 * Math.cos(angle) - this.n3 * Math.sin(angle)    , this.n2,    this.n1 * Math.sin(angle) + this.n3 * Math.cos(angle))
   }
@@ -321,13 +323,17 @@ class Point {
     this.g = g;
     this.b = b;
 
-    webgl.pointColors.splice(this.pointColorIndex * 4, 3, this.r, this.g, this.b);
+    webgl.pointColors.splice(this.pointIndex * 4, 3, this.r, this.g, this.b);
   }
 
+
   delete() {
-    webgl.points.splice(this.pointIndex * 3, 3)
-    webgl.pointColors.splice(this.pointColorIndex * 4, 4)
+    webgl.points.splice(this.pointIndex * 3, 3, null, null, null)
+    webgl.pointColors.splice(this.pointIndex * 4, 4, null, null, null, null)
+    webgl.pointNormals.splice(this.pointIndex * 3, 3, null, null, null)
   }
+
+
 }
 
 
@@ -364,52 +370,50 @@ class Dot{
 
 
 class Model {
-  constructor(geometryInfo, scale) {
+  constructor(geometryInfo, scale, r, g, b) {
 
 
-  this.scale = scale
+    this.scale = scale
 
-  this.x = 0
-  this.y = 0
-  this.z = 0
+    this.x = 0
+    this.y = 0
+    this.z = 0
 
-  let positions = geometryInfo.positions
-  let normals = geometryInfo.normals
-  let smooth = geometryInfo.smooth
+    let positions = geometryInfo.positions
+    let normals = geometryInfo.normals
+    let smooth = geometryInfo.smooth
 
-  this.positions = positions
-  this.normals = normals
-  this.smooth = smooth
+    this.positions = positions
+    this.normals = normals
+    this.smooth = smooth
+    //smooth = true
 
-  let vertexIndices = []
-  let normalIndices = []
-  for (let i = 0; i < geometryInfo.indices.length; i++) {
-      vertexIndices.push(geometryInfo.indices[i].vertexes)
-      normalIndices.push(geometryInfo.indices[i].normals)
-  }
+    let vertexIndices = []
+    let normalIndices = []
+    for (let i = 0; i < geometryInfo.indices.length; i++) {
+        vertexIndices.push(geometryInfo.indices[i].vertexes)
+        normalIndices.push(geometryInfo.indices[i].normals)
+    }
 
-  this.vertexIndices = vertexIndices
-  this.normalIndices = normalIndices
+    this.vertexIndices = vertexIndices
+    this.normalIndices = normalIndices
 
-  this.points = []
-  this.polys = []
+    this.points = []
+    this.polys = []
 
-  if (!smooth) {
+    if (!smooth) {
       // for each triangle: make three new points and a poly
 
 
 
-    for (let i = 0; i < vertexIndices.length; i++) {
-      let r = .5
-      let g = .5
-      let b = .5
-      let point1 = new Point(positions[vertexIndices[i][0]][0] * scale + this.x, positions[vertexIndices[i][0]][1] * scale + this.y, positions[vertexIndices[i][0]][2] * scale + this.z, normals[normalIndices[i][0]][0], normals[normalIndices[i][0]][1], normals[normalIndices[i][0]][2], r, g, b)
-      let point2 = new Point(positions[vertexIndices[i][1]][0] * scale + this.x, positions[vertexIndices[i][1]][1] * scale + this.y, positions[vertexIndices[i][1]][2] * scale + this.z, normals[normalIndices[i][1]][0], normals[normalIndices[i][1]][1], normals[normalIndices[i][1]][2], r, g, b)
-      let point3 = new Point(positions[vertexIndices[i][2]][0] * scale + this.x, positions[vertexIndices[i][2]][1] * scale + this.y, positions[vertexIndices[i][2]][2] * scale + this.z, normals[normalIndices[i][2]][0], normals[normalIndices[i][2]][1], normals[normalIndices[i][2]][2], r, g, b)
+      for (let i = 0; i < vertexIndices.length; i++) {
+        let point1 = new Point(positions[vertexIndices[i][0]][0] * scale + this.x, positions[vertexIndices[i][0]][1] * scale + this.y, positions[vertexIndices[i][0]][2] * scale + this.z, normals[normalIndices[i][0]][0], normals[normalIndices[i][0]][1], normals[normalIndices[i][0]][2], r, g, b)
+        let point2 = new Point(positions[vertexIndices[i][1]][0] * scale + this.x, positions[vertexIndices[i][1]][1] * scale + this.y, positions[vertexIndices[i][1]][2] * scale + this.z, normals[normalIndices[i][1]][0], normals[normalIndices[i][1]][1], normals[normalIndices[i][1]][2], r, g, b)
+        let point3 = new Point(positions[vertexIndices[i][2]][0] * scale + this.x, positions[vertexIndices[i][2]][1] * scale + this.y, positions[vertexIndices[i][2]][2] * scale + this.z, normals[normalIndices[i][2]][0], normals[normalIndices[i][2]][1], normals[normalIndices[i][2]][2], r, g, b)
 
-      this.points.push(point1, point2, point3)
-      this.polys.push(new Poly(point1, point2, point3))
-    }
+        this.points.push(point1, point2, point3)
+        this.polys.push(new Poly(point1, point2, point3))
+      }
 
   }
 
@@ -418,7 +422,7 @@ class Model {
       for (let i = 0; i < positions.length; i++) {
         let connectedPolys = []
         for (let j = 0; j < vertexIndices.length; j++) {
-          for (let k = 0; k < vertexIndices[i].length; k++) {
+          for (let k = 0; k < vertexIndices[j].length; k++) {
             if (vertexIndices[j][k] == i) connectedPolys.push({ index: j, vertex: k })
           }
         }
@@ -438,7 +442,7 @@ class Model {
         averageNormalZ /= connectedPolys.length
 
 
-        points.push(new Point(positions[i][0] * scale + this.x, positions[i][1] * scale + this.y, positions[i][2] * scale + this.z, averageNormalX, averageNormalY, averageNormalZ, .5, .5, .5))
+        points.push(new Point(positions[i][0] * scale + this.x, positions[i][1] * scale + this.y, positions[i][2] * scale + this.z, averageNormalX, averageNormalY, averageNormalZ, r, g, b))
       }
 
       for (let i = 0; i < vertexIndices.length; i++) {
@@ -477,16 +481,19 @@ class Model {
           this.lerp(mesh1.positions[i][2] * this.scale, mesh2.positions[i][2] * this.scale, stage),
         )
       }
-
+/*
       for (let i = 0; i < mesh1.normals.length; i++) {
         this.points[i].overrideNormal(
         this.lerp(mesh1.normals[i][0] * this.scale, mesh2.normals[i][0] * this.scale, stage),
         this.lerp(mesh1.normals[i][1] * this.scale, mesh2.normals[i][1] * this.scale, stage),
         this.lerp(mesh1.normals[i][2] * this.scale, mesh2.normals[i][2] * this.scale, stage),
         )
-      }
+      }*/
     }
     else {
+      if (mesh1.indices.length != mesh2.indices.length) {
+        throw("different triangle count in" + mesh1.indices.length + ", " + mesh2.indices.length)
+      }
       for (let i = 0; i < mesh1.indices.length; i++) {
         this.polys[i].point1.overridePosition(
           this.lerp(mesh1.positions[mesh1.indices[i].vertexes[0]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[0]][0] * this.scale, stage),
@@ -526,7 +533,14 @@ class Model {
     }
   }
 
-
+  delete() {
+    for (let i = 0; i < this.polys.length; i++) {
+      this.polys[i].delete()
+    }
+    for (let i = 0; i < this.points.length; i++) {
+      this.points[i].delete()
+    }
+  }
 
 }
 
@@ -537,7 +551,27 @@ class Player {
     this.geometries = geometries
     this.ingredientModels = {}
     for (let ingredient in geometries.idle) {
-      this.ingredientModels[ingredient] = new Model(geometries.idle[ingredient], 1)
+      let r = .5
+      let g = .5
+      let b = .5
+      let scale = 1
+      if (ingredient.indexOf("Slice") != -1) { r = .25; g = .15; b = .05; }
+      if (ingredient.indexOf("cheese") != -1) { r = .6; g = .4; b = .1; }
+      if (ingredient.indexOf("meat") != -1) { r = .6; g = .4; b = .4; }
+      if (ingredient.indexOf("tomato") != -1) { r = .9; g = .2; b = .1; scale = 1.05; }
+      this.ingredientModels[ingredient] = new Model(geometries.idle[ingredient], scale, r, g, b)
+    }
+
+
+    this.animation = {
+      startMeshName: "idle",
+      endMeshName: "idle",
+      currentMeshName: "idle",
+      speed: 0,
+      startTime: Date.now(),
+      endTime: Date.now(),
+      smooth: true,
+      finished: true
     }
 
     this.position = {
@@ -568,23 +602,22 @@ class Player {
       smooth: smooth,
       finished: false
     }
+
   }
 
-  activeAnimation() {
-    if (this.animation == null) return false
-    if (Date.now() > this.animation.endTime && this.finished) return false
-    else return true
-  }
 
   updateAnimation() {
     if (this.animation == null) return
     let stage
     if (!this.animation.smooth) stage = (Date.now() - this.animation.startTime) / (this.animation.endTime - this.animation.startTime)
     else stage = (Math.cos(Math.PI * ((Date.now() - this.animation.startTime) / (this.animation.endTime - this.animation.startTime) - 1)) + 1) / 2
+    if (Date.now() >= this.animation.endTime) {
+      this.animation.finished = true
+      stage = 1
+    }
 
     for (let ingredient in this.ingredientModels) {
-      console.log(this.geometries[this.animation.endMeshName])
-      this.ingredientModels[ingredient].interpolatePoints(this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], stage)
+      if (ingredient != "tomato4") this.ingredientModels[ingredient].interpolatePoints(this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], stage)
     }
   }
 
@@ -593,5 +626,83 @@ class Player {
 }
 
 
+class Weapon {
+  constructor(geometryInfos, type) {
 
-export default { webgl, Poly, Point, Line, Dot, Model, Player }
+    // default settings
+    this.cooldown = 1 // seconds
+    this.automatic = false
+    this.speed = .05 // units/millisecond
+    this.manaCost = 20
+    this.damage = 10 // this might be handled server
+    this.chargeTime = 0 // seconds
+    this.burstCount = 1
+    this.burstInterval = .5 // time between shots of bursts, seconds
+    this.scale = 1
+
+    if (type == "tomato") {
+      this.cooldown = .5
+      this.manaCost = 5
+      this.damage = 5
+
+      this.scale = .625
+      this.model = new Model(geometryInfos.tomato, this.scale, .6, .1, .1)
+    }
+
+
+
+    this.position = {
+      x: 0,
+      y: 0, 
+      z: 0
+    }
+    this.angleY = 0
+
+
+    this.shooted = false
+    this.shootMovementVector = {
+      x: 0,
+      y: 0,
+      z: 0      
+    }
+
+  }
+
+  updatePosition(deltaTime) {
+    if (this.shooted) {
+      this.position.x += this.shootMovementVector.x * deltaTime
+      this.position.y += this.shootMovementVector.y * deltaTime
+      this.position.z += this.shootMovementVector.z * deltaTime
+    }
+    this.model.setPosition(this.angleY, this.position.x, this.position.y, this.position.z)
+  }
+
+  shoot(angleX, angleY) {
+    angleX = -angleX
+    angleY = -angleY
+    this.shootMovementVector.x = 0
+    this.shootMovementVector.y = 0
+    this.shootMovementVector.z = -this.speed
+
+    let tempY = this.shootMovementVector.y
+    let tempZ = this.shootMovementVector.z
+    this.shootMovementVector.y = Math.cos(angleX) * tempY - Math.sin(angleX) * tempZ
+    this.shootMovementVector.z = Math.sin(angleX) * tempY + Math.cos(angleX) * tempZ
+
+    tempZ = this.shootMovementVector.z
+    let tempX = this.shootMovementVector.x
+    this.shootMovementVector.z = Math.cos(angleY) * tempZ - Math.sin(angleY) * tempX
+    this.shootMovementVector.x = Math.sin(angleY) * tempZ + Math.cos(angleY) * tempX
+
+    this.shooted = true
+
+    return this.cooldown
+  }
+
+
+
+}
+
+
+
+export default { webgl, Poly, Point, Line, Dot, Model, Player, Weapon }

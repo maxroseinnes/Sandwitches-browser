@@ -1,0 +1,4 @@
+
+make deltatime stop updating when paused
+
+why are normals changing with smooth sandwitch?
