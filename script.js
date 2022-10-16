@@ -131,53 +131,59 @@ var playerGeometry = {
 }
 
 var weaponGeometry = {
-    tomato: obj.parseWavefront(modelData.weapons.tomato, false)
+    tomato: obj.parseWavefront(modelData.weapons.tomato, false),
+    olive: obj.parseWavefront(modelData.weapons.olive, false),
+    pickle: obj.parseWavefront(modelData.weapons.pickle, false),
+    sausage: obj.parseWavefront(modelData.weapons.sausage, false)
+}
+
+var platformGeometry = {
+    basic: obj.parseWavefront(modelData.platforms.basic, false)
 }
 
 var player = new Player(playerGeometry, 0, 0, 0, angleY, "steve")
-//var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
+var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
 
-var currentWeapon = new Weapon(weaponGeometry, "tomato")
 var otherWeapons = []
 
+{
+    let gridPointsMX = []
+    let gridPointsPX = []
+    let gridPointsMZ = []
+    let gridPointsPZ = []
+    
+    let gridSize = 30;
+    let gridSpacing = 20;
+    
+    for (let i = -gridSize; i < gridSize; i++) {
+        gridPointsMX.push(new Point(i * gridSpacing, 0, -gridSpacing * gridSize, 0, 1, 0, .5, .5, .5))
+        gridPointsPX.push(new Point(i * gridSpacing, 0,  gridSpacing * gridSize, 0, 1, 0, .5, .5, .5))
+        gridPointsMZ.push(new Point(-gridSpacing * gridSize, 0, i * gridSpacing, 0, 1, 0, .5, .5, .5))
+        gridPointsPZ.push(new Point( gridSpacing * gridSize, 0, i * gridSpacing, 0, 1, 0, .5, .5, .5))
+    }
+    
+    let gridLinesX = []
+    let gridLinesZ = []
+    
+    for (let i = 0; i < gridPointsMX.length; i++) {
+        //gridLinesX.push(new Line(gridPointsMX[i], gridPointsPX[i]))
+        //gridLinesZ.push(new Line(gridPointsMZ[i], gridPointsPZ[i]))
+    }
+    
+    let squareRadius = gridSize * gridSpacing // not really radius but whatever
+    let groundR = .2
+    let groundG = .2
+    let groundB = .2
+    let groundPoint1 = new Point(squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB)
+    let groundPoint2 = new Point(-squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB)
+    let groundPoint3 = new Point(-squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB)
+    let groundPoint4 = new Point(squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB)
 
-let gridPointsMX = []
-let gridPointsPX = []
-let gridPointsMZ = []
-let gridPointsPZ = []
+    let groundPoly1 = new Poly(groundPoint1, groundPoint2, groundPoint3)
+    let groundPoly2 = new Poly(groundPoint3, groundPoint4, groundPoint1)
+    
 
-let gridSize = 30;
-let gridSpacing = 2;
-
-for (let i = -gridSize; i < gridSize; i++) {
-	gridPointsMX.push(new Point(i * gridSpacing, 0, -gridSpacing * gridSize, 0, 1, 0, .5, .5, .5))
-	gridPointsPX.push(new Point(i * gridSpacing, 0,  gridSpacing * gridSize, 0, 1, 0, .5, .5, .5))
-	gridPointsMZ.push(new Point(-gridSpacing * gridSize, 0, i * gridSpacing, 0, 1, 0, .5, .5, .5))
-	gridPointsPZ.push(new Point( gridSpacing * gridSize, 0, i * gridSpacing, 0, 1, 0, .5, .5, .5))
 }
-
-let gridLinesX = []
-let gridLinesZ = []
-
-for (let i = 0; i < gridPointsMX.length; i++) {
-	gridLinesX.push(new Line(gridPointsMX[i], gridPointsPX[i]))
-	gridLinesZ.push(new Line(gridPointsMZ[i], gridPointsPZ[i]))
-}
-
-let squareRadius = gridSize * gridSpacing // not really radius but whatever
-let groundR = .2
-let groundG = .2
-let groundB = .2
-var groundPoly1 = new Poly(
-    new Point(squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB),
-    new Point(-squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB),
-    new Point(-squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB)
-)
-var groundPoly2 = new Poly(
-    new Point(-squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB),
-    new Point(squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB),
-    new Point(squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB)
-)
 
 // 2D EFFECTS //
 var ctx = effectsCanvas.getContext("2d")
@@ -190,35 +196,49 @@ ctx.fillRect(effectsCanvas.width / 2 + 10, effectsCanvas.height / 2 + 1, 10, 2)
 
 
 
-// TESTING //
-
-var arr1 = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 9],
-    [10, 11, 12],
-    [13, 14, 15]
-]
-
-var arr2 = []
-arr2.push(arr1[0], arr1[3])
-arr1.splice(1, 1)
-
-console.log(getIndices(arr1, arr2))
-
-function getIndices(arr1, arr2) {
-    let indices = []
+var inventory = {
+    loadOut: ["tomato", "olive", "pickle", "sausage"],
+    weaponModels: [],
+    currentSelection: 0,
+    currentWeapon: null,
     
-    for (let i = 0; i < arr2.length; i++) {
-        indices.push(arr1.findIndex(element => element == arr2[i]))
-    }
 
-    return indices
+
+    initialize: function() {
+        for (let i = 0; i < this.loadOut.length; i++) {
+            this.weaponModels.push(new Weapon(weaponGeometry, this.loadOut[i]))
+        }
+
+        this.currentWeapon = this.weaponModels[this.currentSelection]
+    },
+
+    updateHUD: function() {
+        let width = effectsCanvas.width
+        let height = effectsCanvas.height
+        ctx.clearRect(width - 400, height - 200, 400, 200)
+        ctx.fillRect(width - 400, height - 200, 400, 100)
+        
+        for (let i = 0; i < this.loadOut.length; i++) {
+            if (this.loadOut[i] == "tomato") ctx.fillStyle = "red"
+            if (this.loadOut[i] == "olive") ctx.fillStyle = "green"
+            if (this.loadOut[i] == "pickle") ctx.fillStyle = "lightgreen"
+            if (this.loadOut[i] == "sausage") ctx.fillStyle = "brown"
+
+            ctx.fillRect(width - 400 + i * 100, height - 200, 100, 100)
+        }
+    }
 }
 
+inventory.initialize()
+//inventory.updateHUD()
+
+
+// TESTING //
 
 
 
+
+// UPDATE LOOP //
 
 function update(now) {
     let deltaTime = now - updateThen;
@@ -228,9 +248,8 @@ function update(now) {
 
 	lastFramerates.splice(0, 0, 1000 / deltaTime)
 	lastFramerates.splice(20)
-	let totalFramerate = 0
-	for (let i = 0; i < lastFramerates.length; i++) totalFramerate += lastFramerates[i]
-	let rollingFramerate  = totalFramerate / lastFramerates.length
+	let rollingFramerate = 0
+	for (let i = 0; i < lastFramerates.length; i++) rollingFramerate += lastFramerates[i] / lastFramerates.length
 	info.innerHTML = Math.round(rollingFramerate)
 
 
@@ -244,13 +263,13 @@ function update(now) {
 	player.updatePosition() // this must go last
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
-    currentWeapon.model.scale = currentWeapon.scale * distanceFromPlayer / 2
+    inventory.currentWeapon.model.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
     
-    currentWeapon.position.x = player.position.x + Math.cos(player.angleY) * distanceFromPlayer
-    currentWeapon.position.y = player.position.y + 1
-    currentWeapon.position.z = player.position.z + Math.sin(player.angleY) * distanceFromPlayer
-    currentWeapon.angleY = Date.now() / 1000 + player.angleY
-    currentWeapon.updatePosition(deltaTime)
+    inventory.currentWeapon.position.x = player.position.x + Math.cos(player.angleY) * distanceFromPlayer
+    inventory.currentWeapon.position.y = player.position.y + 1
+    inventory.currentWeapon.position.z = player.position.z + Math.sin(player.angleY) * distanceFromPlayer
+    inventory.currentWeapon.angleY = Date.now() / 1000 + player.angleY
+    inventory.currentWeapon.updatePosition(deltaTime)
 
     for (let i = 0; i < otherWeapons.length; i++) {
         if (otherWeapons[i].shooted) {
@@ -321,11 +340,11 @@ function fixedUpdate() {
 	}
 
     if (leftClicking) {
-        if (!currentWeapon.shooted && cooldownTimer <= 0) {
-              currentCooldown = currentWeapon.shoot(angleX, angleY)
+        if (!inventory.currentWeapon.shooted && cooldownTimer <= 0) {
+              currentCooldown = inventory.currentWeapon.shoot(angleX, angleY)
               cooldownTimer = currentCooldown
-              otherWeapons.push(currentWeapon)
-              currentWeapon = new Weapon(weaponGeometry, "tomato")
+              otherWeapons.push(inventory.currentWeapon)
+              inventory.currentWeapon = new Weapon(weaponGeometry, "tomato")
         }
     }
 
@@ -391,7 +410,7 @@ if (event.keyCode == 65) a = true
 if (event.keyCode == 68) d = true
 
 if (event.keyCode == 16) {
-    currentWeapon.model.delete()
+    inventory.currentWeapon.model.delete()
     console.log("deleted")
 
     let deletedPointIndices = []

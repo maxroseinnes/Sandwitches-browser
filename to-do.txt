@@ -1,4 +1,13 @@
 
 make deltatime stop updating when paused
 
-why are normals changing with smooth sandwitch?
+why are normals changing with smooth sandwitch? -- solved: non-smooth interpolation was in affect
+
+
+
+Point and poly organization:
+    have each object occupy a domain of the webgl. point and poly arrays
+    this 
+
+
+sub in points and reorganize points and polys at a fixed rate

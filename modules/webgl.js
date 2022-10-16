@@ -43,8 +43,8 @@ var webgl = {
       gl_Position = pMatrix * tMatrix * vertPosition;
       gl_PointSize = aPointSize;
   
-      highp vec3 ambientLight = vec3(0.5, 0.5, 0.5);
-      highp vec3 directionalLightColor = vec3(1, 1, 1);
+      highp vec3 ambientLight = vec3(0.8, 0.8, 0.8);
+      highp vec3 directionalLightColor = vec3(.5, .5, .5);
       highp vec3 directionalVector = normalize(vec3(0.0, 0.5, 1.0));
   
       highp vec4 transformedNormal = nMatrix * vec4(aVertNormal, 1.0);
@@ -197,7 +197,7 @@ var webgl = {
     this.gl.uniformMatrix4fv(nMatrixLocation, false, nMatrix);
 
 
-    this.gl.clearColor(0.75, 0.9, 1, 1);
+    this.gl.clearColor(0.75, 0.8, 1, 1);
     this.gl.clearDepth(1);
     this.gl.enable(this.gl.DEPTH_TEST);
     this.gl.depthFunc(this.gl.LEQUAL);
@@ -641,7 +641,7 @@ class Weapon {
     // default settings
     this.cooldown = 1 // seconds
     this.automatic = false
-    this.speed = .01 // units/millisecond
+    this.speed = .05 // units/millisecond
     this.manaCost = 20
     this.damage = 10 // this might be handled server
     this.chargeTime = 0 // seconds
@@ -656,6 +656,33 @@ class Weapon {
 
       this.scale = .625
       this.model = new Model(geometryInfos.tomato, this.scale, .6, .1, .1)
+    }
+    
+    if (type == "olive") {
+      this.cooldown = .5
+      this.manaCost = 5
+      this.damage = 5
+
+      this.scale = .925
+      this.model = new Model(geometryInfos.olive, this.scale, .2, .3, .2)
+    }
+
+    if (type == "pickle") {
+      this.cooldown = .5
+      this.manaCost = 5
+      this.damage = 5
+
+      this.scale = .625
+      this.model = new Model(geometryInfos.pickle, this.scale, .1, .4, .1)
+    }
+
+    if (type == "sausage") {
+      this.cooldown = .5
+      this.manaCost = 5
+      this.damage = 5
+
+      this.scale = .625
+      this.model = new Model(geometryInfos.sausage, this.scale, .6, .1, .1)
     }
 
 
@@ -717,6 +744,26 @@ class Weapon {
 
 
 }
+
+
+
+class Platform {
+  constructor(geometryInfo, type, x, y, z) {
+    this.model = new Model(geometryInfo[type], 1)
+    this.model.setPosition(0, x, y, z)
+    this.x = x
+    this.y = y
+    this.z = z
+
+    
+    for (let i = 0; i < geometryInfo[type].positions.length; i++) {
+
+    }
+  }
+}
+
+
+
 
 
 
