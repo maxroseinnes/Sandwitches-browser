@@ -1,14 +1,17 @@
-const ws = require("ws");
-const server = new ws.Server({
-    port: 3000
-})
+const express = require("express");
+const app = express();
+const http = require("http");
+const server = http.createServer(app);
+const socketio = require("socket.io");
+const socketServer = new socketio.Server(server);
+const port = 3000;
 
-server.on("connection", () => {
-    console.log("New client connected!");
-    server.on("message", (data) => {
-        console.log("Received \"", data, "\" from client.");
-    })
-    server.on("close", () => {
-        console.log("Client disconnected.");
-    })
-})
+app.use(express.static("public"));
+
+socketServer.on("connection", (socket) => {
+  console.log("New client connected!");e
+});
+
+server.listen(port, () => {
+  console.log("Listening on port " + port);
+});
