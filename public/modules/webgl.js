@@ -169,7 +169,7 @@ var webgl = {
 
     let tMatrix = mat4.create();
 
-  	mat4.translate(tMatrix, tMatrix, [-3, -2, -4]);
+  	mat4.translate(tMatrix, tMatrix, [-3, -2, -8]);
     mat4.rotateX(tMatrix, tMatrix, angleX);
     mat4.rotateY(tMatrix, tMatrix, angleY);
     mat4.translate(tMatrix, tMatrix, [-playerPosition.x, -playerPosition.y, -playerPosition.z]);
@@ -180,7 +180,7 @@ var webgl = {
     let pMatrix = mat4.create();
 
     //                        fov        , aspect, near, far
-    mat4.perspective(pMatrix, Math.PI / 2, this.aspect, .1, 1000);
+    mat4.perspective(pMatrix, Math.PI / 3, this.aspect, .1, 1000);
 
 
     let pMatrixLocation = this.gl.getUniformLocation(this.program, "pMatrix");

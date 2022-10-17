@@ -1,6 +1,6 @@
 
 //// ---- MAIN SCRIPT ---- ////
-var socket = io();
+//var socket = io();
 console.log("starting script")
 import modelStuff from "./modules/model-data.js"
 
