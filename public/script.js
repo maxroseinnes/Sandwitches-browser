@@ -17,6 +17,7 @@ var Dot = webglStuff.Dot
 var Model = webglStuff.Model
 var Player = webglStuff.Player
 var Weapon = webglStuff.Weapon
+var Platform = webglStuff.Platform
 
 
 
@@ -143,6 +144,7 @@ var platformGeometry = {
 
 var player = new Player(playerGeometry, 0, 0, 0, angleY, "steve")
 var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
+var platform = new Platform(platformGeometry, "basic", 5, 0, -8)
 
 var otherWeapons = []
 
@@ -152,8 +154,8 @@ var otherWeapons = []
     let gridPointsMZ = []
     let gridPointsPZ = []
     
-    let gridSize = 30;
-    let gridSpacing = 20;
+    let gridSize = 10;
+    let gridSpacing = 2;
     
     for (let i = -gridSize; i < gridSize; i++) {
         gridPointsMX.push(new Point(i * gridSpacing, 0, -gridSpacing * gridSize, 0, 1, 0, .5, .5, .5))
@@ -166,8 +168,8 @@ var otherWeapons = []
     let gridLinesZ = []
     
     for (let i = 0; i < gridPointsMX.length; i++) {
-        //gridLinesX.push(new Line(gridPointsMX[i], gridPointsPX[i]))
-        //gridLinesZ.push(new Line(gridPointsMZ[i], gridPointsPZ[i]))
+        gridLinesX.push(new Line(gridPointsMX[i], gridPointsPX[i]))
+        gridLinesZ.push(new Line(gridPointsMZ[i], gridPointsPZ[i]))
     }
     
     let squareRadius = gridSize * gridSpacing // not really radius but whatever
@@ -189,10 +191,10 @@ var otherWeapons = []
 var ctx = effectsCanvas.getContext("2d")
 ctx.fillStyle = "white"
 var chOffset = 10
-ctx.fillRect(effectsCanvas.width / 2 - 1, effectsCanvas.height / 2 - 20, 2, 10)
-ctx.fillRect(effectsCanvas.width / 2 - 1, effectsCanvas.height / 2 + 10, 2, 10)
-ctx.fillRect(effectsCanvas.width / 2 - 20, effectsCanvas.height / 2 - 1, 10, 2)
-ctx.fillRect(effectsCanvas.width / 2 + 10, effectsCanvas.height / 2 + 1, 10, 2)
+//ctx.fillRect(effectsCanvas.width / 2 - 1, effectsCanvas.height / 2 - 20, 2, 10)
+//ctx.fillRect(effectsCanvas.width / 2 - 1, effectsCanvas.height / 2 + 10, 2, 10)
+//ctx.fillRect(effectsCanvas.width / 2 - 20, effectsCanvas.height / 2 - 1, 10, 2)
+//ctx.fillRect(effectsCanvas.width / 2 + 10, effectsCanvas.height / 2 + 1, 10, 2)
 
 
 
@@ -236,6 +238,12 @@ inventory.initialize()
 // TESTING //
 
 
+var testSlope = Platform.calculateSlopes({x: 0, y: 0, z: 0}, {x: 1, y: 1, z: 1})
+console.log(testSlope)
+console.log(testSlope.x.dependY(5))
+
+
+
 
 
 // UPDATE LOOP //
@@ -266,7 +274,7 @@ function update(now) {
     inventory.currentWeapon.model.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
     
     inventory.currentWeapon.position.x = player.position.x + Math.cos(player.angleY) * distanceFromPlayer
-    inventory.currentWeapon.position.y = player.position.y + 1
+    inventory.currentWeapon.position.y = player.position.y + 1.5
     inventory.currentWeapon.position.z = player.position.z + Math.sin(player.angleY) * distanceFromPlayer
     inventory.currentWeapon.angleY = Date.now() / 1000 + player.angleY
     inventory.currentWeapon.updatePosition(deltaTime)
@@ -363,6 +371,12 @@ function fixedUpdate() {
 	}
 
 
+    // collision //
+
+    if (platform.calculateCollision(player.position)) {
+        player.position.y = platform.py
+        gravity = 0
+    }
 
 
 

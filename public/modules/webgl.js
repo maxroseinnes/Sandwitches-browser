@@ -169,7 +169,7 @@ var webgl = {
 
     let tMatrix = mat4.create();
 
-  	mat4.translate(tMatrix, tMatrix, [-3, -2, -8]);
+  	mat4.translate(tMatrix, tMatrix, [-2, -1, -8]);
     mat4.rotateX(tMatrix, tMatrix, angleX);
     mat4.rotateY(tMatrix, tMatrix, angleY);
     mat4.translate(tMatrix, tMatrix, [-playerPosition.x, -playerPosition.y, -playerPosition.z]);
@@ -395,7 +395,7 @@ class Model {
     this.positions = positions
     this.normals = normals
     this.smooth = smooth
-    //smooth = true
+    smooth = true
 
     let vertexIndices = []
     let normalIndices = []
@@ -714,7 +714,7 @@ class Weapon {
   }
 
   shoot(angleX, angleY) {
-    angleX = -angleX
+    angleX = -angleX + Math.PI / 64
     angleY = -angleY
     this.shootMovementVector.x = 0
     this.shootMovementVector.y = 0
@@ -729,12 +729,12 @@ class Weapon {
     let tempX = this.shootMovementVector.x
     this.shootMovementVector.z = Math.cos(angleY) * tempZ - Math.sin(angleY) * tempX
     this.shootMovementVector.x = Math.sin(angleY) * tempZ + Math.cos(angleY) * tempX
-
+/*
     this.position.z += -Math.sin(angleY)
     this.position.x += Math.cos(angleY)
     this.position.y += Math.cos(angleX)
     //this.position.z += Math.sin(angleX)
-
+*/
 
     this.shooted = true
 
@@ -749,17 +749,109 @@ class Weapon {
 
 class Platform {
   constructor(geometryInfo, type, x, y, z) {
-    this.model = new Model(geometryInfo[type], 1)
+    this.model = new Model(geometryInfo[type], 1, Math.random(), Math.random(), Math.random())
     this.model.setPosition(0, x, y, z)
     this.x = x
     this.y = y
     this.z = z
 
-    
-    for (let i = 0; i < geometryInfo[type].positions.length; i++) {
-
-    }
+    let width = 4
+    let height = 1.5
+    let length = 4
+    this.mx = this.x - width / 2
+    this.px = this.x + width / 2
+    this.my = this.y
+    this.py = this.y + height
+    this.mz = this.z - length / 2
+    this.pz = this.z + length / 2
   }
+
+
+  static calculateSlopes(lastPosition, currentPosition) {
+    // calculate 6 slopes
+
+    let x1 = lastPosition.x
+    let x2 = currentPosition.x
+    let y1 = lastPosition.y
+    let y2 = currentPosition.y
+    let z1 = lastPosition.z
+    let z2 = currentPosition.z
+
+
+    let functions = {
+      x: {
+        dependY: function(){
+
+        },
+        dependZ: function(){}
+      },
+      y: {
+        dependZ: function(){},
+        dependX: function(x){ return ((y2 - y1) / (x2 - x1) * x + ((y2 - y1) / (x2 - x1) * -x1) + y1) }
+      },
+      z: {
+        dependX: function(){},
+        dependY: function(){}
+      }
+    }
+
+    let slope = (y2 - y1) / (x2 - x1)
+    let intercept = (slope * -x1) + y1
+    functions.y.dependX = (x) => {
+      return slope * x + intercept
+    }
+
+    
+    slope = (z2 - z1) / (x2 - x1)
+    intercept = (slope * -x1) + z1
+    functions.z.dependX = (z) => {
+      return slope * z + intercept
+    }
+
+    
+    slope = (z2 - z1) / (y2 - y1)
+    intercept = (slope * -y1) + z1
+    functions.z.dependY = (z) => {
+      return slope * z + intercept
+    }
+
+    
+    slope = (x2 - x1) / (y2 - y1)
+    intercept = (slope * -y1) + x1
+    functions.x.dependY = (y) => {
+      return slope * y + intercept
+    }
+
+    
+    slope = (x2 - x1) / (z2 - z1)
+    intercept = (slope * -z1) + x1
+    functions.x.dependZ = (z) => {
+      return slope * z + intercept
+    }
+
+    
+    slope = (y2 - y1) / (z2 - z1)
+    intercept = (slope * -z1) + y1
+    functions.y.dependZ = (z) => {
+      return slope * z + intercept
+    }
+
+
+
+    return functions
+  }
+
+
+  calculateCollision(position) {
+    if (this.mx < position.x && position.x < this.px && this.my < position.y && position.y < this.py && this.mz < position.z && position.z < this.pz) {
+      return true
+    }
+
+
+    return false
+  }
+
+
 }
 
 
@@ -767,4 +859,4 @@ class Platform {
 
 
 
-export default { webgl, Poly, Point, Line, Dot, Model, Player, Weapon }
+export default { webgl, Poly, Point, Line, Dot, Model, Player, Weapon, Platform }
