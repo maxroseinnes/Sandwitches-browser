@@ -238,9 +238,9 @@ inventory.initialize()
 // TESTING //
 
 
-var testSlope = Platform.calculateSlopes({x: 0, y: 0, z: 0}, {x: 1, y: 1, z: 1})
+var testSlope = Platform.calculateSlopes({x: 0, y: 0, z: 0}, {x: 1, y: 0, z: 1})
 console.log(testSlope)
-console.log(testSlope.x.dependY(5))
+console.log(testSlope.y.dependZ(5))
 
 
 
@@ -301,6 +301,8 @@ function fixedUpdate() {
 
 	// -- Movement -- //
 
+    player.lastPosition = { x: player.position.x, y: player.position.y, z: player.position.z }
+
 	let speed = .005;
 	let walkAnimationSpeed = .001 / speed
 
@@ -358,6 +360,7 @@ function fixedUpdate() {
 
 
 	// gravity //
+    
 	player.position.y += gravity * deltaTime
 
 
@@ -373,11 +376,12 @@ function fixedUpdate() {
 
     // collision //
 
-    if (platform.calculateCollision(player.position)) {
-        player.position.y = platform.py
-        gravity = 0
-    }
+    let movementFunctions = Platform.calculateSlopes(player.lastPosition, player.position)
+    let collision = platform.calculateCollision(player.lastPosition, player.position, movementFunctions, gravity)
 
+    player.position = collision.correctedPosition
+    gravity = collision.gravity
+    if (collision.onPlatform) onGround = true
 
 
 

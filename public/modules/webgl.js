@@ -395,7 +395,7 @@ class Model {
     this.positions = positions
     this.normals = normals
     this.smooth = smooth
-    smooth = true
+    //smooth = true
 
     let vertexIndices = []
     let normalIndices = []
@@ -588,6 +588,13 @@ class Player {
       y: y,
       z: z
     }
+
+    this.lastPosition = {
+      x: x,
+      y: y,
+      z: z
+    }
+
     this.angleY = angleY
 
     this.userInfo = userInfo
@@ -749,15 +756,15 @@ class Weapon {
 
 class Platform {
   constructor(geometryInfo, type, x, y, z) {
-    this.model = new Model(geometryInfo[type], 1, Math.random(), Math.random(), Math.random())
+    this.model = new Model(geometryInfo[type], 1, Math.random() / 2, Math.random() / 2, Math.random() / 2)
     this.model.setPosition(0, x, y, z)
     this.x = x
     this.y = y
     this.z = z
 
-    let width = 4
+    let width = 7
     let height = 1.5
-    let length = 4
+    let length = 7
     this.mx = this.x - width / 2
     this.px = this.x + width / 2
     this.my = this.y
@@ -780,60 +787,17 @@ class Platform {
 
     let functions = {
       x: {
-        dependY: function(){
-
-        },
-        dependZ: function(){}
+        dependY: function(y){ return ((x2 - x1) / (y2 - y1) * y + ((x2 - x1) / (y2 - y1) * -y1) + x1) },
+        dependZ: function(z){ return ((x2 - x1) / (z2 - z1) * z + ((x2 - x1) / (z2 - z1) * -z1) + x1) }
       },
       y: {
-        dependZ: function(){},
+        dependZ: function(z){ return ((y2 - y1) / (z2 - z1) * z + ((y2 - y1) / (z2 - z1) * -z1) + y1) },
         dependX: function(x){ return ((y2 - y1) / (x2 - x1) * x + ((y2 - y1) / (x2 - x1) * -x1) + y1) }
       },
       z: {
-        dependX: function(){},
-        dependY: function(){}
+        dependX: function(x){ return ((z2 - z1) / (x2 - x1) * x + ((z2 - z1) / (x2 - x1) * -x1) + z1) },
+        dependY: function(y){ return ((z2 - z1) / (y2 - y1) * y + ((z2 - z1) / (y2 - y1) * -y1) + z1) }
       }
-    }
-
-    let slope = (y2 - y1) / (x2 - x1)
-    let intercept = (slope * -x1) + y1
-    functions.y.dependX = (x) => {
-      return slope * x + intercept
-    }
-
-    
-    slope = (z2 - z1) / (x2 - x1)
-    intercept = (slope * -x1) + z1
-    functions.z.dependX = (z) => {
-      return slope * z + intercept
-    }
-
-    
-    slope = (z2 - z1) / (y2 - y1)
-    intercept = (slope * -y1) + z1
-    functions.z.dependY = (z) => {
-      return slope * z + intercept
-    }
-
-    
-    slope = (x2 - x1) / (y2 - y1)
-    intercept = (slope * -y1) + x1
-    functions.x.dependY = (y) => {
-      return slope * y + intercept
-    }
-
-    
-    slope = (x2 - x1) / (z2 - z1)
-    intercept = (slope * -z1) + x1
-    functions.x.dependZ = (z) => {
-      return slope * z + intercept
-    }
-
-    
-    slope = (y2 - y1) / (z2 - z1)
-    intercept = (slope * -z1) + y1
-    functions.y.dependZ = (z) => {
-      return slope * z + intercept
     }
 
 
@@ -842,13 +806,87 @@ class Platform {
   }
 
 
-  calculateCollision(position) {
-    if (this.mx < position.x && position.x < this.px && this.my < position.y && position.y < this.py && this.mz < position.z && position.z < this.pz) {
-      return true
+  inRange(x, a, b) {
+    if (a > b) return (a <= x <= b)
+    else return (b <= x <= a)
+  }
+
+  calculateCollision(lastPosition, position, movement, gravity) {
+    let correctedPosition = { x: position.x, y: position.y, z: position.z }
+    let onPlatform = false
+
+    // calculate if intersection is within bounds of face and that the point has passed the face in the dependent direction
+    if (lastPosition.x <= this.mx && this.mx <= position.x) {
+
+
+      // minus x face -- dependent is x, calculate for y and z dependent on x
+      let yIntersect = movement.y.dependX(this.mx)
+      let zIntersect = movement.z.dependX(this.mx)
+
+      if (this.my <= yIntersect && yIntersect <= this.py && this.mz <= zIntersect && zIntersect <= this.pz) {
+        correctedPosition.x = this.mx
+      }
+    }
+
+    if (lastPosition.x >= this.px && this.px >= position.x) {
+
+
+      // minus x face -- dependent is x, calculate for y and z dependent on x
+      let yIntersect = movement.y.dependX(this.px)
+      let zIntersect = movement.z.dependX(this.px)
+
+      if (this.my <= yIntersect && yIntersect <= this.py && this.mz <= zIntersect && zIntersect <= this.pz) {
+        correctedPosition.x = this.px
+      }
+    }
+
+    if (lastPosition.z <= this.mz && this.mz <= position.z) {
+
+
+      // minus x face -- dependent is x, calculate for y and z dependent on x
+      let xIntersect = movement.x.dependZ(this.mz)
+      let yIntersect = movement.y.dependZ(this.mz)
+
+      if (this.mx <= xIntersect && xIntersect <= this.px && this.my <= yIntersect && yIntersect <= this.py) {
+        correctedPosition.z = this.mz
+      }
+    }
+
+    
+    if (lastPosition.z >= this.pz && this.pz >= position.z) {
+
+
+      // minus x face -- dependent is x, calculate for y and z dependent on x
+      let xIntersect = movement.x.dependZ(this.pz)
+      let yIntersect = movement.y.dependZ(this.pz)
+
+      if (this.mx <= xIntersect && xIntersect <= this.px && this.my <= yIntersect && yIntersect <= this.py) {
+        correctedPosition.z = this.pz
+      }
+    }
+
+      
+    if (lastPosition.y >= this.py && this.py >= position.y) {
+
+
+      // minus x face -- dependent is x, calculate for y and z dependent on x
+      let zIntersect = movement.z.dependY(this.py)
+      let xIntersect = movement.x.dependY(this.py)
+
+      if (this.mz <= zIntersect && zIntersect <= this.pz && this.mx <= xIntersect && xIntersect <= this.px) {
+        correctedPosition.y = this.py
+        onPlatform = true
+        gravity = 0
+      }
+
     }
 
 
-    return false
+    return {
+      correctedPosition: correctedPosition,
+      onPlatform: onPlatform,
+      gravity: gravity
+    }
   }
 
 
