@@ -1,6 +1,5 @@
 
 //// ---- MAIN SCRIPT ---- ////
-//var socket = io();
 console.log("starting script")
 import modelStuff from "./modules/model-data.js"
 
@@ -68,6 +67,9 @@ var updateThen = 0;
 var fixedUpdateInterval;
 var fixedUpdateThen;
 
+// Multiplayer global variables //
+var socket = io();
+var otherPlayers = [];
 
 // html elements //
 const menu = document.getElementById("menu")
@@ -142,9 +144,48 @@ var platformGeometry = {
     basic: obj.parseWavefront(modelData.platforms.basic, false)
 }
 
-var player = new Player(playerGeometry, 0, 0, 0, angleY, "steve")
-var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
+var player;
+//var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
 var platform = new Platform(platformGeometry, "basic", 5, 0, -8)
+
+// Socket events //
+socket.on("assignPlayer", (player_) => {
+    console.log("We have been assigned a player!");
+    player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, angleY, player_.name);
+});
+
+socket.on("otherPlayers", (otherPlayersInfo) => {
+    for (var i = 0; i < otherPlayersInfo.length; i++) {
+        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, angleY, otherPlayersInfo[i].name))
+    }
+})
+
+socket.on("newPlayer", (player) => {
+    console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
+    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, angleY, player.name));
+})
+
+socket.on("playerLeave", (name) => {
+    console.log("someone left")
+    for (var i = 0; i < otherPlayers.length; i++) {
+        if (otherPlayers[i].userInfo == name) {
+            otherPlayers.splice(i);
+            console.log(otherPlayers.length);
+        }
+    }
+})
+
+socket.on("playerUpdatePosition", (data) => {
+    for (var i = 0; i < otherPlayers.length; i++) {
+        if (otherPlayers[i].name = data.name) {
+            otherPlayers[i].position = data.position;
+        }
+    }
+})
+
+socket.on("tooManyPlayers", () => {
+    alert("Sorry, there are too many players connected.");
+})
 
 var otherWeapons = []
 
@@ -269,6 +310,7 @@ function update(now) {
 
 	player.angleY = angleY
 	player.updatePosition() // this must go last
+    socket.emit("playerUpdatePosition", { position: player.position, name: player.name } )
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
     inventory.currentWeapon.model.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
