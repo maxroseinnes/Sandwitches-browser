@@ -163,6 +163,7 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, angleY, player.name));
+    console.log(otherPlayers.length + " players connected")
 })
 
 socket.on("playerLeave", (name) => {
@@ -173,14 +174,20 @@ socket.on("playerLeave", (name) => {
             console.log(otherPlayers.length);
         }
     }
+    console.log(otherPlayers.length + " players connected");
 })
 
 socket.on("playerUpdatePosition", (data) => {
+    console.log(data.name + " is now at x: " + data.position.x + ", y: " + data.position.y + ", z: " + data.position.z);
     for (var i = 0; i < otherPlayers.length; i++) {
         if (otherPlayers[i].name = data.name) {
             otherPlayers[i].position = data.position;
         }
     }
+})
+
+socket.on("playerUpdatePosition", () => {
+    console.log("someone moved");
 })
 
 socket.on("tooManyPlayers", () => {
@@ -310,6 +317,9 @@ function update(now) {
 
 	player.angleY = angleY
 	player.updatePosition() // this must go last
+    for (var i = 0; i < otherPlayers.length; i++) {
+        otherPlayers[i].updatePosition();
+    }
     socket.emit("playerUpdatePosition", { position: player.position, name: player.name } )
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2

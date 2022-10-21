@@ -6,7 +6,7 @@ const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
 const port = 3000;
 
-const names = ["Steve", "Alex", "Emma", "Jeff", "Olivia"];
+const names = ["Steve", "Alex", "Emma", "Jeff", "Olive"];
 
 var players = [];
 
@@ -43,6 +43,15 @@ socketServer.on("connection", (socket) => {
     socket.emit("tooManyPlayers");
   }
 
+  socket.on("playerUpdatePosition", (data) => {
+    console.log("someone moved")
+    for (var i = 0; i < players.length; i++) {
+      if (data.name == players[i].name) {
+        players[i].position = data.position;
+        socket.broadcast.emit("playerUpdatePosition", data)
+      }
+    }
+  })
 
   socket.on("disconnect", () => {
     for (var i = 0; i < players.length; i++) {
