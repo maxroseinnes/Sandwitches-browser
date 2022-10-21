@@ -186,8 +186,8 @@ socket.on("playerUpdatePosition", (data) => {
     }
 })
 
-socket.on("playerUpdatePosition", () => {
-    console.log("someone moved");
+socket.on("playerUpdatePosition", (data) => {
+    console.log(data.name + " moved")
 })
 
 socket.on("tooManyPlayers", () => {
@@ -320,7 +320,7 @@ function update(now) {
     for (var i = 0; i < otherPlayers.length; i++) {
         otherPlayers[i].updatePosition();
     }
-    socket.emit("playerUpdatePosition", { position: player.position, name: player.name } )
+    socket.emit("playerUpdatePosition", { position: player.position, name: player.userInfo } )
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
     inventory.currentWeapon.model.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
@@ -560,7 +560,7 @@ document.addEventListener("pointerlockchange", function () {
 	console.log("stopped")
 
 		pointerLocked = false
-		running = false
+		//running = false
 
 	fixedUpdateThen = Date.now();
 	clearInterval(fixedUpdateInterval)

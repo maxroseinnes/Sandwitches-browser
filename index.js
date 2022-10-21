@@ -44,7 +44,6 @@ socketServer.on("connection", (socket) => {
   }
 
   socket.on("playerUpdatePosition", (data) => {
-    console.log("someone moved")
     for (var i = 0; i < players.length; i++) {
       if (data.name == players[i].name) {
         players[i].position = data.position;
