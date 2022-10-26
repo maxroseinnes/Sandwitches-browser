@@ -556,7 +556,7 @@ class Model {
 
 
 class Player {
-  constructor(geometries, x, y, z, angleY, userInfo) {
+  constructor(geometries, x, y, z, angleY, name) {
     this.geometries = geometries
     this.ingredientModels = {}
     for (let ingredient in geometries.idle) {
@@ -597,7 +597,7 @@ class Player {
 
     this.angleY = angleY
 
-    this.userInfo = userInfo
+    this.name = name
   }
 
   updatePosition() {
