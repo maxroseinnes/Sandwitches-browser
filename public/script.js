@@ -137,16 +137,18 @@ var weaponGeometry = {
     tomato: obj.parseWavefront(modelData.weapons.tomato, false),
     olive: obj.parseWavefront(modelData.weapons.olive, false),
     pickle: obj.parseWavefront(modelData.weapons.pickle, false),
-    sausage: obj.parseWavefront(modelData.weapons.sausage, false)
+    sausage: obj.parseWavefront(modelData.weapons.sausage, false),
+    pan: obj.parseWavefront(modelData.weapons.pan, false)
 }
 
 var platformGeometry = {
-    basic: obj.parseWavefront(modelData.platforms.basic, false)
+    basic: obj.parseWavefront(modelData.platforms.basic, false),
+    crate: obj.parseWavefront(modelData.platforms.crate, false)
 }
 
 var player;
 //var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
-var platform = new Platform(platformGeometry, "basic", 5, 0, -8)
+var platform = new Platform(platformGeometry, "crate", 5, 0, -8)
 
 // Socket events //
 socket.on("assignPlayer", (player_) => {
@@ -247,7 +249,7 @@ var chOffset = 10
 
 
 var inventory = {
-    loadOut: ["tomato", "olive", "pickle", "sausage"],
+    loadOut: ["sausage", "olive", "pickle", "sausage"],
     weaponModels: [],
     currentSelection: 0,
     currentWeapon: null,
@@ -398,7 +400,7 @@ function fixedUpdate() {
 	else crouching = false
 
 	if (space) {
-		if (onGround) gravity = .01
+		if (onGround) gravity = .02
 	}
 
     if (leftClicking) {

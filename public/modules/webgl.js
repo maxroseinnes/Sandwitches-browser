@@ -7,9 +7,12 @@ var webgl = {
   points: [],
   pointColors: [],
   pointNormals: [],
+  texCoords: [],
   pointsizes: [],
   lines: [],
   dots: [],
+
+  texture: null,
 
 
 
@@ -32,6 +35,7 @@ var webgl = {
     attribute vec4 aVertColor;
     attribute float aPointSize;
     attribute vec3 aVertNormal;
+    attribute vec3 aTexCoord;
   
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
@@ -77,6 +81,7 @@ var webgl = {
     this.pointsBuffer = this.gl.createBuffer()
     this.colorsBuffer = this.gl.createBuffer()
     this.normalsBuffer = this.gl.createBuffer()
+    this.texCoordsBuffer = this.gl.createBuffer()
     this.polysBuffer = this.gl.createBuffer()
   
     this.linePointsBuffer = this.gl.createBuffer()
@@ -103,6 +108,12 @@ var webgl = {
     this.gl.attachShader(this.program, this.fragmentShader)
     this.gl.linkProgram(this.program)
     this.gl.validateProgram(this.program)
+
+    // load textures //
+
+    this.texture = this.gl.createTexture()
+
+
 
     if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) console.log(`Unable to initialize the shader program: ${this.gl.getProgramInfoLog(this.program)}`)
   },
@@ -141,6 +152,15 @@ var webgl = {
     this.gl.vertexAttribPointer(3, nSize, this.gl.FLOAT, false, nSize * Float32Array.BYTES_PER_ELEMENT, 0);
     this.gl.enableVertexAttribArray(3);
 
+
+    let txSize = 2;
+    
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texCoordsBuffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.texCoords), this.gl.DYNAMIC_DRAW);
+
+    let texCoordAttribLocation = this.gl.getAttribLocation(this.program, "aTexCoord");
+    this.gl.vertexAttribPointer(4, txSize, this.gl.FLOAT, false, txSize * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(4);
 
 
   	let psSize = 1;
@@ -278,7 +298,7 @@ class Poly{
 
 class Point {
   static allPoints = []
-  constructor(x, y, z, n1, n2, n3, r, g, b) {
+  constructor(x, y, z, n1, n2, n3, r, g, b, tx1, tx2) {
     Point.allPoints.push(this)
     this.x = x;
     this.y = y;
@@ -299,6 +319,7 @@ class Point {
     webgl.points.push(x, y, z);
     webgl.pointColors.push(this.r, this.g, this.b, 1)
     webgl.pointNormals.push(n1, n2, n3)
+    webgl.texCoords.push(tx1, tx2)
     webgl.pointsizes.push(1.0);
   }
 
@@ -390,7 +411,9 @@ class Model {
 
     let positions = geometryInfo.positions
     let normals = geometryInfo.normals
+    let texcoords = geometryInfo.texcoords
     let smooth = geometryInfo.smooth
+    let indices = geometryInfo.indices
 
     this.positions = positions
     this.normals = normals
@@ -413,12 +436,10 @@ class Model {
     if (!smooth) {
       // for each triangle: make three new points and a poly
 
-
-
-      for (let i = 0; i < vertexIndices.length; i++) {
-        let point1 = new Point(positions[vertexIndices[i][0]][0] * scale + this.x, positions[vertexIndices[i][0]][1] * scale + this.y, positions[vertexIndices[i][0]][2] * scale + this.z, normals[normalIndices[i][0]][0], normals[normalIndices[i][0]][1], normals[normalIndices[i][0]][2], r, g, b)
-        let point2 = new Point(positions[vertexIndices[i][1]][0] * scale + this.x, positions[vertexIndices[i][1]][1] * scale + this.y, positions[vertexIndices[i][1]][2] * scale + this.z, normals[normalIndices[i][1]][0], normals[normalIndices[i][1]][1], normals[normalIndices[i][1]][2], r, g, b)
-        let point3 = new Point(positions[vertexIndices[i][2]][0] * scale + this.x, positions[vertexIndices[i][2]][1] * scale + this.y, positions[vertexIndices[i][2]][2] * scale + this.z, normals[normalIndices[i][2]][0], normals[normalIndices[i][2]][1], normals[normalIndices[i][2]][2], r, g, b)
+      for (let i = 0; i < vertexIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
+        let point1 = new Point(positions[indices[i].vertexes[0]][0] * scale + this.x, positions[indices[i].vertexes[0]][1] * scale + this.y, positions[indices[i].vertexes[0]][2] * scale + this.z, normals[indices[i].normals[0]][0], normals[indices[i].normals[0][0]][1], normals[indices[i].normals[0]][2], r, g, b, texcoords[indices[i].texcoords[0]][0], texcoords[indices[i].texcoords[0]][1])
+        let point2 = new Point(positions[indices[i].vertexes[1]][0] * scale + this.x, positions[indices[i].vertexes[1]][1] * scale + this.y, positions[indices[i].vertexes[1]][2] * scale + this.z, normals[indices[i].normals[1]][0], normals[indices[i].normals[1][1]][1], normals[indices[i].normals[1]][2], r, g, b, texcoords[indices[i].texcoords[1]][0], texcoords[indices[i].texcoords[1]][1])
+        let point3 = new Point(positions[indices[i].vertexes[2]][0] * scale + this.x, positions[indices[i].vertexes[2]][1] * scale + this.y, positions[indices[i].vertexes[2]][2] * scale + this.z, normals[indices[i].normals[2]][0], normals[indices[i].normals[2][2]][1], normals[indices[i].normals[2]][2], r, g, b, texcoords[indices[i].texcoords[2]][0], texcoords[indices[i].texcoords[2]][1])
 
         this.points.push(point1, point2, point3)
         this.polys.push(new Poly(point1, point2, point3))
@@ -445,7 +466,7 @@ class Model {
           averageNormalY += normals[normalIndices[connectedPolys[j].index][connectedPolys[j].vertex]][1]
           averageNormalZ += normals[normalIndices[connectedPolys[j].index][connectedPolys[j].vertex]][2]
         }
-
+//heheheheheh goblin mdode
         averageNormalX /= connectedPolys.length
         averageNormalY /= connectedPolys.length
         averageNormalZ /= connectedPolys.length
@@ -756,21 +777,32 @@ class Weapon {
 
 class Platform {
   constructor(geometryInfo, type, x, y, z) {
-    this.model = new Model(geometryInfo[type], 1, Math.random() / 2, Math.random() / 2, Math.random() / 2)
-    this.model.setPosition(0, x, y, z)
+    console.log(geometryInfo[type])
     this.x = x
     this.y = y
     this.z = z
 
-    let width = 7
-    let height = 1.5
-    let length = 7
-    this.mx = this.x - width / 2
-    this.px = this.x + width / 2
+    if (type == "basic") {
+      this.model = new Model(geometryInfo[type], 1, Math.random() / 2, Math.random() / 2, Math.random() / 2)
+      this.model.setPosition(0, this.x, this.y, this.z)
+      this.width = 7
+      this.height = 1.5
+      this.length = 7
+    }
+    if (type == "crate") {
+      this.model = new Model(geometryInfo[type], 1, .5, .1, .1)
+      this.model.setPosition(0, this.x, this.y + 1, this.z)
+      this.width = 4
+      this.height = 2
+      this.length = 4
+
+    }
+    this.mx = this.x - this.width / 2
+    this.px = this.x + this.width / 2
     this.my = this.y
-    this.py = this.y + height
-    this.mz = this.z - length / 2
-    this.pz = this.z + length / 2
+    this.py = this.y + this.height
+    this.mz = this.z - this.length / 2
+    this.pz = this.z + this.length / 2
   }
 
 
