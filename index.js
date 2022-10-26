@@ -10,9 +10,27 @@ const names = ["Steve", "Alex", "Emma", "Jeff", "Olive"];
 
 var players = [];
 
+var TPS = 20;
+
 app.use(express.static("public"));
 
+
+
+function tick() {
+
+}
+
 socketServer.on("connection", (socket) => {
+  socket.emit("pingRequest")
+  socket.on("ping", () => {
+    socket.emit("ping")
+  });
+
+  socket.on("pingTestComplete", (ping) => {
+    socket.emit("startTicking", TPS);
+    setTimeout(() => { setInterval(tick, 1000 / TPS) }, ping / 2);
+  })
+
   var otherPlayersInfo = [];
   for (var i = 0; i < players.length; i++) {
     otherPlayersInfo.push({ position: players[i].position, name: players[i].name });

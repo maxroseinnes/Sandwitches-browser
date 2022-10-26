@@ -150,9 +150,39 @@ var player;
 //var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
 var platform = new Platform(platformGeometry, "crate", 5, 0, -8)
 
+function tick() {
+    socket.emit("playerUpdatePosition", { position: player.position, name: player.userInfo } )
+}
+
 // Socket events //
+var time;
+var pingTests = [];
+socket.on("pingRequest", () => {
+    socket.emit("ping");
+    time = new Date().getTime();
+})
+
+socket.on("ping", () => {
+    if (pingTests.length < 5) {
+        pingTests.push(new Date().getTime() - time);
+        time = new Date().getTime();
+        socket.emit("ping");
+    } else {
+        var sum = 0
+        for (var i = 0; i < pingTests.length; i++) {
+            sum += pingTests[i];
+        }
+        socket.emit("pingTestComplete", sum / pingTests.length)
+    }
+})
+
+socket.on("startTicking", (TPS) => {
+    setInterval(tick, 1000 / TPS);
+})
+
+
 socket.on("assignPlayer", (player_) => {
-    console.log("We have been assigned a player!");
+    //console.log("We have been assigned a player!");
     player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, angleY, player_.name);
 });
 
@@ -322,7 +352,6 @@ function update(now) {
     for (var i = 0; i < otherPlayers.length; i++) {
         otherPlayers[i].updatePosition();
     }
-    socket.emit("playerUpdatePosition", { position: player.position, name: player.userInfo } )
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
     inventory.currentWeapon.model.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
@@ -555,19 +584,18 @@ document.addEventListener("pointerlockchange", function () {
 		if (!running) {
 			running = true
 			update()
-
-	fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
+	        fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
 		}
 	} else {
-	console.log("stopped")
+	    console.log("stopped")
 
 		pointerLocked = false
-		//running = false
+		running = false
 
-	fixedUpdateThen = Date.now();
-	clearInterval(fixedUpdateInterval)
+	    fixedUpdateThen = Date.now();
+	    clearInterval(fixedUpdateInterval)
 
-	menu.style.display = ""
+	    menu.style.display = ""
 	}
 }, false)
 
