@@ -138,7 +138,7 @@ var webgl = {
         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR)
       }
     }
-    this.image.src = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjYd8p2yEb87gaEz1ExpMSW_O5xk93DXBZYw&usqp=CAU"
+    this.image.src = "https://i.kym-cdn.com/photos/images/original/001/875/618/2a8.png"
     this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true)
 
     
