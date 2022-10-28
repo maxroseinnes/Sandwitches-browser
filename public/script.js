@@ -256,10 +256,10 @@ var otherWeapons = []
     let groundR = .2
     let groundG = .2
     let groundB = .2
-    let groundPoint1 = new Point(squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB)
-    let groundPoint2 = new Point(-squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB)
-    let groundPoint3 = new Point(-squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB)
-    let groundPoint4 = new Point(squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB)
+    let groundPoint1 = new Point(squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB, 0.0, 0.0)
+    let groundPoint2 = new Point(-squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB, 1.0, 0.0)
+    let groundPoint3 = new Point(-squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB, 1.0, 1.0)
+    let groundPoint4 = new Point(squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB, 0.0, 1.0)
 
     let groundPoly1 = new Poly(groundPoint1, groundPoint2, groundPoint3)
     let groundPoly2 = new Poly(groundPoint3, groundPoint4, groundPoint1)
@@ -429,7 +429,7 @@ function fixedUpdate() {
 	else crouching = false
 
 	if (space) {
-		if (onGround) gravity = .02
+		if (onGround) gravity = .0125
 	}
 
     if (leftClicking) {

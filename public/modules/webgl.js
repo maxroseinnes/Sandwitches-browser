@@ -35,20 +35,21 @@ var webgl = {
     attribute vec4 aVertColor;
     attribute float aPointSize;
     attribute vec3 aVertNormal;
-    attribute vec3 aTexCoord;
+    attribute vec2 aTexCoord;
   
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
     uniform mat4 nMatrix;
   
-    varying mediump vec4 vColor;
+    varying lowp vec2 vTextureCoord;
+    varying lowp vec3 vLighting;
   
     void main() {
       gl_Position = pMatrix * tMatrix * vertPosition;
       gl_PointSize = aPointSize;
   
-      highp vec3 ambientLight = vec3(0.8, 0.8, 0.8);
-      highp vec3 directionalLightColor = vec3(.5, .5, .5);
+      highp vec3 ambientLight = vec3(0.5, 0.5, 0.5);
+      highp vec3 directionalLightColor = vec3(.8, .8, .8);
       highp vec3 directionalVector = normalize(vec3(0.0, 0.5, 1.0));
   
       highp vec4 transformedNormal = nMatrix * vec4(aVertNormal, 1.0);
@@ -56,17 +57,22 @@ var webgl = {
       highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
       highp vec3 lighting = ambientLight + (directionalLightColor * directional);
   
-      vColor = aVertColor * vec4(lighting, 1.0);
+      vTextureCoord = aTexCoord;
+      vLighting = lighting;
     }
     `
   
     this.fragmentShaderText = `
     precision mediump float;
   
-    varying lowp vec4 vColor;
+    varying lowp vec2 vTextureCoord;
+    varying lowp vec3 vLighting;
+
+    uniform sampler2D uSampler;
   
     void main() {
-      gl_FragColor = vColor;
+      lowp vec4 texelColor = texture2D(uSampler, vTextureCoord);
+      gl_FragColor = vec4(texelColor.rgb * vLighting, texelColor.a);
     }
     `
   
@@ -112,7 +118,30 @@ var webgl = {
     // load textures //
 
     this.texture = this.gl.createTexture()
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture)
 
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, 1, 1, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 255, 255]))
+
+    this.image = new Image()
+    this.image.crossOrigin = "anonymous"
+    this.image.onload = () => {
+      this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture)
+      this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.image)
+
+      if (this.image.width & (this.image.width - 1) === 0 && this.image.height & (this.image.height - 1) === 0) {
+        console.log("using mipmap")
+        this.gl.generateMipmap(this.gl.TEXTURE_2D)
+      }
+      else {
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR)
+      }
+    }
+    this.image.src = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRjYd8p2yEb87gaEz1ExpMSW_O5xk93DXBZYw&usqp=CAU"
+    this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true)
+
+    
 
 
     if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) console.log(`Unable to initialize the shader program: ${this.gl.getProgramInfoLog(this.program)}`)
@@ -121,14 +150,6 @@ var webgl = {
 
   renderFrame: function(playerPosition, angleX, angleY) {
 
-    let cSize = 4
-
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorsBuffer)
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.pointColors), this.gl.DYNAMIC_DRAW)
-
-    let colorAttribLocation = this.gl.getAttribLocation(this.program, "aVertColor");
-    this.gl.vertexAttribPointer(colorAttribLocation, cSize, this.gl.FLOAT, false, 0, 0);
-    this.gl.enableVertexAttribArray(colorAttribLocation);
 
 
 
@@ -149,8 +170,8 @@ var webgl = {
     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.pointNormals), this.gl.DYNAMIC_DRAW);
 
     let pointNormalAttribLocation = this.gl.getAttribLocation(this.program, "aVertNormal");
-    this.gl.vertexAttribPointer(3, nSize, this.gl.FLOAT, false, nSize * Float32Array.BYTES_PER_ELEMENT, 0);
-    this.gl.enableVertexAttribArray(3);
+    this.gl.vertexAttribPointer(pointNormalAttribLocation, nSize, this.gl.FLOAT, false, nSize * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(pointNormalAttribLocation);
 
 
     let txSize = 2;
@@ -159,8 +180,8 @@ var webgl = {
     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.texCoords), this.gl.DYNAMIC_DRAW);
 
     let texCoordAttribLocation = this.gl.getAttribLocation(this.program, "aTexCoord");
-    this.gl.vertexAttribPointer(4, txSize, this.gl.FLOAT, false, txSize * Float32Array.BYTES_PER_ELEMENT, 0);
-    this.gl.enableVertexAttribArray(4);
+    this.gl.vertexAttribPointer(texCoordAttribLocation, txSize, this.gl.FLOAT, false, txSize * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(texCoordAttribLocation);
 
 
   	let psSize = 1;
@@ -222,6 +243,10 @@ var webgl = {
     this.gl.enable(this.gl.DEPTH_TEST);
     this.gl.depthFunc(this.gl.LEQUAL);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+
+    this.gl.activeTexture(this.gl.TEXTURE0)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture)
+    this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uSampler"), 0)
 
     this.gl.drawElements(this.gl.TRIANGLES, this.polys.length, this.gl.UNSIGNED_SHORT, 0);
 
@@ -437,9 +462,9 @@ class Model {
       // for each triangle: make three new points and a poly
 
       for (let i = 0; i < vertexIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
-        let point1 = new Point(positions[indices[i].vertexes[0]][0] * scale + this.x, positions[indices[i].vertexes[0]][1] * scale + this.y, positions[indices[i].vertexes[0]][2] * scale + this.z, normals[indices[i].normals[0]][0], normals[indices[i].normals[0][0]][1], normals[indices[i].normals[0]][2], r, g, b, texcoords[indices[i].texcoords[0]][0], texcoords[indices[i].texcoords[0]][1])
-        let point2 = new Point(positions[indices[i].vertexes[1]][0] * scale + this.x, positions[indices[i].vertexes[1]][1] * scale + this.y, positions[indices[i].vertexes[1]][2] * scale + this.z, normals[indices[i].normals[1]][0], normals[indices[i].normals[1][1]][1], normals[indices[i].normals[1]][2], r, g, b, texcoords[indices[i].texcoords[1]][0], texcoords[indices[i].texcoords[1]][1])
-        let point3 = new Point(positions[indices[i].vertexes[2]][0] * scale + this.x, positions[indices[i].vertexes[2]][1] * scale + this.y, positions[indices[i].vertexes[2]][2] * scale + this.z, normals[indices[i].normals[2]][0], normals[indices[i].normals[2][2]][1], normals[indices[i].normals[2]][2], r, g, b, texcoords[indices[i].texcoords[2]][0], texcoords[indices[i].texcoords[2]][1])
+        let point1 = new Point(positions[indices[i].vertexes[0]][0] * scale + this.x, positions[indices[i].vertexes[0]][1] * scale + this.y, positions[indices[i].vertexes[0]][2] * scale + this.z, normals[indices[i].normals[0]][0], normals[indices[i].normals[0]][1], normals[indices[i].normals[0]][2], r, g, b, texcoords[indices[i].texcoords[0]][0], texcoords[indices[i].texcoords[0]][1])
+        let point2 = new Point(positions[indices[i].vertexes[1]][0] * scale + this.x, positions[indices[i].vertexes[1]][1] * scale + this.y, positions[indices[i].vertexes[1]][2] * scale + this.z, normals[indices[i].normals[1]][0], normals[indices[i].normals[1]][1], normals[indices[i].normals[1]][2], r, g, b, texcoords[indices[i].texcoords[1]][0], texcoords[indices[i].texcoords[1]][1])
+        let point3 = new Point(positions[indices[i].vertexes[2]][0] * scale + this.x, positions[indices[i].vertexes[2]][1] * scale + this.y, positions[indices[i].vertexes[2]][2] * scale + this.z, normals[indices[i].normals[2]][0], normals[indices[i].normals[2]][1], normals[indices[i].normals[2]][2], r, g, b, texcoords[indices[i].texcoords[2]][0], texcoords[indices[i].texcoords[2]][1])
 
         this.points.push(point1, point2, point3)
         this.polys.push(new Poly(point1, point2, point3))
