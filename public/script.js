@@ -138,7 +138,8 @@ var weaponGeometry = {
     olive: obj.parseWavefront(modelData.weapons.olive, false),
     pickle: obj.parseWavefront(modelData.weapons.pickle, false),
     sausage: obj.parseWavefront(modelData.weapons.sausage, false),
-    pan: obj.parseWavefront(modelData.weapons.pan, false)
+    pan: obj.parseWavefront(modelData.weapons.pan, false),
+    anchovy: obj.parseWavefront(modelData.weapons.anchovy, false)
 }
 
 var platformGeometry = {
@@ -279,7 +280,7 @@ var chOffset = 10
 
 
 var inventory = {
-    loadOut: ["sausage", "olive", "pickle", "sausage"],
+    loadOut: ["anchovy", "olive", "pickle", "sausage"],
     weaponModels: [],
     currentSelection: 0,
     currentWeapon: null,
