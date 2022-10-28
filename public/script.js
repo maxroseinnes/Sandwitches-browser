@@ -152,11 +152,11 @@ var player;
 var platform = new Platform(platformGeometry, "crate", 5, 0, -8)
 
 function tick() {
-    socket.emit("playerUpdatePosition", { position: player.position, name: player.userInfo } )
+    socket.emit("playerUpdate", { position: player.position, name: player.userInfo } )
 }
 
 // Socket events //
-var time;
+/*var time;
 var pingTests = [];
 socket.on("pingRequest", () => {
     socket.emit("ping");
@@ -175,10 +175,14 @@ socket.on("ping", () => {
         }
         socket.emit("pingTestComplete", sum / pingTests.length)
     }
-})
+})*/
 
 socket.on("startTicking", (TPS) => {
     setInterval(tick, 1000 / TPS);
+})
+
+socket.on("close", () => {
+    socket.emit("close")
 })
 
 
@@ -210,12 +214,10 @@ socket.on("playerLeave", (name) => {
     console.log(otherPlayers.length + " players connected");
 })
 
-socket.on("playerUpdatePosition", (data) => {
-    console.log(data.name + " is now at x: " + data.position.x + ", y: " + data.position.y + ", z: " + data.position.z);
+socket.on("playerUpdate", (data) => {
+    otherPlayers = data;
     for (var i = 0; i < otherPlayers.length; i++) {
-        if (otherPlayers[i].name = data.name) {
-            otherPlayers[i].position = data.position;
-        }
+        otherPlayers[i].updatePosition();
     }
 })
 
@@ -591,7 +593,7 @@ document.addEventListener("pointerlockchange", function () {
 	    console.log("stopped")
 
 		pointerLocked = false
-		running = false
+		//running = false
 
 	    fixedUpdateThen = Date.now();
 	    clearInterval(fixedUpdateInterval)

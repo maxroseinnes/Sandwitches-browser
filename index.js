@@ -6,7 +6,7 @@ const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
 const port = 3000;
 
-const names = ["Steve", "Alex", "Emma", "Jeff", "Olive"];
+const availableNames = ["Steve", "Alex", "Emma", "Jeff", "Olive"];
 
 var players = [];
 
@@ -17,11 +17,19 @@ app.use(express.static("public"));
 
 
 function tick() {
-
+  for (var i = 0; i < players.length; i++) {
+    var data = [];
+    for (var j = 0; j < players.length; j++) {
+      if (i != j) {
+        data.push(players[j]);
+      }
+    }
+    players[i].socket.emit("playerUpdate", data);
+  }
 }
 
 socketServer.on("connection", (socket) => {
-  socket.emit("pingRequest")
+  /*socket.emit("pingRequest")
   socket.on("ping", () => {
     socket.emit("ping")
   });
@@ -29,7 +37,9 @@ socketServer.on("connection", (socket) => {
   socket.on("pingTestComplete", (ping) => {
     socket.emit("startTicking", TPS);
     setTimeout(() => { setInterval(tick, 1000 / TPS) }, ping / 2);
-  })
+  })*/
+  setInterval(tick, 1000 / TPS);
+  socket.emit("startTicking", TPS)
 
   var otherPlayersInfo = [];
   for (var i = 0; i < players.length; i++) {
@@ -37,20 +47,9 @@ socketServer.on("connection", (socket) => {
   }
   socket.emit("otherPlayers", otherPlayersInfo);
 
-  var name;
-  for (var i = 0; i < names.length; i++) {
-    var nameAvailable = true;
-    for (var j = 0; j < players.length; j++) {
-      if (names[i] == players[j].name) {
-        nameAvailable = false;
-        break;
-      }
-    }
-    if (nameAvailable) {
-      name = names[i];
-      break;
-    }
-  }
+  var nameIndex = Math.floor(Math.random() * availableNames.length)
+  var name = availableNames[nameIndex]
+  availableNames.splice(nameIndex, 1);
 
   if (name != null) { 
     players.push({ position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, name: name, socket: socket});
@@ -61,11 +60,10 @@ socketServer.on("connection", (socket) => {
     socket.emit("tooManyPlayers");
   }
 
-  socket.on("playerUpdatePosition", (data) => {
+  socket.on("playerUpdate", (data) => {
     for (var i = 0; i < players.length; i++) {
       if (data.name == players[i].name) {
         players[i].position = data.position;
-        socket.broadcast.emit("playerUpdatePosition", data)
       }
     }
   })
