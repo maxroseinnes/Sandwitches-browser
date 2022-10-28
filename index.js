@@ -21,7 +21,7 @@ function tick() {
     var data = [];
     for (var j = 0; j < players.length; j++) {
       if (i != j) {
-        data.push(players[j]);
+        data.push({ position: players[j].position, name: players[j].name });
       }
     }
     players[i].socket.emit("playerUpdate", data);
@@ -53,7 +53,7 @@ socketServer.on("connection", (socket) => {
 
   if (name != null) { 
     players.push({ position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, name: name, socket: socket});
-    console.log(name + " joined!")
+    console.log(name + " joined! 😃😃😃😃😃😃😃")
     socket.emit("assignPlayer", { position: players[players.length - 1].position, name: players[players.length - 1].name});
     socket.broadcast.emit("newPlayer", { position: players[players.length - 1].position, name: players[players.length - 1].name });
   } else {
@@ -72,8 +72,9 @@ socketServer.on("connection", (socket) => {
     for (var i = 0; i < players.length; i++) {
       if (socket == players[i].socket) {
         socket.broadcast.emit("playerLeave", players[i].name);
-        console.log(players[i].name + " left.");
-        players.splice(i);
+        console.log(players[i].name + " left. 😭😭😭😭😭😭😭");
+        availableNames.push(players[i].name);
+        players.splice(i, 1);
       }
     }
   })

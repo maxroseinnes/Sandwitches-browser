@@ -151,8 +151,11 @@ var player;
 //var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
 var platform = new Platform(platformGeometry, "crate", 5, 0, -8)
 
+var ticks = 0;
 function tick() {
-    socket.emit("playerUpdate", { position: player.position, name: player.userInfo } )
+    ticks++;
+    socket.emit("playerUpdate", { position: player.position, name: player.name } );
+    console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
 }
 
 // Socket events //
@@ -180,11 +183,6 @@ socket.on("ping", () => {
 socket.on("startTicking", (TPS) => {
     setInterval(tick, 1000 / TPS);
 })
-
-socket.on("close", () => {
-    socket.emit("close")
-})
-
 
 socket.on("assignPlayer", (player_) => {
     //console.log("We have been assigned a player!");
@@ -215,14 +213,15 @@ socket.on("playerLeave", (name) => {
 })
 
 socket.on("playerUpdate", (data) => {
-    otherPlayers = data;
-    for (var i = 0; i < otherPlayers.length; i++) {
-        otherPlayers[i].updatePosition();
+    for (var i = 0; i < data.length; i++) {
+        for (var j = 0; j < otherPlayers.length; j++) {
+            if (i == j) {
+                otherPlayers[j].position = data[i].position;
+                otherPlayers[j].updatePosition();
+                break;
+            }
+        }
     }
-})
-
-socket.on("playerUpdatePosition", (data) => {
-    console.log(data.name + " moved")
 })
 
 socket.on("tooManyPlayers", () => {
@@ -593,7 +592,7 @@ document.addEventListener("pointerlockchange", function () {
 	    console.log("stopped")
 
 		pointerLocked = false
-		//running = false
+		running = false
 
 	    fixedUpdateThen = Date.now();
 	    clearInterval(fixedUpdateInterval)
