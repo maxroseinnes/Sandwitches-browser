@@ -20,6 +20,10 @@ var Platform = webglStuff.Platform
 
 
 
+
+
+
+
 // GLOBAL VARIABLES //
 
 var w = false
@@ -281,7 +285,7 @@ var chOffset = 10
 
 
 var inventory = {
-    loadOut: ["anchovy", "olive", "pickle", "sausage"],
+    loadOut: ["pan", "olive", "pickle", "sausage"],
     weaponModels: [],
     currentSelection: 0,
     currentWeapon: null,
