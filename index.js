@@ -4,6 +4,8 @@ const http = require("http");
 const server = http.createServer(app);
 const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
+const ipv4 = "10.176.54.175";
+const localhost = false;
 const port = 3000;
 
 const availableNames = ["Steve", "Alex", "Emma", "Jeff", "Olive"];
@@ -21,7 +23,7 @@ function tick() {
     var data = [];
     for (var j = 0; j < players.length; j++) {
       if (i != j) {
-        data.push({ position: players[j].position, name: players[j].name });
+        data.push({ position: players[j].position, yaw: players[j].yaw, name: players[j].name });
       }
     }
     players[i].socket.emit("playerUpdate", data);
@@ -43,7 +45,7 @@ socketServer.on("connection", (socket) => {
 
   var otherPlayersInfo = [];
   for (var i = 0; i < players.length; i++) {
-    otherPlayersInfo.push({ position: players[i].position, name: players[i].name });
+    otherPlayersInfo.push({ position: players[i].position, yaw: players[i].yaw, name: players[i].name });
   }
   socket.emit("otherPlayers", otherPlayersInfo);
 
@@ -52,10 +54,11 @@ socketServer.on("connection", (socket) => {
   availableNames.splice(nameIndex, 1);
 
   if (name != null) { 
-    players.push({ position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, name: name, socket: socket});
+    var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, name: name, socket: socket };
+    players.push(newPlayer);
     console.log(name + " joined! 😃😃😃😃😃😃😃")
-    socket.emit("assignPlayer", { position: players[players.length - 1].position, name: players[players.length - 1].name});
-    socket.broadcast.emit("newPlayer", { position: players[players.length - 1].position, name: players[players.length - 1].name });
+    socket.emit("assignPlayer", { position: newPlayer.position, yaw: newPlayer.yaw, name: name});
+    socket.broadcast.emit("newPlayer", { position: newPlayer.position, yaw: newPlayer.yaw, name: name });
   } else {
     socket.emit("tooManyPlayers");
   }
@@ -64,6 +67,7 @@ socketServer.on("connection", (socket) => {
     for (var i = 0; i < players.length; i++) {
       if (data.name == players[i].name) {
         players[i].position = data.position;
+        players[i].yaw = data.yaw;
       }
     }
   })
@@ -80,6 +84,6 @@ socketServer.on("connection", (socket) => {
   })
 });
 
-server.listen(port, () => {
+server.listen(port, localhost ? "127.0.0.1" : ipv4, () => {
   console.log("Listening on port " + port);
 });

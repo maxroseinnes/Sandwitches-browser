@@ -48,8 +48,8 @@ var onGround = true
 var lastOnGround = true
 
 
-var angleX = 0.0
-var angleY = 0.0
+var lookAngleX = 0.0
+var lookAngleY = 0.0
 
 // combat global variables //
 var cooldownTimer = 0
@@ -159,7 +159,7 @@ var platform = new Platform(platformGeometry, "crate", 5, 0, -8)
 var ticks = 0;
 function tick() {
     ticks++;
-    socket.emit("playerUpdate", { position: player.position, name: player.name } );
+    socket.emit("playerUpdate", { position: player.position, yaw: player.yaw, name: player.name } );
     console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
 }
 
@@ -190,31 +190,27 @@ socket.on("startTicking", (TPS) => {
 })
 
 socket.on("assignPlayer", (player_) => {
-    //console.log("We have been assigned a player!");
-    player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, angleY, player_.name);
+    player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, 0, player_.name);
 });
 
 socket.on("otherPlayers", (otherPlayersInfo) => {
     for (var i = 0; i < otherPlayersInfo.length; i++) {
-        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, angleY, otherPlayersInfo[i].name))
+        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, otherPlayersInfo[i].yaw, otherPlayersInfo[i].name))
     }
 })
 
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
-    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, angleY, player.name));
-    console.log(otherPlayers.length + " players connected")
+    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.yaw, player.name));
 })
 
 socket.on("playerLeave", (name) => {
     console.log("someone left")
     for (var i = 0; i < otherPlayers.length; i++) {
-        if (otherPlayers[i].userInfo == name) {
-            otherPlayers.splice(i);
-            console.log(otherPlayers.length);
+        if (otherPlayers[i].name == name) {
+            otherPlayers.splice(i, 1);
         }
     }
-    console.log(otherPlayers.length + " players connected");
 })
 
 socket.on("playerUpdate", (data) => {
@@ -222,6 +218,7 @@ socket.on("playerUpdate", (data) => {
         for (var j = 0; j < otherPlayers.length; j++) {
             if (i == j) {
                 otherPlayers[j].position = data[i].position;
+                otherPlayers[j].yaw = data[j].yaw;
                 otherPlayers[j].updatePosition();
                 break;
             }
@@ -368,7 +365,7 @@ function update(now) {
 
 
 
-	player.angleY = angleY
+	player.yaw = lookAngleY
 	player.updatePosition() // this must go last
     for (var i = 0; i < otherPlayers.length; i++) {
         otherPlayers[i].updatePosition();
@@ -377,22 +374,22 @@ function update(now) {
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
     inventory.currentWeapon.model.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
     
-    inventory.currentWeapon.position.x = player.position.x + Math.cos(player.angleY) * distanceFromPlayer
+    inventory.currentWeapon.position.x = player.position.x + Math.cos(player.yaw) * distanceFromPlayer
     inventory.currentWeapon.position.y = player.position.y + 1.5
-    inventory.currentWeapon.position.z = player.position.z + Math.sin(player.angleY) * distanceFromPlayer
-    inventory.currentWeapon.angleY = Date.now() / 1000 + player.angleY
+    inventory.currentWeapon.position.z = player.position.z + Math.sin(player.yaw) * distanceFromPlayer
+    inventory.currentWeapon.yaw = Date.now() / 1000 + player.yaw
     inventory.currentWeapon.updatePosition(deltaTime)
 
     for (let i = 0; i < otherWeapons.length; i++) {
         if (otherWeapons[i].shooted) {
-            otherWeapons[i].angleY += deltaTime / 1000
+            otherWeapons[i].yaw += deltaTime / 1000
             otherWeapons[i].updatePosition(deltaTime)
         }
     }
 
 
 
-    webgl.renderFrame(player.position, angleX, angleY);
+    webgl.renderFrame(player.position, lookAngleX, lookAngleY);
     if (running) requestAnimationFrame(update)
 }
 
@@ -411,8 +408,8 @@ function fixedUpdate() {
 	let walkAnimationSpeed = .001 / speed
 
 	if (w) {
-		player.position.x += speed * Math.cos(angleY - (Math.PI / 2)) * deltaTime
-		player.position.z += speed * Math.sin(angleY - (Math.PI / 2)) * deltaTime
+		player.position.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+		player.position.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         if (player.animation.finished) {
             if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
@@ -422,12 +419,12 @@ function fixedUpdate() {
         }
 	}
 	if (a) {
-		player.position.x -= speed * Math.cos(angleY) * deltaTime
-		player.position.z -= speed * Math.sin(angleY) * deltaTime
+		player.position.x -= speed * Math.cos(lookAngleY) * deltaTime
+		player.position.z -= speed * Math.sin(lookAngleY) * deltaTime
 	}
 	if (s) {
-		player.position.x -= speed * Math.cos(angleY - (Math.PI / 2)) * deltaTime
-		player.position.z -= speed * Math.sin(angleY - (Math.PI / 2)) * deltaTime
+		player.position.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+		player.position.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
         
         if (player.animation.finished) {
             if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
@@ -437,8 +434,8 @@ function fixedUpdate() {
         }
 	}
 	if (d) {
-		player.position.x += speed * Math.cos(angleY) * deltaTime
-		player.position.z += speed * Math.sin(angleY) * deltaTime
+		player.position.x += speed * Math.cos(lookAngleY) * deltaTime
+		player.position.z += speed * Math.sin(lookAngleY) * deltaTime
 	}
     if (!w && !s) {
         if (player.animation.finished) {
@@ -458,7 +455,7 @@ function fixedUpdate() {
 
     if (leftClicking) {
         if (!inventory.currentWeapon.shooted && cooldownTimer <= 0) {
-              currentCooldown = inventory.currentWeapon.shoot(angleX, angleY)
+              currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
               cooldownTimer = currentCooldown
               otherWeapons.push(inventory.currentWeapon)
               inventory.currentWeapon = new Weapon(weaponGeometry, "tomato")
@@ -634,11 +631,11 @@ document.addEventListener("mousemove", function (event) {
 	if (pointerLocked) {
 		let sensitivity = .1
 		sensitivity = Math.PI / 512;
-		angleX += sensitivity * event.movementY
-		angleY += sensitivity * event.movementX
+		lookAngleX += sensitivity * event.movementY
+		lookAngleY += sensitivity * event.movementX
 
-		if (angleX < -Math.PI / 2) angleX = -Math.PI / 2
-		if (angleX > Math.PI / 2) angleX = Math.PI / 2
+		if (lookAngleX < -Math.PI / 2) lookAngleX = -Math.PI / 2
+		if (lookAngleX > Math.PI / 2) lookAngleX = Math.PI / 2
 
 	}
 
