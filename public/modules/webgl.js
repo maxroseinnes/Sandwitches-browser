@@ -219,7 +219,7 @@ var webgl = {
 
 
 
-  renderFrame: function(playerPosition, angleX, angleY) {
+  renderFrame: function(playerPosition, angleX, yaw) {
 
 
 
@@ -283,7 +283,7 @@ var webgl = {
 
   	mat4.translate(tMatrix, tMatrix, [-2, -1, -8]);
     mat4.rotateX(tMatrix, tMatrix, angleX);
-    mat4.rotateY(tMatrix, tMatrix, angleY);
+    mat4.rotateY(tMatrix, tMatrix, yaw);
     mat4.translate(tMatrix, tMatrix, [-playerPosition.x, -playerPosition.y, -playerPosition.z]);
 
     let tMatrixLocation = this.gl.getUniformLocation(this.program, "tMatrix");
@@ -687,7 +687,7 @@ class Model {
 
 
 class Player {
-  constructor(geometries, x, y, z, angleY, name) {
+  constructor(geometries, x, y, z, yaw, name) {
     this.geometries = geometries
     this.ingredientModels = {}
     for (let ingredient in geometries.idle) {
@@ -727,14 +727,14 @@ class Player {
       z: z
     }
 
-    this.angleY = angleY
+    this.yaw = yaw
 
     this.name = name
   }
 
   updatePosition() {
     for (let ingredient in this.ingredientModels) {
-      this.ingredientModels[ingredient].setPosition(this.angleY, this.position.x, this.position.y, this.position.z)
+      this.ingredientModels[ingredient].setPosition(this.yaw, this.position.x, this.position.y, this.position.z)
     }
   }
 
@@ -850,7 +850,7 @@ class Weapon {
       y: 0, 
       z: 0
     }
-    this.angleY = 0
+    this.yaw = 0
 
 
     this.shooted = false
@@ -868,12 +868,12 @@ class Weapon {
       this.position.y += this.shootMovementVector.y * deltaTime
       this.position.z += this.shootMovementVector.z * deltaTime
     }
-    this.model.setPosition(this.angleY, this.position.x, this.position.y, this.position.z)
+    this.model.setPosition(this.yaw, this.position.x, this.position.y, this.position.z)
   }
 
-  shoot(angleX, angleY) {
+  shoot(angleX, yaw) {
     angleX = -angleX + Math.PI / 64
-    angleY = -angleY
+    yaw = -yaw
     this.shootMovementVector.x = 0
     this.shootMovementVector.y = 0
     this.shootMovementVector.z = -this.speed
@@ -885,11 +885,11 @@ class Weapon {
 
     tempZ = this.shootMovementVector.z
     let tempX = this.shootMovementVector.x
-    this.shootMovementVector.z = Math.cos(angleY) * tempZ - Math.sin(angleY) * tempX
-    this.shootMovementVector.x = Math.sin(angleY) * tempZ + Math.cos(angleY) * tempX
+    this.shootMovementVector.z = Math.cos(yaw) * tempZ - Math.sin(yaw) * tempX
+    this.shootMovementVector.x = Math.sin(yaw) * tempZ + Math.cos(yaw) * tempX
 /*
-    this.position.z += -Math.sin(angleY)
-    this.position.x += Math.cos(angleY)
+    this.position.z += -Math.sin(yaw)
+    this.position.x += Math.cos(yaw)
     this.position.y += Math.cos(angleX)
     //this.position.z += Math.sin(angleX)
 */
