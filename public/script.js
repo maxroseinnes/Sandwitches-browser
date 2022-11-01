@@ -45,6 +45,7 @@ var pointerLocked = false
 var gravity = 0
 var crouching = false
 var onGround = true
+var lastOnGround = true
 
 
 var angleX = 0.0
@@ -232,6 +233,20 @@ socket.on("tooManyPlayers", () => {
     alert("Sorry, there are too many players connected.");
 })
 
+
+// AUDIO //
+
+const backgroundNoises = new Audio("./assets/dripping-water-nature-sounds-8050.mp3")
+backgroundNoises.onended = () => {
+    backgroundNoises.play()
+}
+
+const splatNoise = new Audio("./assets/cartoon-splat-6086.mp3")
+const jumpNoise = new Audio("./assets/smb_jump-super.wav")
+
+
+// MAP ORGANIZATION //
+
 var otherWeapons = []
 
 {
@@ -285,7 +300,7 @@ var chOffset = 10
 
 
 var inventory = {
-    loadOut: ["pan", "olive", "pickle", "sausage"],
+    loadOut: ["anchovy", "olive", "pickle", "sausage"],
     weaponModels: [],
     currentSelection: 0,
     currentWeapon: null,
@@ -435,7 +450,10 @@ function fixedUpdate() {
 	else crouching = false
 
 	if (space) {
-		if (onGround) gravity = .0125
+		if (onGround) {
+            gravity = .0125
+            jumpNoise.play()
+        }
 	}
 
     if (leftClicking) {
@@ -472,6 +490,9 @@ function fixedUpdate() {
     gravity = collision.gravity
     if (collision.onPlatform) onGround = true
 
+
+    if (!lastOnGround && onGround) splatNoise.play()
+    lastOnGround = onGround
 
 
 	// ingredient jiggle //
@@ -628,6 +649,7 @@ document.addEventListener("mousemove", function (event) {
 startButton.onclick = () => {
 	console.log("starting")
 
+    backgroundNoises.play()
 	menu.style.display = "none"
 
 	canvas.requestPointerLock()
