@@ -8,7 +8,40 @@ const ipv4 = "10.176.54.175";
 const localhost = false;
 const port = 3000;
 
-const availableNames = ["Steve", "Alex", "Emma", "Jeff", "Olive"];
+const availableNames = [
+  "Steve", 
+  "Alex", 
+  "Emma", 
+  "Jeff", 
+  "Olive", 
+  "James", 
+  "Mary", 
+  "Robert",
+  "Patricia", 
+  "John", 
+  "Jennifer", 
+  "Michael", 
+  "Linda", 
+  "David", 
+  "Elizabeth", 
+  "William", 
+  "Barbara", 
+  "Richard", 
+  "Susan", 
+  "Joseph", 
+  "Jessica", 
+  "Thomas",
+  "Sarah",
+  "Charles",
+  "Karen",
+  "Christopher",
+  "Lisa",
+  "Daniel",
+  "Nancy",
+  "Matthew",
+  "Betty",
+  "Anthony"
+];
 
 var players = [];
 
