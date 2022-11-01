@@ -25,7 +25,7 @@ var webgl = {
       index: 1
     },
     bread: {
-      url: "./assets/download.jfif",
+      url: "./assets/sandwich_guy.png",
       index: 2
     },
     wood: {
@@ -176,7 +176,7 @@ var webgl = {
     let canvas = document.createElement("canvas")
     canvas.width = webgl.squareWidth * 256
     canvas.height = webgl.squareWidth * 256
-    document.body.appendChild(canvas)
+    //document.body.appendChild(canvas)
     let ctx = canvas.getContext("2d")
 
     for (let i = 0; i < loadedImages.length; i++) {

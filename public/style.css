@@ -60,6 +60,14 @@ button:hover {
 }
 
 
+#nameField {
+    position: absolute;
+    top: calc(50% - 100px);
+    left: calc(50% - 50px);
+
+}
+
+
 #hud {
     position: absolute;
     top: 0px;
