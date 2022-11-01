@@ -254,8 +254,8 @@ var otherWeapons = []
     let gridLinesZ = []
     
     for (let i = 0; i < gridPointsMX.length; i++) {
-        gridLinesX.push(new Line(gridPointsMX[i], gridPointsPX[i]))
-        gridLinesZ.push(new Line(gridPointsMZ[i], gridPointsPZ[i]))
+        //gridLinesX.push(new Line(gridPointsMX[i], gridPointsPX[i]))
+        //gridLinesZ.push(new Line(gridPointsMZ[i], gridPointsPZ[i]))
     }
     
     let squareRadius = gridSize * gridSpacing // not really radius but whatever
