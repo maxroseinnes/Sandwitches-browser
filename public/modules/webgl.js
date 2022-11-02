@@ -418,6 +418,22 @@ class Model {
             rotatedY, 
             rotatedZ
           )
+
+          
+
+          let modelN1 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][0], mesh2.normals[mesh2.indices[i].normals[j]][0], stage)
+          let modelN2 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][1], mesh2.normals[mesh2.indices[i].normals[j]][1], stage)
+          let modelN3 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][2], mesh2.normals[mesh2.indices[i].normals[j]][2], stage)
+
+          let rotatedN1 = modelN1 * Math.cos(angle) - modelN3 * Math.sin(angle)
+          let rotatedN2 = modelN2
+          let rotatedN3 = modelN1 * Math.sin(angle) + modelN3 * Math.cos(angle)
+
+          webgl.pointNormals.splice(this.pointIndices[i][j] * 3, 3, 
+            rotatedN1, 
+            rotatedN2, 
+            rotatedN3
+          )
         }
 
     }
