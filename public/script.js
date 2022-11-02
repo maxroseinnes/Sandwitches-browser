@@ -247,40 +247,12 @@ const jumpNoise = new Audio("./assets/smb_jump-super.wav")
 var otherWeapons = []
 
 {
-    let gridPointsMX = []
-    let gridPointsPX = []
-    let gridPointsMZ = []
-    let gridPointsPZ = []
-    
-    let gridSize = 10;
-    let gridSpacing = 2;
-    
-    for (let i = -gridSize; i < gridSize; i++) {
-        gridPointsMX.push(new Point(i * gridSpacing, 0, -gridSpacing * gridSize, 0, 1, 0, .5, .5, .5))
-        gridPointsPX.push(new Point(i * gridSpacing, 0,  gridSpacing * gridSize, 0, 1, 0, .5, .5, .5))
-        gridPointsMZ.push(new Point(-gridSpacing * gridSize, 0, i * gridSpacing, 0, 1, 0, .5, .5, .5))
-        gridPointsPZ.push(new Point( gridSpacing * gridSize, 0, i * gridSpacing, 0, 1, 0, .5, .5, .5))
-    }
-    
-    let gridLinesX = []
-    let gridLinesZ = []
-    
-    for (let i = 0; i < gridPointsMX.length; i++) {
-        //gridLinesX.push(new Line(gridPointsMX[i], gridPointsPX[i]))
-        //gridLinesZ.push(new Line(gridPointsMZ[i], gridPointsPZ[i]))
-    }
-    
-    let squareRadius = gridSize * gridSpacing // not really radius but whatever
-    let groundR = .2
-    let groundG = .2
-    let groundB = .2
-    let groundPoint1 = new Point(squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB, 0.0, 0.0)
-    let groundPoint2 = new Point(-squareRadius, -.01, squareRadius, 0, 1, 0, groundR, groundG, groundB, 1.0, 0.0)
-    let groundPoint3 = new Point(-squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB, 1.0, 1.0)
-    let groundPoint4 = new Point(squareRadius, -.01, -squareRadius, 0, 1, 0, groundR, groundG, groundB, 0.0, 1.0)
-
-    let groundPoly1 = new Poly(groundPoint1, groundPoint2, groundPoint3)
-    let groundPoly2 = new Poly(groundPoint3, groundPoint4, groundPoint1)
+    let groundPoint1 = new Point(50, -.01, 50, 0, 1, 0, 1, 1, 1, 0.0, 0.0)
+    let groundPoint2 = new Point(-50, -.01, 50, 0, 1, 0, 1, 1, 1, 1.0, 0.0)
+    let groundPoint3 = new Point(-50, -.01, -50, 0, 1, 0, 1, 1, 1, 1.0, 1.0)
+    let groundPoint4 = new Point(-50, -.01, -50, 0, 1, 0, 1, 1, 1, 1.0, 1.0)
+    let groundPoint5 = new Point(50, -.01, -50, 0, 1, 0, 1, 1, 1, 0.0, 1.0)
+    let groundPoint6 = new Point(50, -.01, 50, 0, 1, 0, 1, 1, 1, 0.0, 0.0)
     
 
 }
@@ -306,10 +278,11 @@ var inventory = {
 
     initialize: function() {
         for (let i = 0; i < this.loadOut.length; i++) {
-            this.weaponModels.push(new Weapon(weaponGeometry, this.loadOut[i]))
+            //this.weaponModels.push(new Weapon(weaponGeometry, this.loadOut[i]))
         }
 
-        this.currentWeapon = this.weaponModels[this.currentSelection]
+        //this.currentWeapon = this.weaponModels[this.currentSelection]
+        this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0])
     },
 
     updateHUD: function() {
@@ -336,11 +309,6 @@ inventory.initialize()
 // TESTING //
 
 
-var testSlope = Platform.calculateSlopes({x: 0, y: 0, z: 0}, {x: 1, y: 0, z: 1})
-console.log(testSlope)
-console.log(testSlope.y.dependZ(5))
-
-
 
 
 
@@ -356,13 +324,12 @@ function update(now) {
 	lastFramerates.splice(20)
 	let rollingFramerate = 0
 	for (let i = 0; i < lastFramerates.length; i++) rollingFramerate += lastFramerates[i] / lastFramerates.length
-	info.innerHTML = Math.round(rollingFramerate)
+	info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9
 
 
 
 
 	player.updateAnimation()
-
 
 
 	player.yaw = lookAngleY
@@ -386,8 +353,6 @@ function update(now) {
             otherWeapons[i].updatePosition(deltaTime)
         }
     }
-
-
 
     webgl.renderFrame(player.position, lookAngleX, lookAngleY);
     if (running) requestAnimationFrame(update)
@@ -488,7 +453,6 @@ function fixedUpdate() {
     if (collision.onPlatform) onGround = true
 
 
-    if (!lastOnGround && onGround) splatNoise.play()
     lastOnGround = onGround
 
 
@@ -537,44 +501,6 @@ if (event.keyCode == 68) d = true
 if (event.keyCode == 16) {
     inventory.currentWeapon.model.delete()
     console.log("deleted")
-
-    let deletedPointIndices = []
-    for (let i = 0; i < webgl.points.length/3; i++) {
-        if (webgl.points[i*3] == null) deletedPointIndices.push(i)
-    }
-
-    deletedPointIndices.push(webgl.points.length)
-    deletedPointIndices.sort()
-
-    let deletedPointObjects = []
-
-    for (let i = 0; i < deletedPointIndices.length; i++) {
-        for (let j = 0; j < Point.allPoints.length; j++) {
-            if (Point.allPoints[i].pointIndex == deletedPointIndices[i]) deletedPointObjects.push(i)
-            if (deletedPointIndices[i] < Point.allPoints[i].pointIndex && Point.allPoints[i].pointIndex < deletedPointIndices[i+1]) {
-                Point.allPoints[i].pointIndex -= i + 1
-            }
-        }
-    }
-
-    deletedPointIndices.reverse()
-    for (let i = 0; i < deletedPointIndices.length; i++) {
-        //webgl.points.splice(deletedPointIndices[i] * 3, 3)
-    }
-
-    let deletedPolyObjects = []
-
-    for (let i = 0; i < Poly.allPolys.length; i++) {
-        if (webgl.polys[Poly.allPolys[i].polyIndex * 3] == null) deletedPolyObjects.push(i)
-        //else webgl.polys.splice(Poly.allPolys[i].polyIndex * 3, 3, Poly.allPolys[i].point1.pointIndex, Poly.allPolys[i].point2.pointIndex, Poly.allPolys[i].point3.pointIndex)
-    }
-
-    console.log(deletedPolyObjects)
-    deletedPolyObjects.sort()
-    deletedPolyObjects.reverse()
-    for (let i = 0; i < deletedPolyObjects.length; i++) webgl.polys.splice(Poly.allPolys[i].pointIndex * 3, 3)
-    for (let i = 0; i < deletedPolyObjects.length; i++) Poly.allPolys.splice(i, 1)
-
 
 	shift = true
 }

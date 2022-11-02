@@ -3,14 +3,10 @@
 var webgl = {
 
 
-  polys: [],
   points: [],
-  pointColors: [],
   pointNormals: [],
   texCoords: [],
-  pointsizes: [],
-  lines: [],
-  dots: [],
+  deletedPoints: [],
 
   textureMap: null,
 
@@ -58,8 +54,6 @@ var webgl = {
     precision mediump float;
   
     attribute vec4 vertPosition;
-    attribute vec4 aVertColor;
-    attribute float aPointSize;
     attribute vec3 aVertNormal;
     attribute vec2 aTexCoord;
   
@@ -72,7 +66,6 @@ var webgl = {
   
     void main() {
       gl_Position = pMatrix * tMatrix * vertPosition;
-      gl_PointSize = aPointSize;
   
       highp vec3 ambientLight = vec3(0.7, 0.7, 0.7);
       highp vec3 directionalLightColor = vec3(.35, .35, .35);
@@ -111,19 +104,8 @@ var webgl = {
   
     // buffers //
     this.pointsBuffer = this.gl.createBuffer()
-    this.colorsBuffer = this.gl.createBuffer()
     this.normalsBuffer = this.gl.createBuffer()
     this.texCoordsBuffer = this.gl.createBuffer()
-    this.polysBuffer = this.gl.createBuffer()
-  
-    this.linePointsBuffer = this.gl.createBuffer()
-    this.linePointColorsBuffer = this.gl.createBuffer()
-    this.linesBuffer = this.gl.createBuffer()
-  
-    this.dotPointsBuffer = this.gl.createBuffer()
-    this.dotColorsBuffer = this.gl.createBuffer()
-    this.dotsBuffer = this.gl.createBuffer()
-    this.pointSizesBuffer = this.gl.createBuffer()
 
 
 
@@ -154,6 +136,9 @@ var webgl = {
     
     for (let name in this.textures) {
       let image = new Image()
+      image.width = 64
+      image.height = 64
+      //document.body.appendChild(image)
       image.crossOrigin = "anonymous"
       image.onload = () => {
           this.loadedImages[this.textures[name].index] = image
@@ -174,9 +159,10 @@ var webgl = {
 
 
     let canvas = document.createElement("canvas")
-    canvas.width = webgl.squareWidth * 256
-    canvas.height = webgl.squareWidth * 256
+    canvas.width = webgl.squareWidth * 64
+    canvas.height = webgl.squareWidth * 64
     //document.body.appendChild(canvas)
+    canvas.style.imageRendering = "pixelated"
     let ctx = canvas.getContext("2d")
 
     for (let i = 0; i < loadedImages.length; i++) {
@@ -186,11 +172,7 @@ var webgl = {
 
         ctx.drawImage(
           loadedImages[i], 
-          0, 
-          0, 
-          loadedImages[i].width, 
-          loadedImages[i].height, 
-          xLocation * 256, yLocation * 256, 256, 256)
+          xLocation * 64, yLocation * 64, 64, 64)
       }
       
     }
@@ -207,8 +189,11 @@ var webgl = {
       else {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+        //gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+        
       }
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 
 
     }
@@ -255,24 +240,6 @@ var webgl = {
     this.gl.enableVertexAttribArray(texCoordAttribLocation);
 
 
-  	let psSize = 1;
-
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointSizesBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.pointsizes), this.gl.DYNAMIC_DRAW);
-
-    let pointSizeAttribLocation = this.gl.getAttribLocation(this.program, "aPointSize");
-    this.gl.vertexAttribPointer(pointSizeAttribLocation, psSize, this.gl.FLOAT, false, psSize * Float32Array.BYTES_PER_ELEMENT, 0);
-    this.gl.enableVertexAttribArray(pointSizeAttribLocation);
-
-
-
-
-
-
-  	let pSize = 3;
-
-    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.polysBuffer);
-    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.polys), this.gl.DYNAMIC_DRAW);
 
     this.gl.useProgram(this.program);
 
@@ -319,22 +286,7 @@ var webgl = {
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureMap)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uSampler"), 0)
 
-    this.gl.drawElements(this.gl.TRIANGLES, this.polys.length, this.gl.UNSIGNED_SHORT, 0);
-
-
-  	// ---------- // Lines
-
-    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.linesBuffer);
-    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.lines), this.gl.DYNAMIC_DRAW);
-
-    this.gl.drawElements(this.gl.LINES, this.lines.length, this.gl.UNSIGNED_SHORT, 0);
-
-  	// ---------- // Dots
-
-    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.dotsBuffer);
-    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.dots), this.gl.DYNAMIC_DRAW);
-
-    this.gl.drawElements(this.gl.POINTS, this.dots.length, this.gl.UNSIGNED_SHORT, 0);
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, this.points.length / 3)
 
 
 
@@ -352,104 +304,19 @@ var webgl = {
 
 
 
-var points = []
-var pointColors = []
-var pointNormals = []
-var polys = []
-var pointSizes = []
-var dots = []
-var lines = []
 
 
-
-
-
-class Poly{
-  static allPolys = []
-  constructor(point1, point2, point3) {
-    Poly.allPolys.push(this)
-    this.point1 = point1;
-    this.point2 = point2;
-    this.point3 = point3;
-    this.polyIndex = webgl.polys.length / 3;
-    webgl.polys.push(point1.pointIndex, point2.pointIndex, point3.pointIndex);
-    this.existant = true;
-/*
-    this.linePoint1 = new Point(this.point1.x, this.point1.y, this.point1.z, 0, 0, 0)
-    this.linePoint2 = new Point(this.point2.x, this.point2.y, this.point2.z, 0, 0, 0)
-    this.linePoint3 = new Point(this.point3.x, this.point3.y, this.point3.z, 0, 0, 0)
-    this.line1 = new Line(this.linePoint1, this.linePoint2)
-    this.line2 = new Line(this.linePoint2, this.linePoint3)
-    this.line3 = new Line(this.linePoint3, this.linePoint1)
-    */
-  }
-
-  delete() {
-    webgl.polys.splice(this.polyIndex * 3, 3, null, null, null);
-    this.existant = false;
-  }
-
-}
 
 
 class Point {
   static allPoints = []
   constructor(x, y, z, n1, n2, n3, r, g, b, tx1, tx2) {
-    Point.allPoints.push(this)
-    this.x = x;
-    this.y = y;
-    this.z = z;
-
-    this.n1 = n1;
-    this.n2 = n2;
-    this.n3 = n3;
-
-    this.r = r;
-    this.g = g;
-    this.b = b;
-
 
     this.pointIndex = webgl.points.length / 3;
-    this.pointSizeIndex = webgl.pointsizes.length;
 
     webgl.points.push(x, y, z);
-    webgl.pointColors.push(this.r, this.g, this.b, 1)
     webgl.pointNormals.push(n1, n2, n3)
     webgl.texCoords.push(tx1, tx2)
-    webgl.pointsizes.push(1.0);
-  }
-
-  setPosition(angle, x, y, z, scale) {
-    webgl.points.splice(this.pointIndex * 3, 3, 	  this.x * scale  * Math.cos(angle) - this.z * scale  * Math.sin(angle) + x, this.y * scale + y, this.x * scale  * Math.sin(angle) + this.z * scale  * Math.cos(angle) + z);
-    webgl.pointNormals.splice(this.pointIndex * 3, 3, this.n1 * Math.cos(angle) - this.n3 * Math.sin(angle)    , this.n2,    this.n1 * Math.sin(angle) + this.n3 * Math.cos(angle))
-  }
-
-  overridePosition(x, y, z) {
-
-    this.x = x;
-    this.y = y;
-    this.z = z;
-
-    webgl.points.splice(this.pointIndex * 3, 3, x, y, z)
-  }
-
-  overrideNormal(n1, n2, n3) {
-
-    this.n1 = n1;
-    this.n2 = n2;
-    this.n3 = n3;
-
-    webgl.pointNormals.splice(this.pointIndex * 3, 3, n1, n2, n3)
-  }
-
-
-
-  changeColor(r, g, b) {
-    this.r = r;
-    this.g = g;
-    this.b = b;
-
-    webgl.pointColors.splice(this.pointIndex * 4, 3, this.r, this.g, this.b);
   }
 
 
@@ -463,34 +330,6 @@ class Point {
 }
 
 
-class Line{
-  constructor(point1, point2) {
-    this.point1 = point1;
-    this.point2 = point2;
-    this.lineIndex = webgl.lines.length / 2;
-    webgl.lines.push(point1.pointIndex, point2.pointIndex)
-
-    this.existant = true;
-  }
-
-  delete() {
-    webgl.lines.splice(this.lineIndex * 2, 2)
-    this.existant = false;
-  }
-}
-
-
-class Dot{
-  constructor(point, size) {
-    this.point = point;
-    this.dotIndex = webgl.dots.length
-    webgl.dots.push(point.pointIndex)
-
-    this.pointSize = size;
-    webgl.pointsizes.splice(point.pointSizeIndex, 1, size)
-  }
-}
-
 
 
 
@@ -502,6 +341,7 @@ class Model {
 // 1 2 3   1
 // 4 5 6   2
 // 7 8 9   3
+
 
     let squareWidth = webgl.squareWidth
 
@@ -515,171 +355,91 @@ class Model {
 
     this.scale = scale
 
-    this.x = 0
-    this.y = 0
-    this.z = 0
-
     let positions = geometryInfo.positions
     let normals = geometryInfo.normals
     let texcoords = geometryInfo.texcoords
     let smooth = geometryInfo.smooth
     let indices = geometryInfo.indices
 
-    this.positions = positions
-    this.normals = normals
-    this.smooth = smooth
-    //smooth = true
+    this.geometryInfo = geometryInfo
 
-    let vertexIndices = []
-    let normalIndices = []
-    for (let i = 0; i < geometryInfo.indices.length; i++) {
-        vertexIndices.push(geometryInfo.indices[i].vertexes)
-        normalIndices.push(geometryInfo.indices[i].normals)
-    }
+    // for each triangle: make three new points and a poly
 
-    this.vertexIndices = vertexIndices
-    this.normalIndices = normalIndices
+    this.pointIndices = []
 
-    this.points = []
-    this.polys = []
+    for (let i = 0; i < this.geometryInfo.indices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
 
-    if (!smooth) {
-      // for each triangle: make three new points and a poly
+      let currentPointIndices = []
+      for (let j = 0; j < 3; j++) {
 
-      for (let i = 0; i < vertexIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
-        let point1 = new Point(positions[indices[i].vertexes[0]][0] * scale + this.x, positions[indices[i].vertexes[0]][1] * scale + this.y, positions[indices[i].vertexes[0]][2] * scale + this.z, normals[indices[i].normals[0]][0], normals[indices[i].normals[0]][1], normals[indices[i].normals[0]][2], r, g, b, (texcoords[indices[i].texcoords[0]][0] + textureLocationX) / squareWidth, (texcoords[indices[i].texcoords[0]][1] + textureLocationY) / squareWidth)
-        let point2 = new Point(positions[indices[i].vertexes[1]][0] * scale + this.x, positions[indices[i].vertexes[1]][1] * scale + this.y, positions[indices[i].vertexes[1]][2] * scale + this.z, normals[indices[i].normals[1]][0], normals[indices[i].normals[1]][1], normals[indices[i].normals[1]][2], r, g, b, (texcoords[indices[i].texcoords[1]][0] + textureLocationX) / squareWidth, (texcoords[indices[i].texcoords[1]][1] + textureLocationY) / squareWidth)
-        let point3 = new Point(positions[indices[i].vertexes[2]][0] * scale + this.x, positions[indices[i].vertexes[2]][1] * scale + this.y, positions[indices[i].vertexes[2]][2] * scale + this.z, normals[indices[i].normals[2]][0], normals[indices[i].normals[2]][1], normals[indices[i].normals[2]][2], r, g, b, (texcoords[indices[i].texcoords[2]][0] + textureLocationX) / squareWidth, (texcoords[indices[i].texcoords[2]][1] + textureLocationY) / squareWidth)
+        currentPointIndices.push(webgl.points.length / 3)
 
-        this.points.push(point1, point2, point3)
-        this.polys.push(new Poly(point1, point2, point3))
+        webgl.points.push(positions[indices[i].vertexes[j]][0] * scale, positions[indices[i].vertexes[j]][1] * scale, positions[indices[i].vertexes[j]][2] * scale)
+        webgl.pointNormals.push(normals[indices[i].normals[j]][0], normals[indices[i].normals[j]][1], normals[indices[i].normals[j]][2])
+        webgl.texCoords.push((texcoords[indices[i].texcoords[j]][0] + textureLocationX) / squareWidth, (texcoords[indices[i].texcoords[j]][1] + textureLocationY) / squareWidth)
+
       }
 
-  }
+      this.pointIndices.push(currentPointIndices)
+    }
+        
 
-  else {
-      let points = []
-      for (let i = 0; i < positions.length; i++) {
-        let connectedPolys = []
-        for (let j = 0; j < vertexIndices.length; j++) {
-          for (let k = 0; k < vertexIndices[j].length; k++) {
-            if (vertexIndices[j][k] == i) connectedPolys.push({ index: j, vertex: k })
-          }
-        }
 
-        let averageNormalX = 0
-        let averageNormalY = 0
-        let averageNormalZ = 0
 
-        for (let j = 0; j < connectedPolys.length; j++) {
-          averageNormalX += normals[normalIndices[connectedPolys[j].index][connectedPolys[j].vertex]][0]
-          averageNormalY += normals[normalIndices[connectedPolys[j].index][connectedPolys[j].vertex]][1]
-          averageNormalZ += normals[normalIndices[connectedPolys[j].index][connectedPolys[j].vertex]][2]
-        }
 //heheheheheh goblin mdode
-        averageNormalX /= connectedPolys.length
-        averageNormalY /= connectedPolys.length
-        averageNormalZ /= connectedPolys.length
-
-
-        points.push(new Point(positions[i][0] * scale + this.x, positions[i][1] * scale + this.y, positions[i][2] * scale + this.z, averageNormalX, averageNormalY, averageNormalZ, r, g, b))
-      }
-
-      for (let i = 0; i < vertexIndices.length; i++) {
-        this.polys.push(new Poly(points[vertexIndices[i][0]], points[vertexIndices[i][1]], points[vertexIndices[i][2]]))
-      }
-
-      this.points = points
-    }
 
 
   }
 
 
-  setPosition(angle, x, y, z) {
-    for (let i = 0; i < this.points.length; i++) {
-      this.points[i].setPosition(angle, x, y, z, this.scale)
+  setPosition(angle, x, y, z, mesh1, mesh2, stage) {
+
+
+    let geometryInfo = this.geometryInfo
+    let positions = geometryInfo.positions
+    let normals = geometryInfo.normals
+    let texcoords = geometryInfo.texcoords
+    let smooth = geometryInfo.smooth
+    let indices = geometryInfo.indices
+
+    for (let i = 0; i < this.pointIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
+        for (let j = 0; j < this.pointIndices[i].length; j++) {
+
+          let modelX = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][0] * this.scale, stage)
+          let modelY = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][1] * this.scale, stage)
+          let modelZ = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage)
+
+          let rotatedX = modelX * this.scale  * Math.cos(angle) - modelZ * this.scale  * Math.sin(angle) + x 
+          let rotatedY = modelY * this.scale + y
+          let rotatedZ = modelX * this.scale  * Math.sin(angle) + modelZ * this.scale  * Math.cos(angle) + z
+
+          webgl.points.splice(this.pointIndices[i][j] * 3, 3, 
+            rotatedX, 
+            rotatedY, 
+            rotatedZ
+          )
+        }
+
     }
+
+
   }
 
   lerp(a, b, x) {
     return a + (b - a) * x
   }
 
-
-
-  interpolatePoints(mesh1, mesh2, stage) {
-    if (this.smooth) {
-      if (mesh1.positions.length != mesh2.positions.length) {
-        console.log(`meshes ${mesh1.name} and ${mesh2.name} have different numbers of points`)
-        return
-      }
-      for (let i = 0; i < mesh1.positions.length; i++) {
-        this.points[i].overridePosition(
-          this.lerp(mesh1.positions[i][0] * this.scale, mesh2.positions[i][0] * this.scale, stage),
-          this.lerp(mesh1.positions[i][1] * this.scale, mesh2.positions[i][1] * this.scale, stage),
-          this.lerp(mesh1.positions[i][2] * this.scale, mesh2.positions[i][2] * this.scale, stage),
-        )
-      }
-/*
-      for (let i = 0; i < mesh1.normals.length; i++) {
-        this.points[i].overrideNormal(
-        this.lerp(mesh1.normals[i][0] * this.scale, mesh2.normals[i][0] * this.scale, stage),
-        this.lerp(mesh1.normals[i][1] * this.scale, mesh2.normals[i][1] * this.scale, stage),
-        this.lerp(mesh1.normals[i][2] * this.scale, mesh2.normals[i][2] * this.scale, stage),
-        )
-      }*/
-    }
-    else {
-      if (mesh1.indices.length != mesh2.indices.length) {
-        throw("different triangle count in" + mesh1.indices.length + ", " + mesh2.indices.length)
-      }
-      for (let i = 0; i < mesh1.indices.length; i++) {
-        this.polys[i].point1.overridePosition(
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[0]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[0]][0] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[0]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[0]][1] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[0]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[0]][2] * this.scale, stage)
-        )
-        this.polys[i].point2.overridePosition(
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[1]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[1]][0] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[1]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[1]][1] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[1]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[1]][2] * this.scale, stage)
-        )
-        this.polys[i].point3.overridePosition(
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[2]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[2]][0] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[2]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[2]][1] * this.scale, stage),
-          this.lerp(mesh1.positions[mesh1.indices[i].vertexes[2]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[2]][2] * this.scale, stage)
-        )
-
-
-        this.polys[i].point1.overrideNormal(
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[0]][0], mesh2.normals[mesh2.indices[i].normals[0]][0], stage),
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[0]][1], mesh2.normals[mesh2.indices[i].normals[0]][1], stage),
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[0]][2], mesh2.normals[mesh2.indices[i].normals[0]][2], stage)
-        )
-        this.polys[i].point2.overrideNormal(
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[1]][0], mesh2.normals[mesh2.indices[i].normals[1]][0], stage),
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[1]][1], mesh2.normals[mesh2.indices[i].normals[1]][1], stage),
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[1]][2], mesh2.normals[mesh2.indices[i].normals[1]][2], stage)
-        )
-        this.polys[i].point3.overrideNormal(
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[2]][0], mesh2.normals[mesh2.indices[i].normals[2]][0], stage),
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[2]][1], mesh2.normals[mesh2.indices[i].normals[2]][1], stage),
-          this.lerp(mesh1.normals[mesh1.indices[i].normals[2]][2], mesh2.normals[mesh2.indices[i].normals[2]][2], stage)
-        )
-        
-
-      }
-    }
-  }
-
   delete() {
-    for (let i = 0; i < this.polys.length; i++) {
-      this.polys[i].delete()
+    for (let i = 0; i < this.pointIndices.length; i++) {
+      for (let j = 0; j < this.pointIndices[i].length; j++) {
+        webgl.points.splice(this.pointIndices[i][j] * 3, 3, null, null, null)
+        webgl.pointNormals.splice(this.pointIndices[i][j] * 3, 3, null, null, null)
+        webgl.texCoords.splice(this.pointIndices[i][j] * 2, 2, null, null)
+
+        webgl.deletedPoints.push(this.pointIndices[i][j])
+      }
     }
-    for (let i = 0; i < this.points.length; i++) {
-      this.points[i].delete()
-    }
+    this.pointIndices = []
   }
 
 }
@@ -712,7 +472,8 @@ class Player {
       startTime: Date.now(),
       endTime: Date.now(),
       smooth: true,
-      finished: true
+      finished: true,
+      stage: 1
     }
 
     this.position = {
@@ -734,7 +495,7 @@ class Player {
 
   updatePosition() {
     for (let ingredient in this.ingredientModels) {
-      this.ingredientModels[ingredient].setPosition(this.yaw, this.position.x, this.position.y, this.position.z)
+      this.ingredientModels[ingredient].setPosition(this.yaw, this.position.x, this.position.y, this.position.z, this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], this.animation.stage)
     }
   }
 
@@ -748,7 +509,8 @@ class Player {
       startTime: Date.now(),
       endTime: Date.now() + speed * 1000,
       smooth: smooth,
-      finished: false
+      finished: false,
+      stage: 0
     }
 
   }
@@ -756,19 +518,20 @@ class Player {
 
   updateAnimation() {
     if (this.animation == null) return
-    let stage
     if (!this.animation.smooth) stage = (Date.now() - this.animation.startTime) / (this.animation.endTime - this.animation.startTime)
-    else stage = (Math.cos(Math.PI * ((Date.now() - this.animation.startTime) / (this.animation.endTime - this.animation.startTime) - 1)) + 1) / 2
+    else this.animation.stage = (Math.cos(Math.PI * ((Date.now() - this.animation.startTime) / (this.animation.endTime - this.animation.startTime) - 1)) + 1) / 2
     if (Date.now() >= this.animation.endTime) {
       this.animation.finished = true
-      stage = 1
-    }
-
-    for (let ingredient in this.ingredientModels) {
-      if (ingredient != "tomato4") this.ingredientModels[ingredient].interpolatePoints(this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], stage)
+      this.animation.stage = 1
     }
   }
 
+
+  remove() {
+    for (let ingredient in this.ingredientModels) {
+      this.ingredientModels[ingredient].delete()
+    }
+  }
 
 
 }
@@ -776,6 +539,9 @@ class Player {
 
 class Weapon {
   constructor(geometryInfos, type) {
+
+    this.geometryInfos = geometryInfos
+    this.type = type
 
     // default settings
     this.cooldown = 1 // seconds
@@ -868,7 +634,7 @@ class Weapon {
       this.position.y += this.shootMovementVector.y * deltaTime
       this.position.z += this.shootMovementVector.z * deltaTime
     }
-    this.model.setPosition(this.yaw, this.position.x, this.position.y, this.position.z)
+    this.model.setPosition(this.yaw, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type], this.geometryInfos[this.type], 1)
   }
 
   shoot(angleX, yaw) {
@@ -914,14 +680,14 @@ class Platform {
 
     if (type == "basic") {
       this.model = new Model(geometryInfo[type], 1, Math.random() / 2, Math.random() / 2, Math.random() / 2, "sub")
-      this.model.setPosition(0, this.x, this.y, this.z)
+      this.model.setPosition(0, this.x, this.y, this.z, geometryInfo[type], geometryInfo[type], 1)
       this.width = 7
       this.height = 1.5
       this.length = 7
     }
     if (type == "crate") {
-      this.model = new Model(geometryInfo[type], 1, .5, .1, .1, "jerry")
-      this.model.setPosition(0, this.x, this.y + 1, this.z)
+      this.model = new Model(geometryInfo[type], 1, .5, .1, .1, "wood")
+      this.model.setPosition(0, this.x, this.y + 1, this.z, geometryInfo[type], geometryInfo[type], 1)
       this.width = 4
       this.height = 2
       this.length = 4
@@ -1059,4 +825,4 @@ class Platform {
 
 
 
-export default { webgl, Poly, Point, Line, Dot, Model, Player, Weapon, Platform }
+export default { webgl, Point, Model, Player, Weapon, Platform }
