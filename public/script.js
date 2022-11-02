@@ -208,6 +208,7 @@ socket.on("playerLeave", (name) => {
     console.log("someone left")
     for (var i = 0; i < otherPlayers.length; i++) {
         if (otherPlayers[i].name == name) {
+            otherPlayers[i].remove();
             otherPlayers.splice(i, 1);
         }
     }

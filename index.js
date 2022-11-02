@@ -4,7 +4,7 @@ const http = require("http");
 const server = http.createServer(app);
 const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
-const ipv4 = "10.176.54.175";
+const ipv4 = require("ip").address();
 const localhost = false;
 const port = 3000;
 
@@ -117,6 +117,7 @@ socketServer.on("connection", (socket) => {
   })
 });
 
-server.listen(port, localhost ? "127.0.0.1" : ipv4, () => {
-  console.log("Listening on port " + port);
+var ip = localhost ? "127.0.0.1" : ipv4;
+server.listen(port, ip, () => {
+  console.log("Running on " + ip + ":" + port);
 });
