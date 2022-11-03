@@ -13,7 +13,7 @@ const availableNames = [
   "Alex", 
   "Emma", 
   "Jeff", 
-  "Olive", 
+  "Olive"/*, 
   "James", 
   "Mary", 
   "Robert",
@@ -40,7 +40,7 @@ const availableNames = [
   "Nancy",
   "Matthew",
   "Betty",
-  "Anthony"
+  "Anthony"*/
 ];
 
 var players = [];
@@ -50,7 +50,7 @@ var TPS = 20;
 app.use(express.static("public"));
 
 
-
+var timeOfLastTick;
 function tick() {
   for (var i = 0; i < players.length; i++) {
     var data = [];
@@ -61,7 +61,15 @@ function tick() {
     }
     players[i].socket.emit("playerUpdate", data);
   }
+  if (timeOfLastTick != undefined) {
+    console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
+  }
+
+  timeOfLastTick = new Date().getTime();
 }
+
+
+setInterval(tick, 1000 / TPS);
 
 socketServer.on("connection", (socket) => {
   /*socket.emit("pingRequest")
@@ -73,7 +81,7 @@ socketServer.on("connection", (socket) => {
     socket.emit("startTicking", TPS);
     setTimeout(() => { setInterval(tick, 1000 / TPS) }, ping / 2);
   })*/
-  setInterval(tick, 1000 / TPS);
+  
   socket.emit("startTicking", TPS)
 
   var otherPlayersInfo = [];
