@@ -45,7 +45,7 @@ const availableNames = [
 
 var players = [];
 
-var TPS = 20;
+var TPS = 50;
 
 app.use(express.static("public"));
 
@@ -62,7 +62,7 @@ function tick() {
     players[i].socket.emit("playerUpdate", data);
   }
   if (timeOfLastTick != undefined) {
-    console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
+    //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
   }
 
   timeOfLastTick = new Date().getTime();
