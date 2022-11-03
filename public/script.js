@@ -354,28 +354,32 @@ function update(now) {
     // update other player positions
 
     let timeSinceLastTick = Date.now() - currentTickTime
-    let currentTickStage = timeSinceLastTick / (1000 / ticksPerSecond)
+    let currentTickStage = timeSinceLastTick / (1000 / ticksPerSecond) / 1.15
 
     for (var i = 0; i < otherPlayers.length; i++) {
 
+        let positionInterpolation = false
 
-
-        otherPlayers[i].position = {
-            x: otherPlayers[i].serverPosition.x + (otherPlayers[i].serverPosition.x - otherPlayers[i].lastPosition.x) * currentTickStage,
-            y: otherPlayers[i].serverPosition.y + (otherPlayers[i].serverPosition.y - otherPlayers[i].lastPosition.y) * currentTickStage,
-            z: otherPlayers[i].serverPosition.z + (otherPlayers[i].serverPosition.z - otherPlayers[i].lastPosition.z) * currentTickStage
+        if (positionInterpolation) {
+            otherPlayers[i].position = {
+                x: otherPlayers[i].serverPosition.x + (otherPlayers[i].serverPosition.x - otherPlayers[i].lastPosition.x) * currentTickStage,
+                y: otherPlayers[i].serverPosition.y + (otherPlayers[i].serverPosition.y - otherPlayers[i].lastPosition.y) * currentTickStage,
+                z: otherPlayers[i].serverPosition.z + (otherPlayers[i].serverPosition.z - otherPlayers[i].lastPosition.z) * currentTickStage
+            }
+    
+            otherPlayers[i].yaw = otherPlayers[i].serverYaw + (otherPlayers[i].serverYaw - otherPlayers[i].lastYaw) * currentTickStage
         }
 
-        otherPlayers[i].yaw = otherPlayers[i].serverYaw + (otherPlayers[i].serverYaw - otherPlayers[i].lastYaw) * currentTickStage
+        else {
+            otherPlayers[i].position = {
+                x: otherPlayers[i].serverPosition.x,
+                y: otherPlayers[i].serverPosition.y,
+                z: otherPlayers[i].serverPosition.z
+            }
+    
+            otherPlayers[i].yaw = otherPlayers[i].serverYaw
 
-
-        //otherPlayers[i].position = {
-        //    x: otherPlayers[i].serverPosition.x,
-        //    y: otherPlayers[i].serverPosition.y,
-        //    z: otherPlayers[i].serverPosition.z
-        //}
-
-        //otherPlayers[i].yaw = otherPlayers[i].serverYaw
+        }
 
         otherPlayers[i].updatePosition();
     }
