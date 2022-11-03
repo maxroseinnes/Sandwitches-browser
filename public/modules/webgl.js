@@ -504,7 +504,17 @@ class Player {
       z: z
     }
 
+    this.serverPosition = {
+      x: x,
+      y: y,
+      z: z
+    }
+
     this.yaw = yaw
+
+    this.lastYaw = yaw
+
+    this.serverYaw = yaw
 
     this.name = name
   }

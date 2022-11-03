@@ -72,6 +72,9 @@ var updateThen = 0;
 var fixedUpdateInterval;
 var fixedUpdateThen;
 
+var ticksPerSecond = 20
+var currentTickTime = Date.now()
+
 // Multiplayer global variables //
 var socket = io();
 var otherPlayers = [];
@@ -82,6 +85,13 @@ const startButton = document.getElementById("startButton")
 const info = document.getElementById("info")
 const canvas = document.getElementById("canvas")
 const effectsCanvas = document.getElementById("effectsCanvas")
+
+
+// helpful functions //
+
+function lerp(a, b, x) {
+return a + (b - a) * x
+}
 
 
 // INITIALIZE WEBGL //
@@ -161,6 +171,7 @@ function tick() {
     ticks++;
     socket.emit("playerUpdate", { position: player.position, yaw: player.yaw, name: player.name } );
     console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
+    currentTickTime = Date.now()
 }
 
 // Socket events //
@@ -187,6 +198,7 @@ socket.on("ping", () => {
 
 socket.on("startTicking", (TPS) => {
     setInterval(tick, 1000 / TPS);
+    ticksPerSecond = TPS
 })
 
 socket.on("assignPlayer", (player_) => {
@@ -218,9 +230,11 @@ socket.on("playerUpdate", (data) => {
     for (var i = 0; i < data.length; i++) {
         for (var j = 0; j < otherPlayers.length; j++) {
             if (i == j) {
-                otherPlayers[j].position = data[i].position;
-                otherPlayers[j].yaw = data[j].yaw;
-                otherPlayers[j].updatePosition();
+                otherPlayers[j].lastPosition = otherPlayers[j].serverPosition
+                otherPlayers[j].lastYaw = otherPlayers[j].serverYaw
+                otherPlayers[j].serverPosition = data[i].position;
+                otherPlayers[j].serverYaw = data[j].yaw;
+                //otherPlayers[j].updatePosition(); ** Moved this to update loop **
                 break;
             }
         }
@@ -335,9 +349,38 @@ function update(now) {
 
 	player.yaw = lookAngleY
 	player.updatePosition() // this must go last
+
+
+    // update other player positions
+
+    let timeSinceLastTick = Date.now() - currentTickTime
+    let currentTickStage = timeSinceLastTick / (1000 / ticksPerSecond)
+
     for (var i = 0; i < otherPlayers.length; i++) {
+
+
+
+        otherPlayers[i].position = {
+            x: otherPlayers[i].serverPosition.x + (otherPlayers[i].serverPosition.x - otherPlayers[i].lastPosition.x) * currentTickStage,
+            y: otherPlayers[i].serverPosition.y + (otherPlayers[i].serverPosition.y - otherPlayers[i].lastPosition.y) * currentTickStage,
+            z: otherPlayers[i].serverPosition.z + (otherPlayers[i].serverPosition.z - otherPlayers[i].lastPosition.z) * currentTickStage
+        }
+
+        otherPlayers[i].yaw = otherPlayers[i].serverYaw + (otherPlayers[i].serverYaw - otherPlayers[i].lastYaw) * currentTickStage
+
+
+        //otherPlayers[i].position = {
+        //    x: otherPlayers[i].serverPosition.x,
+        //    y: otherPlayers[i].serverPosition.y,
+        //    z: otherPlayers[i].serverPosition.z
+        //}
+
+        //otherPlayers[i].yaw = otherPlayers[i].serverYaw
+
         otherPlayers[i].updatePosition();
     }
+
+
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
     inventory.currentWeapon.model.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
