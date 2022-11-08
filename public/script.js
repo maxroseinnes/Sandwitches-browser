@@ -408,7 +408,7 @@ function update(now) {
                 Math.pow(otherPlayers[i].pastPositions[0].z - otherPlayers[i].pastPositions[1].z, 2), .1
             ))
 
-            smoothing = 5
+            smoothing = 20
             if (smoothing > otherPlayers[i].pastPositions.length) smoothing = otherPlayers[i].pastPositions.length
 
             //console.log(smoothing)
