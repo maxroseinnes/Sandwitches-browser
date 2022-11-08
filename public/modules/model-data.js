@@ -165,7 +165,7 @@ var obj = {
             // get line after identifier
             let currentLine = lines[i].slice(lines[i].indexOf(" ") + 1)
 
-            if (identifier == "o") name = currentLine
+            if (identifier == "o") name = currentLine.slice(0, -1)
 
             if (identifier == "v") positions.push(this.parseFloats(this.parseWords(currentLine)))
 
