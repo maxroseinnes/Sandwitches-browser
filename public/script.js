@@ -22,9 +22,6 @@ var Platform = webglStuff.Platform
 
 
 
-
-
-
 // GLOBAL VARIABLES //
 
 var w = false
@@ -80,7 +77,7 @@ var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
 var socket = io();
-var otherPlayers = [];
+var otherPlayers = {};
 
 // html elements //
 const menu = document.getElementById("menu")
@@ -210,27 +207,28 @@ socket.on("assignPlayer", (player_) => {
 });
 
 socket.on("otherPlayers", (otherPlayersInfo) => {
-    for (var i = 0; i < otherPlayersInfo.length; i++) {
-        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, otherPlayersInfo[i].yaw, otherPlayersInfo[i].name))
+    for (var name in otherPlayersInfo) {
+        otherPlayers[name] = new Player(playerGeometry, otherPlayersInfo[name].position.x, otherPlayersInfo[name].position.y, otherPlayersInfo[name].position.z, otherPlayersInfo[name].yaw, otherPlayersInfo[name].name)
     }
 })
 
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
-    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.yaw, player.name));
+    otherPlayers[player.name] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.yaw, player.name);
 })
 
 socket.on("playerLeave", (name) => {
     console.log("someone left")
-    for (var i = 0; i < otherPlayers.length; i++) {
-        if (otherPlayers[i].name == name) {
-            otherPlayers[i].remove();
-            otherPlayers.splice(i, 1);
-        }
-    }
+    otherPlayers[name] = undefined
 })
 
 socket.on("playerUpdate", (data) => {
+    for (var name in data) {
+        if (otherPlayers[name] != undefined) {
+            otherPlayers[name] = data[name]
+        }
+    }
+
     for (var i = 0; i < data.length; i++) {
         for (var j = 0; j < otherPlayers.length; j++) {
             if (i == j) {

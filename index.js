@@ -5,7 +5,7 @@ const server = http.createServer(app);
 const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
 const ipv4 = require("ip").address();
-const localhost = false;
+const localhost = true;
 const port = 3000;
 
 const availableNames = [
@@ -13,7 +13,7 @@ const availableNames = [
   "Alex", 
   "Emma", 
   "Jeff", 
-  "Olive"/*, 
+  "Olive", 
   "James", 
   "Mary", 
   "Robert",
@@ -40,27 +40,27 @@ const availableNames = [
   "Nancy",
   "Matthew",
   "Betty",
-  "Anthony"*/
+  "Anthony"
 ];
 
-var players = [];
+var players = {};
+var projectiles = {};
 
-var TPS = 50;
+var TPS = 20;
 
 app.use(express.static("public"));
 
 
 var timeOfLastTick;
 function tick() {
-  for (var i = 0; i < players.length; i++) {
-    var data = [];
-    for (var j = 0; j < players.length; j++) {
-      if (i != j) {
-        data.push({ position: players[j].position, yaw: players[j].yaw, name: players[j].name });
-      }
-    }
-    players[i].socket.emit("playerUpdate", data);
+  var data = {}
+  for (var name in players) {
+    data[name] = {position: players[name].position, yaw: players[name].position}
   }
+  for (var name in players) {
+    data[name].socket.emit("playerUpdate", data);
+  }
+
   if (timeOfLastTick != undefined) {
     //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
   }
@@ -85,8 +85,8 @@ socketServer.on("connection", (socket) => {
   socket.emit("startTicking", TPS)
 
   var otherPlayersInfo = [];
-  for (var i = 0; i < players.length; i++) {
-    otherPlayersInfo.push({ position: players[i].position, yaw: players[i].yaw, name: players[i].name });
+  for (var name in players) {
+    otherPlayersInfo.push({ name: name, position: players[name].position, yaw: players[name].yaw});
   }
   socket.emit("otherPlayers", otherPlayersInfo);
 
@@ -95,33 +95,35 @@ socketServer.on("connection", (socket) => {
   availableNames.splice(nameIndex, 1);
 
   if (name != null) { 
-    var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, name: name, socket: socket };
-    players.push(newPlayer);
-    console.log(name + " joined! 😃😃😃😃😃😃😃")
-    socket.emit("assignPlayer", { position: newPlayer.position, yaw: newPlayer.yaw, name: name});
-    socket.broadcast.emit("newPlayer", { position: newPlayer.position, yaw: newPlayer.yaw, name: name });
+    var newPlayer = {name: name, position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0 };
+    players[name] = {position: newPlayer.position, yaw: newPlayer.yaw, socket}
+    console.log(name + " joined! 😃😃😃😃😃😃😃 ", Object.keys(players).length)
+    socket.emit("assignPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw});
+    socket.broadcast.emit("newPlayer", {name: name, position: newPlayer.position, yaw: newPlayer.yaw});
   } else {
     socket.emit("tooManyPlayers");
   }
 
   socket.on("playerUpdate", (data) => {
-    for (var i = 0; i < players.length; i++) {
-      if (data.name == players[i].name) {
-        players[i].position = data.position;
-        players[i].yaw = data.yaw;
-      }
-    }
+    players[data.name].position = data.position;
+    players[data.name].yaw = data.yaw;
+  })
+
+  socket.on("shootProjectile", (data) => {
+
   })
 
   socket.on("disconnect", () => {
-    for (var i = 0; i < players.length; i++) {
-      if (socket == players[i].socket) {
-        socket.broadcast.emit("playerLeave", players[i].name);
-        console.log(players[i].name + " left. 😭😭😭😭😭😭😭");
-        availableNames.push(players[i].name);
-        players.splice(i, 1);
+    var name
+    for (name in players) {
+      if (players[name].socket == socket) {
+        socket.broadcast.emit("playerLeave", name)
+        break
       }
     }
+    console.log(name + " left. 😭😭😭😭😭😭😭");
+    availableNames.push(name);
+    players[name] = undefined
   })
 });
 
