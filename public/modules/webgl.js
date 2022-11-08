@@ -561,6 +561,9 @@ class Player {
     this.serverYaw = yaw
 
     this.name = name
+
+
+
   }
 
   updatePosition() {

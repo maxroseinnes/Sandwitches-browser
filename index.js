@@ -58,7 +58,7 @@ function tick() {
     data[name] = {position: players[name].position, yaw: players[name].position}
   }
   for (var name in players) {
-    data[name].socket.emit("playerUpdate", data);
+    players[name].socket.emit("playerUpdate", data);
   }
 
   if (timeOfLastTick != undefined) {
@@ -95,8 +95,8 @@ socketServer.on("connection", (socket) => {
   availableNames.splice(nameIndex, 1);
 
   if (name != null) { 
-    var newPlayer = {name: name, position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0 };
-    players[name] = {position: newPlayer.position, yaw: newPlayer.yaw, socket}
+    var newPlayer = {name: name, position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, socket: socket};
+    players[name] = newPlayer
     console.log(name + " joined! 😃😃😃😃😃😃😃 ", Object.keys(players).length)
     socket.emit("assignPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw});
     socket.broadcast.emit("newPlayer", {name: name, position: newPlayer.position, yaw: newPlayer.yaw});
