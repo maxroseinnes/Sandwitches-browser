@@ -6,6 +6,7 @@ var webgl = {
   points: [],
   pointNormals: [],
   texCoords: [],
+  pointCount: 0,
   deletedPoints: [],
 
   textureMap: null,
@@ -21,7 +22,7 @@ var webgl = {
       index: 1
     },
     bread: {
-      url: "./assets/sandwich_guy.png",
+      url: "./assets/textures/sandwich_guy.png",
       index: 2
     },
     wood: {
@@ -67,8 +68,8 @@ var webgl = {
     void main() {
       gl_Position = pMatrix * tMatrix * vertPosition;
   
-      highp vec3 ambientLight = vec3(0.7, 0.7, 0.7);
-      highp vec3 directionalLightColor = vec3(.35, .35, .35);
+      highp vec3 ambientLight = vec3(0.5, 0.5, 0.5);
+      highp vec3 directionalLightColor = vec3(.5, .5, .5);
       highp vec3 directionalVector = normalize(vec3(0.0, 0.5, 1.0));
   
       highp vec4 transformedNormal = nMatrix * vec4(aVertNormal, 1.0);
@@ -248,7 +249,12 @@ var webgl = {
 
     let tMatrix = mat4.create();
 
-  	mat4.translate(tMatrix, tMatrix, [-2, -1, -8]);
+    let cameraDistance = 8
+    let cameraPositionY = (playerPosition.y + 1) - Math.sin(angleX) * -cameraDistance
+    let ratio = 1
+    if (cameraPositionY < 0) ratio = Math.pow((playerPosition.y + 1) / (Math.sin(angleX) * -cameraDistance), 1.5)
+
+  	mat4.translate(tMatrix, tMatrix, [-2, -1, -cameraDistance * ratio]);
     mat4.rotateX(tMatrix, tMatrix, angleX);
     mat4.rotateY(tMatrix, tMatrix, yaw);
     mat4.translate(tMatrix, tMatrix, [-playerPosition.x, -playerPosition.y, -playerPosition.z]);
@@ -286,7 +292,7 @@ var webgl = {
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureMap)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uSampler"), 0)
 
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, this.points.length / 3)
+    this.gl.drawArrays(this.gl.TRIANGLES, 0, this.pointCount)
 
 
 
@@ -317,6 +323,8 @@ class Point {
     webgl.points.push(x, y, z);
     webgl.pointNormals.push(n1, n2, n3)
     webgl.texCoords.push(tx1, tx2)
+
+    webgl.pointCount++
   }
 
 
@@ -335,7 +343,9 @@ class Point {
 
 
 class Model {
+  static allModels = []
   constructor(geometryInfo, scale, r, g, b, texture) {
+    Model.allModels.push(this)
 // 1 2 3
 
 // 1 2 3   1
@@ -378,6 +388,7 @@ class Model {
         webgl.pointNormals.push(normals[indices[i].normals[j]][0], normals[indices[i].normals[j]][1], normals[indices[i].normals[j]][2])
         webgl.texCoords.push((texcoords[indices[i].texcoords[j]][0] + textureLocationX) / squareWidth, (texcoords[indices[i].texcoords[j]][1] + textureLocationY) / squareWidth)
 
+        webgl.pointCount++
       }
 
       this.pointIndices.push(currentPointIndices)
@@ -452,7 +463,22 @@ class Model {
         webgl.pointNormals.splice(this.pointIndices[i][j] * 3, 3, null, null, null)
         webgl.texCoords.splice(this.pointIndices[i][j] * 2, 2, null, null)
 
-        webgl.deletedPoints.push(this.pointIndices[i][j])
+        webgl.pointCount--
+      }
+    }
+
+    for (let i = webgl.points.length - 1; i >= 0; i--) if (webgl.points[i] == null) webgl.points.splice(i, 1)
+    for (let i = webgl.pointNormals.length - 1; i >= 0; i--) if (webgl.pointNormals[i] == null) webgl.pointNormals.splice(i, 1)
+    for (let i = webgl.texCoords.length - 1; i >= 0; i--) if (webgl.texCoords[i] == null) webgl.texCoords.splice(i, 1)
+
+    Model.allModels.splice(Model.allModels.indexOf(this), 1)
+
+    for (let i = 0; i < Model.allModels.length; i++) {
+      let currentIndices = Model.allModels[i].pointIndices
+      for (let j = 0; j < currentIndices.length; j++) {
+        for (let k = 0; k < 3; k++) {
+          if (currentIndices[j][k] > this.pointIndices[0][0]) currentIndices[j][k] -= this.pointIndices.length * 3
+        }
       }
     }
     this.pointIndices = []
@@ -497,6 +523,19 @@ class Player {
       y: y,
       z: z
     }
+
+    this.pastPositions = [
+      {
+        x: x,
+        y: y,
+        z: z
+      },
+      {
+        x: x,
+        y: y,
+        z: z
+      }
+    ]
 
     this.lastPosition = {
       x: x,

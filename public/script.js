@@ -4,6 +4,7 @@ console.log("starting script")
 import modelStuff from "./modules/model-data.js"
 
 var modelData = modelStuff.modelData
+var fetchObj = modelStuff.fetchObj
 var obj = modelStuff.obj
 
 import webglStuff from "./modules/webgl.js"
@@ -74,6 +75,8 @@ var fixedUpdateThen;
 
 var ticksPerSecond = 20
 var currentTickTime = Date.now()
+var lastTickTimes = []
+var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
 var socket = io();
@@ -100,10 +103,10 @@ return a + (b - a) * x
 webgl.initialize()
 
 
-var playerIdleInfo = obj.parseWavefront(modelData.player.idle, true)
-var playerStepRightFootInfo = obj.parseWavefront(modelData.player.stepRightFoot, true)
-var playerWalkLeftFootInfo = obj.parseWavefront(modelData.player.walkLeftFoot, true)
-var playerWalkRightFootInfo = obj.parseWavefront(modelData.player.walkRightFoot, true)
+var playerIdleInfo = obj.parseWavefront(fetchObj("player/PlayerIdle.obj"), true)
+var playerStepRightFootInfo = obj.parseWavefront(fetchObj("player/PlayerRightNubForward.obj"), true)
+var playerWalkLeftFootInfo = obj.parseWavefront(fetchObj("player/PlayerLeftNubForwardRightNubBack.obj"), true)
+var playerWalkRightFootInfo = obj.parseWavefront(fetchObj("player/PlayerRightNubForwardLeftNubBack.obj"), true)
 
 var playerGeometry = {
 	idle: {
@@ -149,17 +152,17 @@ var playerGeometry = {
 }
 
 var weaponGeometry = {
-    tomato: obj.parseWavefront(modelData.weapons.tomato, false),
-    olive: obj.parseWavefront(modelData.weapons.olive, false),
-    pickle: obj.parseWavefront(modelData.weapons.pickle, false),
-    sausage: obj.parseWavefront(modelData.weapons.sausage, false),
-    pan: obj.parseWavefront(modelData.weapons.pan, false),
-    anchovy: obj.parseWavefront(modelData.weapons.anchovy, false)
+    tomato: obj.parseWavefront(fetchObj("weapons/tomato.obj"), false),
+    olive: obj.parseWavefront(fetchObj("weapons/olive.obj"), false),
+    pickle: obj.parseWavefront(fetchObj("weapons/small_horizontal_cylinder.obj"), false),
+    sausage: obj.parseWavefront(fetchObj("weapons/sausage.obj"), false),
+    pan: obj.parseWavefront(fetchObj("weapons/fryingpan.obj"), false),
+    anchovy: obj.parseWavefront(fetchObj("weapons/anchovy_terrible.obj"), false)
 }
 
 var platformGeometry = {
     basic: obj.parseWavefront(modelData.platforms.basic, false),
-    crate: obj.parseWavefront(modelData.platforms.crate, false)
+    crate: obj.parseWavefront(fetchObj("platforms/crate.obj"), false)
 }
 
 var player;
@@ -170,7 +173,8 @@ var ticks = 0;
 function tick() {
     ticks++;
     socket.emit("playerUpdate", { position: player.position, yaw: player.yaw, name: player.name } );
-    console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
+    //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
+    lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
 }
 
@@ -248,13 +252,13 @@ socket.on("tooManyPlayers", () => {
 
 // AUDIO //
 
-const backgroundNoises = new Audio("./assets/dripping-water-nature-sounds-8050.mp3")
-backgroundNoises.onended = () => {
-    backgroundNoises.play()
-}
+const backgroundNoises = new Audio("./assets/wet_wriggling_noises/dripping-water-nature-sounds-8050.mp3")
+backgroundNoises.volume = .5
+backgroundNoises.loop = true
 
-const splatNoise = new Audio("./assets/cartoon-splat-6086.mp3")
-const jumpNoise = new Audio("./assets/smb_jump-super.wav")
+const splatNoise = new Audio("./assets/wet_wriggling_noises/cartoon-splat-6086.mp3")
+const jumpNoise = new Audio("./assets/wet_wriggling_noises/smb_jump-super.wav")
+const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
 
 
 // MAP ORGANIZATION //
@@ -323,6 +327,27 @@ inventory.initialize()
 
 // TESTING //
 
+/*
+console.log(playerGeometry.idle.cheese)
+
+//let testPositions = obj.parseWavefront(fetchObj("pinetree.obj")).positions
+let testPositions = platformGeometry.crate.positions
+let duplicates = []
+for (let i = 0; i < testPositions.length; i++) {
+    duplicates.push(0)
+    for (let j = 0; j < testPositions.length; j++) {
+        let isDuplicate = true
+        for (let k = 0; k < testPositions[i].length; k++) if (i == j || testPositions[i][k] != testPositions[j][k]) isDuplicate = false
+        if (isDuplicate) duplicates[i] = testPositions[i]
+    }
+    console.log(duplicates[i])
+}
+console.log(duplicates)
+*/
+
+console.log(weaponGeometry.tomato.indices.length)
+
+
 
 
 
@@ -339,7 +364,7 @@ function update(now) {
 	lastFramerates.splice(20)
 	let rollingFramerate = 0
 	for (let i = 0; i < lastFramerates.length; i++) rollingFramerate += lastFramerates[i] / lastFramerates.length
-	info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9
+	info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9 + "<br>client TPS: " + Math.round(1000/averageClientTPS * 100) / 100
 
 
 
@@ -354,13 +379,19 @@ function update(now) {
     // update other player positions
 
     let timeSinceLastTick = Date.now() - currentTickTime
-    let currentTickStage = timeSinceLastTick / (1000 / ticksPerSecond) / 1.15
+    averageClientTPS = 0
+    lastTickTimes.splice(10)
+    for (let i = 0; i < lastTickTimes.length - 1; i++) averageClientTPS += (lastTickTimes[i] - lastTickTimes[i+1]) / (lastTickTimes.length - 1)
+    let currentTickStage = timeSinceLastTick / averageClientTPS / 1.15
 
     for (var i = 0; i < otherPlayers.length; i++) {
 
-        let positionInterpolation = false
+        let positionInterpolation = true
 
         if (positionInterpolation) {
+
+
+
             otherPlayers[i].position = {
                 x: otherPlayers[i].serverPosition.x + (otherPlayers[i].serverPosition.x - otherPlayers[i].lastPosition.x) * currentTickStage,
                 y: otherPlayers[i].serverPosition.y + (otherPlayers[i].serverPosition.y - otherPlayers[i].lastPosition.y) * currentTickStage,
@@ -368,6 +399,35 @@ function update(now) {
             }
     
             otherPlayers[i].yaw = otherPlayers[i].serverYaw + (otherPlayers[i].serverYaw - otherPlayers[i].lastYaw) * currentTickStage
+            
+            otherPlayers[i].pastPositions.splice(0, 0, otherPlayers[i].position)
+            otherPlayers[i].pastPositions.splice(100)
+
+
+            let smoothing = Math.round(50 + 50 * Math.pow(
+                Math.pow(otherPlayers[i].pastPositions[0].x - otherPlayers[i].pastPositions[1].x, 2) + 
+                Math.pow(otherPlayers[i].pastPositions[0].y - otherPlayers[i].pastPositions[1].y, 2) + 
+                Math.pow(otherPlayers[i].pastPositions[0].z - otherPlayers[i].pastPositions[1].z, 2), .1
+            ))
+
+            smoothing = 5
+            if (smoothing > otherPlayers[i].pastPositions.length) smoothing = otherPlayers[i].pastPositions.length
+
+            //console.log(smoothing)
+            let smoothedPosition = {
+                x: 0,
+                y: 0,
+                z: 0
+            }
+            for (let j = 0; j < smoothing; j++) smoothedPosition = {
+                x: smoothedPosition.x + otherPlayers[i].pastPositions[j].x / smoothing,
+                y: smoothedPosition.y + otherPlayers[i].pastPositions[j].y / smoothing,
+                z: smoothedPosition.z + otherPlayers[i].pastPositions[j].z / smoothing
+            }
+
+            if (smoothing > 0) otherPlayers[i].position = smoothedPosition
+
+
         }
 
         else {
@@ -425,6 +485,10 @@ function fixedUpdate() {
 		player.position.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         if (player.animation.finished) {
+            stepNoise.currentTime = 0.25
+            stepNoise.volume = .05
+            stepNoise.playbackRate = 1
+            stepNoise.play()
             if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
             else if (player.animation.currentMeshName == "stepRightFoot") player.startAnimation("stepRightFoot", "walkLeftFoot", walkAnimationSpeed, true)
             else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
@@ -440,6 +504,10 @@ function fixedUpdate() {
 		player.position.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
         
         if (player.animation.finished) {
+            stepNoise.currentTime = 0.2
+            stepNoise.volume = .05
+            stepNoise.playbackRate = 1.5
+            stepNoise.play()
             if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
             else if (player.animation.currentMeshName == "stepRightFoot") player.startAnimation("stepRightFoot", "walkLeftFoot", walkAnimationSpeed, true)
             else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
@@ -462,6 +530,7 @@ function fixedUpdate() {
 	if (space) {
 		if (onGround) {
             gravity = .0125
+            jumpNoise.currentTime = 0.025
             jumpNoise.play()
         }
 	}
