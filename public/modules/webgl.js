@@ -162,9 +162,10 @@ var webgl = {
     let canvas = document.createElement("canvas")
     canvas.width = webgl.squareWidth * 64
     canvas.height = webgl.squareWidth * 64
-    //document.body.appendChild(canvas)
+    document.body.appendChild(canvas)
     canvas.style.imageRendering = "pixelated"
     let ctx = canvas.getContext("2d")
+    //ctx.scale(-1, 1)
 
     for (let i = 0; i < loadedImages.length; i++) {
       if (loadedImages[i] != null) {
@@ -177,6 +178,7 @@ var webgl = {
       }
       
     }
+    ctx.restore()
     let textures = new Image()
     textures.onload = () => {
 
@@ -375,6 +377,8 @@ class Model {
 
     // for each triangle: make three new points and a poly
 
+    this.indexOffset = 0
+
     this.pointIndices = []
 
     for (let i = 0; i < this.geometryInfo.indices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
@@ -424,7 +428,7 @@ class Model {
           let rotatedY = modelY * this.scale + y
           let rotatedZ = modelX * this.scale  * Math.sin(angle) + modelZ * this.scale  * Math.cos(angle) + z
 
-          webgl.points.splice(this.pointIndices[i][j] * 3, 3, 
+          webgl.points.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
             rotatedX, 
             rotatedY, 
             rotatedZ
@@ -440,7 +444,7 @@ class Model {
           let rotatedN2 = modelN2
           let rotatedN3 = modelN1 * Math.sin(angle) + modelN3 * Math.cos(angle)
 
-          webgl.pointNormals.splice(this.pointIndices[i][j] * 3, 3, 
+          webgl.pointNormals.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
             rotatedN1, 
             rotatedN2, 
             rotatedN3
@@ -473,13 +477,14 @@ class Model {
 
     Model.allModels.splice(Model.allModels.indexOf(this), 1)
 
+    console.log(this.pointIndices[0][0])
     for (let i = 0; i < Model.allModels.length; i++) {
-      let currentIndices = Model.allModels[i].pointIndices
-      for (let j = 0; j < currentIndices.length; j++) {
-        for (let k = 0; k < 3; k++) {
-          if (currentIndices[j][k] > this.pointIndices[0][0]) currentIndices[j][k] -= this.pointIndices.length * 3
-        }
+      if (Model.allModels[i].pointIndices[0][0] + Model.allModels[i].indexOffset >= this.pointIndices[0][0]){
+        
+        Model.allModels[i].indexOffset -= this.pointIndices.length * 3
+        console.log(Model.allModels[i].pointIndices[0][0])
       }
+      
     }
     this.pointIndices = []
   }
