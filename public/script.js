@@ -22,6 +22,9 @@ var Platform = webglStuff.Platform
 
 
 
+
+
+
 // GLOBAL VARIABLES //
 
 var w = false
@@ -77,7 +80,7 @@ var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
 var socket = io();
-var otherPlayers = {};
+var otherPlayers = [];
 
 // html elements //
 const menu = document.getElementById("menu")
@@ -169,7 +172,7 @@ var platform = new Platform(platformGeometry, "crate", 5, 0, -8)
 var ticks = 0;
 function tick() {
     ticks++;
-    socket.emit("playerUpdate", { name: player.name, position: player.position, yaw: player.yaw } );
+    socket.emit("playerUpdate", { position: player.position, yaw: player.yaw, name: player.name } );
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
@@ -207,36 +210,39 @@ socket.on("assignPlayer", (player_) => {
 });
 
 socket.on("otherPlayers", (otherPlayersInfo) => {
-    for (var name in otherPlayersInfo) {
-        otherPlayers[name] = new Player(playerGeometry, otherPlayersInfo[name].position.x, otherPlayersInfo[name].position.y, otherPlayersInfo[name].position.z, otherPlayersInfo[name].yaw, otherPlayersInfo[name].name)
+    for (var i = 0; i < otherPlayersInfo.length; i++) {
+        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, otherPlayersInfo[i].yaw, otherPlayersInfo[i].name))
     }
 })
 
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
-    otherPlayers[player.name] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.yaw, player.name)
+    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.yaw, player.name));
 })
 
 socket.on("playerLeave", (name) => {
     console.log("someone left")
-    otherPlayers[name] = undefined
+    for (var i = 0; i < otherPlayers.length; i++) {
+        if (otherPlayers[i].name == name) {
+            otherPlayers[i].remove();
+            otherPlayers.splice(i, 1);
+        }
+    }
 })
 
 socket.on("playerUpdate", (data) => {
-    for (var name in data) {
-        if (otherPlayers[name] != undefined) {
-            otherPlayers[name] = data[name]
-        }
-    }
-
-    for (var name in data) {
-        if (otherPlayers[name] != undefined) {
-            otherPlayers[name].lastPosition = otherPlayers[name].serverPosition
-            otherPlayers[name].lastYaw = otherPlayers[name].serverYaw
-            otherPlayers[name].serverPosition = data[name].position;
-            otherPlayers[name].serverYaw = data[name].yaw;
-            //otherPlayers[j].updatePosition(); ** Moved this to update loop **
-            break;
+    for (var i = 0; i < data.length; i++) {
+        if (data[i].name != player.name) {
+            for (var j = 0; j < otherPlayers.length; j++) {
+                if (data[i].name == otherPlayers[j].name) {
+                    otherPlayers[j].lastPosition = otherPlayers[j].serverPosition
+                    otherPlayers[j].lastYaw = otherPlayers[j].serverYaw
+                    otherPlayers[j].serverPosition = data[i].position;
+                    otherPlayers[j].serverYaw = data[i].yaw;
+                    //otherPlayers[j].updatePosition(); ** Moved this to update loop **
+                    break;
+                }
+            }
         }
     }
 })
@@ -380,35 +386,34 @@ function update(now) {
     for (let i = 0; i < lastTickTimes.length - 1; i++) averageClientTPS += (lastTickTimes[i] - lastTickTimes[i+1]) / (lastTickTimes.length - 1)
     let currentTickStage = timeSinceLastTick / averageClientTPS / 1.15
 
-    for (var name in otherPlayers) {
-        var currentPlayer = otherPlayers[name]
-        console.log(currentPlayer)
+    for (var i = 0; i < otherPlayers.length; i++) {
 
         let positionInterpolation = true
 
         if (positionInterpolation) {
 
 
-            currentPlayer.position = {
-                x: currentPlayer.serverPosition.x + (currentPlayer.serverPosition.x - currentPlayer.lastPosition.x) * currentTickStage,
-                y: currentPlayer.serverPosition.y + (currentPlayer.serverPosition.y - currentPlayer.lastPosition.y) * currentTickStage,
-                z: currentPlayer.serverPosition.z + (currentPlayer.serverPosition.z - currentPlayer.lastPosition.z) * currentTickStage
+
+            otherPlayers[i].position = {
+                x: otherPlayers[i].serverPosition.x + (otherPlayers[i].serverPosition.x - otherPlayers[i].lastPosition.x) * currentTickStage,
+                y: otherPlayers[i].serverPosition.y + (otherPlayers[i].serverPosition.y - otherPlayers[i].lastPosition.y) * currentTickStage,
+                z: otherPlayers[i].serverPosition.z + (otherPlayers[i].serverPosition.z - otherPlayers[i].lastPosition.z) * currentTickStage
             }
     
-            currentPlayer.yaw = currentPlayer.serverYaw + (currentPlayer.serverYaw - currentPlayer.lastYaw) * currentTickStage
+            otherPlayers[i].yaw = otherPlayers[i].serverYaw + (otherPlayers[i].serverYaw - otherPlayers[i].lastYaw) * currentTickStage
             
-            currentPlayer.pastPositions.splice(0, 0, currentPlayer.position)
-            currentPlayer.pastPositions.splice(100)
+            otherPlayers[i].pastPositions.splice(0, 0, otherPlayers[i].position)
+            otherPlayers[i].pastPositions.splice(100)
 
 
             let smoothing = Math.round(50 + 50 * Math.pow(
-                Math.pow(currentPlayer.pastPositions[0].x - currentPlayer.pastPositions[1].x, 2) + 
-                Math.pow(currentPlayer.pastPositions[0].y - currentPlayer.pastPositions[1].y, 2) + 
-                Math.pow(currentPlayer.pastPositions[0].z - currentPlayer.pastPositions[1].z, 2), .1
+                Math.pow(otherPlayers[i].pastPositions[0].x - otherPlayers[i].pastPositions[1].x, 2) + 
+                Math.pow(otherPlayers[i].pastPositions[0].y - otherPlayers[i].pastPositions[1].y, 2) + 
+                Math.pow(otherPlayers[i].pastPositions[0].z - otherPlayers[i].pastPositions[1].z, 2), .1
             ))
 
-            smoothing = 20
-            if (smoothing > currentPlayer.pastPositions.length) smoothing = currentPlayer.pastPositions.length
+            smoothing = 10
+            if (smoothing > otherPlayers[i].pastPositions.length) smoothing = otherPlayers[i].pastPositions.length
 
             //console.log(smoothing)
             let smoothedPosition = {
@@ -417,28 +422,28 @@ function update(now) {
                 z: 0
             }
             for (let j = 0; j < smoothing; j++) smoothedPosition = {
-                x: smoothedPosition.x + currentPlayer.pastPositions[j].x / smoothing,
-                y: smoothedPosition.y + currentPlayer.pastPositions[j].y / smoothing,
-                z: smoothedPosition.z + currentPlayer.pastPositions[j].z / smoothing
+                x: smoothedPosition.x + otherPlayers[i].pastPositions[j].x / smoothing,
+                y: smoothedPosition.y + otherPlayers[i].pastPositions[j].y / smoothing,
+                z: smoothedPosition.z + otherPlayers[i].pastPositions[j].z / smoothing
             }
 
-            if (smoothing > 0) currentPlayer.position = smoothedPosition
+            if (smoothing > 0) otherPlayers[i].position = smoothedPosition
 
 
         }
 
         else {
-            currentPlayer.position = {
-                x: currentPlayer.serverPosition.x,
-                y: currentPlayer.serverPosition.y,
-                z: currentPlayer.serverPosition.z
+            otherPlayers[i].position = {
+                x: otherPlayers[i].serverPosition.x,
+                y: otherPlayers[i].serverPosition.y,
+                z: otherPlayers[i].serverPosition.z
             }
     
-            currentPlayer.yaw = currentPlayer.serverYaw
+            otherPlayers[i].yaw = otherPlayers[i].serverYaw
 
         }
 
-        currentPlayer.updatePosition();
+        otherPlayers[i].updatePosition();
     }
 
 

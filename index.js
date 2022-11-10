@@ -5,7 +5,7 @@ const server = http.createServer(app);
 const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
 const ipv4 = require("ip").address();
-const localhost = true;
+const localhost = false;
 const port = 3000;
 
 const availableNames = [
@@ -13,7 +13,7 @@ const availableNames = [
   "Alex", 
   "Emma", 
   "Jeff", 
-  "Olive", 
+  "Olive"/*, 
   "James", 
   "Mary", 
   "Robert",
@@ -40,29 +40,28 @@ const availableNames = [
   "Nancy",
   "Matthew",
   "Betty",
-  "Anthony"
+  "Anthony"*/
 ];
 
-var players = {};
-var projectiles = {};
+var players = [];
 
-var TPS = 20;
+var TPS = 50;
 
 app.use(express.static("public"));
 
 
 var timeOfLastTick;
 function tick() {
-  var data = {}
+  var data = []
   for (var name in players) {
-    data[name] = {position: players[name].position, yaw: players[name].position}
+    data.push({name: name, position: players[name].position, yaw: players[name].yaw})
   }
+  //console.log(data)
   for (var name in players) {
     players[name].socket.emit("playerUpdate", data);
   }
-
   if (timeOfLastTick != undefined) {
-    //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
+    console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
   }
 
   timeOfLastTick = new Date().getTime();
@@ -95,11 +94,11 @@ socketServer.on("connection", (socket) => {
   availableNames.splice(nameIndex, 1);
 
   if (name != null) { 
-    var newPlayer = {name: name, position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, socket: socket};
-    players[name] = newPlayer
-    console.log(name + " joined! 😃😃😃😃😃😃😃 ", Object.keys(players).length)
+    var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, socket: socket };
+    players[name] = newPlayer;
+    console.log(name + " joined! 😃😃😃😃😃😃😃")
     socket.emit("assignPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw});
-    socket.broadcast.emit("newPlayer", {name: name, position: newPlayer.position, yaw: newPlayer.yaw});
+    socket.broadcast.emit("newPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw});
   } else {
     socket.emit("tooManyPlayers");
   }
@@ -109,21 +108,15 @@ socketServer.on("connection", (socket) => {
     players[data.name].yaw = data.yaw;
   })
 
-  socket.on("shootProjectile", (data) => {
-
-  })
-
   socket.on("disconnect", () => {
-    var name
-    for (name in players) {
-      if (players[name].socket == socket) {
-        socket.broadcast.emit("playerLeave", name)
-        break
+    for (var name in players) {
+      if (socket == players[name].socket) {
+        socket.broadcast.emit("playerLeave", name);
+        console.log(name + " left. 😭😭😭😭😭😭😭");
+        availableNames.push(name);
+        players[name] = undefined;
       }
     }
-    console.log(name + " left. 😭😭😭😭😭😭😭");
-    availableNames.push(name);
-    players[name] = undefined
   })
 });
 
