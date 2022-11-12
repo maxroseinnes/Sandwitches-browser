@@ -45,7 +45,7 @@ const availableNames = [
 
 var players = [];
 
-var TPS = 50;
+var TPS = 20;
 
 app.use(express.static("public"));
 
@@ -54,14 +54,14 @@ var timeOfLastTick;
 function tick() {
   var data = []
   for (var name in players) {
-    data.push({name: name, position: players[name].position, yaw: players[name].yaw})
+    if (players[name] != null) data.push({name: name, position: players[name].position, yaw: players[name].yaw, pitch: players[name].pitch})
   }
   //console.log(data)
   for (var name in players) {
-    players[name].socket.emit("playerUpdate", data);
+    if (players[name] != null) players[name].socket.emit("playerUpdate", data);
   }
   if (timeOfLastTick != undefined) {
-    console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
+    //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
   }
 
   timeOfLastTick = new Date().getTime();
@@ -85,7 +85,7 @@ socketServer.on("connection", (socket) => {
 
   var otherPlayersInfo = [];
   for (var name in players) {
-    otherPlayersInfo.push({ name: name, position: players[name].position, yaw: players[name].yaw});
+    if (players[name] != null) otherPlayersInfo.push({ name: name, position: players[name].position, yaw: players[name].yaw, pitch: players[name].pitch});
   }
   socket.emit("otherPlayers", otherPlayersInfo);
 
@@ -94,23 +94,28 @@ socketServer.on("connection", (socket) => {
   availableNames.splice(nameIndex, 1);
 
   if (name != null) { 
-    var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, socket: socket };
+    var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, pitch: 0, socket: socket };
     players[name] = newPlayer;
     console.log(name + " joined! 😃😃😃😃😃😃😃")
-    socket.emit("assignPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw});
-    socket.broadcast.emit("newPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw});
+    socket.emit("assignPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw, pitch: newPlayer.pitch});
+    socket.broadcast.emit("newPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw, pitch: newPlayer.pitch});
   } else {
     socket.emit("tooManyPlayers");
   }
 
   socket.on("playerUpdate", (data) => {
-    players[data.name].position = data.position;
-    players[data.name].yaw = data.yaw;
+    if (players[data.name] != null) {
+      players[data.name].position = data.position;
+      players[data.name].yaw = data.yaw;
+      players[data.name].pitch = data.pitch;
+    }
   })
 
   socket.on("disconnect", () => {
     for (var name in players) {
-      if (socket == players[name].socket) {
+      // maybe using object takes a little too long to fully delete the object?
+      // adding if (players[name] != null) fixes problem
+      if (players[name] != null && socket == players[name].socket) {
         socket.broadcast.emit("playerLeave", name);
         console.log(name + " left. 😭😭😭😭😭😭😭");
         availableNames.push(name);

@@ -166,13 +166,13 @@ var platformGeometry = {
 }
 
 var player;
-//var enemy = new Player(playerGeometry, 10, 0, 0, angleY, "jeff")
+//var enemy = new Player(playerGeometry, 10, 0, 0, angleY, angleX, "jeff")
 var platform = new Platform(platformGeometry, "crate", 5, 0, -8)
 
 var ticks = 0;
 function tick() {
     ticks++;
-    socket.emit("playerUpdate", { position: player.position, yaw: player.yaw, name: player.name } );
+    socket.emit("playerUpdate", { position: player.position, yaw: player.yaw, pitch: player.pitch, name: player.name } );
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
@@ -206,18 +206,18 @@ socket.on("startTicking", (TPS) => {
 })
 
 socket.on("assignPlayer", (player_) => {
-    player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, 0, player_.name);
+    player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, 0, 0, player_.name);
 });
 
 socket.on("otherPlayers", (otherPlayersInfo) => {
     for (var i = 0; i < otherPlayersInfo.length; i++) {
-        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, otherPlayersInfo[i].yaw, otherPlayersInfo[i].name))
+        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, otherPlayersInfo[i].yaw, otherPlayersInfo[i].pitch, otherPlayersInfo[i].name))
     }
 })
 
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
-    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.yaw, player.name));
+    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.yaw, player.pitch, player.name));
 })
 
 socket.on("playerLeave", (name) => {
@@ -237,8 +237,10 @@ socket.on("playerUpdate", (data) => {
                 if (data[i].name == otherPlayers[j].name) {
                     otherPlayers[j].lastPosition = otherPlayers[j].serverPosition
                     otherPlayers[j].lastYaw = otherPlayers[j].serverYaw
+                    otherPlayers[j].lastPitch = otherPlayers[j].serverPitch
                     otherPlayers[j].serverPosition = data[i].position;
                     otherPlayers[j].serverYaw = data[i].yaw;
+                    otherPlayers[j].serverPitch = data[i].pitch;
                     //otherPlayers[j].updatePosition(); ** Moved this to update loop **
                     break;
                 }
@@ -375,6 +377,7 @@ function update(now) {
 
 
 	player.yaw = lookAngleY
+	player.pitch = lookAngleX
 	player.updatePosition() // this must go last
 
 
@@ -401,6 +404,7 @@ function update(now) {
             }
     
             otherPlayers[i].yaw = otherPlayers[i].serverYaw + (otherPlayers[i].serverYaw - otherPlayers[i].lastYaw) * currentTickStage
+            otherPlayers[i].pitch = otherPlayers[i].serverPitch + (otherPlayers[i].serverPitch - otherPlayers[i].lastPitch) * currentTickStage
             
             otherPlayers[i].pastPositions.splice(0, 0, otherPlayers[i].position)
             otherPlayers[i].pastPositions.splice(100)
@@ -440,6 +444,7 @@ function update(now) {
             }
     
             otherPlayers[i].yaw = otherPlayers[i].serverYaw
+            otherPlayers[i].pitch = otherPlayers[i].serverPitch
 
         }
 

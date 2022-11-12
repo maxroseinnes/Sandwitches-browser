@@ -251,6 +251,8 @@ var webgl = {
 
     let tMatrix = mat4.create();
 
+    angleX += Math.PI / 12
+
     let cameraDistance = 8
     let cameraPositionY = (playerPosition.y + 1) - Math.sin(angleX) * -cameraDistance
     let ratio = 1
@@ -407,7 +409,8 @@ class Model {
   }
 
 
-  setPosition(angle, x, y, z, mesh1, mesh2, stage) {
+  setPosition(yaw, pitch, x, y, z, mesh1, mesh2, stage) {
+    // pitch is used only for player models leaning
 
 
     let geometryInfo = this.geometryInfo
@@ -417,16 +420,18 @@ class Model {
     let smooth = geometryInfo.smooth
     let indices = geometryInfo.indices
 
+    //if (pitch != 0) console.log(pitch)
+
     for (let i = 0; i < this.pointIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
         for (let j = 0; j < this.pointIndices[i].length; j++) {
 
           let modelX = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][0] * this.scale, stage)
           let modelY = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][1] * this.scale, stage)
-          let modelZ = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage)
+          let modelZ = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage) - Math.sin(pitch) * modelY * modelY / 2
 
-          let rotatedX = modelX * this.scale  * Math.cos(angle) - modelZ * this.scale  * Math.sin(angle) + x 
-          let rotatedY = modelY * this.scale + y
-          let rotatedZ = modelX * this.scale  * Math.sin(angle) + modelZ * this.scale  * Math.cos(angle) + z
+          let rotatedX = modelX * this.scale  * Math.cos(yaw) - modelZ * this.scale  * Math.sin(yaw) + x 
+          let rotatedY = (modelY - (1 - Math.cos(pitch)) * modelY / 2) * this.scale + y
+          let rotatedZ = modelX * this.scale  * Math.sin(yaw) + modelZ * this.scale  * Math.cos(yaw) + z
 
           webgl.points.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
             rotatedX, 
@@ -440,9 +445,9 @@ class Model {
           let modelN2 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][1], mesh2.normals[mesh2.indices[i].normals[j]][1], stage)
           let modelN3 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][2], mesh2.normals[mesh2.indices[i].normals[j]][2], stage)
 
-          let rotatedN1 = modelN1 * Math.cos(angle) - modelN3 * Math.sin(angle)
+          let rotatedN1 = modelN1 * Math.cos(yaw) - modelN3 * Math.sin(yaw)
           let rotatedN2 = modelN2
-          let rotatedN3 = modelN1 * Math.sin(angle) + modelN3 * Math.cos(angle)
+          let rotatedN3 = modelN1 * Math.sin(yaw) + modelN3 * Math.cos(yaw)
 
           webgl.pointNormals.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
             rotatedN1, 
@@ -471,18 +476,18 @@ class Model {
       }
     }
 
-    for (let i = webgl.points.length - 1; i >= 0; i--) if (webgl.points[i] == null) webgl.points.splice(i, 1)
-    for (let i = webgl.pointNormals.length - 1; i >= 0; i--) if (webgl.pointNormals[i] == null) webgl.pointNormals.splice(i, 1)
-    for (let i = webgl.texCoords.length - 1; i >= 0; i--) if (webgl.texCoords[i] == null) webgl.texCoords.splice(i, 1)
+    //for (let i = webgl.points.length - 1; i >= 0; i--) if (webgl.points[i] == null) webgl.points.splice(i, 1)
+    //for (let i = webgl.pointNormals.length - 1; i >= 0; i--) if (webgl.pointNormals[i] == null) webgl.pointNormals.splice(i, 1)
+    //for (let i = webgl.texCoords.length - 1; i >= 0; i--) if (webgl.texCoords[i] == null) webgl.texCoords.splice(i, 1)
 
     Model.allModels.splice(Model.allModels.indexOf(this), 1)
 
-    console.log(this.pointIndices[0][0])
+    //console.log(this.pointIndices[0][0])
     for (let i = 0; i < Model.allModels.length; i++) {
       if (Model.allModels[i].pointIndices[0][0] + Model.allModels[i].indexOffset >= this.pointIndices[0][0]){
         
         Model.allModels[i].indexOffset -= this.pointIndices.length * 3
-        console.log(Model.allModels[i].pointIndices[0][0])
+        //console.log(Model.allModels[i].pointIndices[0][0])
       }
       
     }
@@ -494,7 +499,7 @@ class Model {
 
 
 class Player {
-  constructor(geometries, x, y, z, yaw, name) {
+  constructor(geometries, x, y, z, yaw, pitch, name) {
     this.geometries = geometries
     this.ingredientModels = {}
     for (let ingredient in geometries.idle) {
@@ -556,7 +561,11 @@ class Player {
 
     this.yaw = yaw
 
+    this.pitch = pitch
+
     this.lastYaw = yaw
+
+    this.lastPitch = pitch
 
     this.serverYaw = yaw
 
@@ -568,7 +577,7 @@ class Player {
 
   updatePosition() {
     for (let ingredient in this.ingredientModels) {
-      this.ingredientModels[ingredient].setPosition(this.yaw, this.position.x, this.position.y, this.position.z, this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], this.animation.stage)
+      this.ingredientModels[ingredient].setPosition(this.yaw, this.pitch, this.position.x, this.position.y, this.position.z, this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], this.animation.stage)
     }
   }
 
@@ -707,7 +716,7 @@ class Weapon {
       this.position.y += this.shootMovementVector.y * deltaTime
       this.position.z += this.shootMovementVector.z * deltaTime
     }
-    this.model.setPosition(this.yaw, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type], this.geometryInfos[this.type], 1)
+    this.model.setPosition(this.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type], this.geometryInfos[this.type], 1)
   }
 
   shoot(angleX, yaw) {
@@ -753,14 +762,14 @@ class Platform {
 
     if (type == "basic") {
       this.model = new Model(geometryInfo[type], 1, Math.random() / 2, Math.random() / 2, Math.random() / 2, "sub")
-      this.model.setPosition(0, this.x, this.y, this.z, geometryInfo[type], geometryInfo[type], 1)
+      this.model.setPosition(0, 0, this.x, this.y, this.z, geometryInfo[type], geometryInfo[type], 1)
       this.width = 7
       this.height = 1.5
       this.length = 7
     }
     if (type == "crate") {
       this.model = new Model(geometryInfo[type], 1, .5, .1, .1, "wood")
-      this.model.setPosition(0, this.x, this.y + 1, this.z, geometryInfo[type], geometryInfo[type], 1)
+      this.model.setPosition(0, 0, this.x, this.y + 1, this.z, geometryInfo[type], geometryInfo[type], 1)
       this.width = 4
       this.height = 2
       this.length = 4
