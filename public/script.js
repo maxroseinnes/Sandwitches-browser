@@ -10,11 +10,9 @@ var obj = modelStuff.obj
 import webglStuff from "./modules/webgl.js"
 
 var webgl = webglStuff.webgl
-var Poly = webglStuff.Poly
 var Point = webglStuff.Point
-var Line = webglStuff.Line
-var Dot = webglStuff.Dot
 var Model = webglStuff.Model
+var PhysicalObject = webglStuff.PhysicalObject
 var Player = webglStuff.Player
 var Weapon = webglStuff.Weapon
 var Platform = webglStuff.Platform
@@ -81,6 +79,9 @@ var averageClientTPS = ticksPerSecond
 // Multiplayer global variables //
 var socket = io();
 var otherPlayers = [];
+var platforms = [];
+var camera = new PhysicalObject(0, 0, 0, 0, 0, 0, 0, 0)
+camera.collidableObjects.push(platforms)
 
 // html elements //
 const menu = document.getElementById("menu")
@@ -162,17 +163,17 @@ var weaponGeometry = {
 
 var platformGeometry = {
     basic: obj.parseWavefront(modelData.platforms.basic, false),
-    crate: obj.parseWavefront(fetchObj("platforms/crate.obj"), false)
+    crate: obj.parseWavefront(fetchObj("platforms/crate.obj"), false),
+    pinetree: obj.parseWavefront(fetchObj("platforms/pinetree.obj"), false)
 }
 
 var player;
 //var enemy = new Player(playerGeometry, 10, 0, 0, angleY, angleX, "jeff")
-var platform = new Platform(platformGeometry, "crate", 5, 0, -8)
 
 var ticks = 0;
 function tick() {
     ticks++;
-    socket.emit("playerUpdate", { position: player.position, yaw: player.yaw, pitch: player.pitch, name: player.name } );
+    socket.emit("playerUpdate", { position: player.position, name: player.name } );
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
@@ -207,17 +208,45 @@ socket.on("startTicking", (TPS) => {
 
 socket.on("assignPlayer", (player_) => {
     player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, 0, 0, player_.name);
+    player.collidableObjects.push(platforms)
 });
+
+socket.on("map", (mapInfo) => {
+    for (let i = 0; i < mapInfo.platforms.length; i++) {
+        platforms.push(new Platform(platformGeometry,
+            mapInfo.platforms[i].type,
+            mapInfo.platforms[i].x,
+            mapInfo.platforms[i].y,
+            mapInfo.platforms[i].z,
+            mapInfo.platforms[i].scale    
+        ))
+    }
+    platforms.push(
+        new Platform(platformGeometry, "crate", 0, -128, 0, 8),
+        new Platform(platformGeometry, "basic", 10, 1,    10,  1),
+        new Platform(platformGeometry, "basic", 15, 3.5,  5,   1),
+        new Platform(platformGeometry, "basic", 19, 6,    -5,  1),
+        new Platform(platformGeometry, "basic", 26, 8.5,  -9,  1),
+        new Platform(platformGeometry, "basic", 25, 10,   -15, 1),
+        new Platform(platformGeometry, "basic", 19, 11.5, -10, 1),
+        new Platform(platformGeometry, "basic", 13, 13.5, -2,  1),
+        new Platform(platformGeometry, "basic", 10, 16,   5,   1),
+        new Platform(platformGeometry, "basic", 5,  18.5, 10,  1),
+        new Platform(platformGeometry, "basic", 2,  21,   8,   1),
+        new Platform(platformGeometry, "basic", -5, 23.5, 5,   1)
+    )
+
+})
 
 socket.on("otherPlayers", (otherPlayersInfo) => {
     for (var i = 0; i < otherPlayersInfo.length; i++) {
-        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, otherPlayersInfo[i].yaw, otherPlayersInfo[i].pitch, otherPlayersInfo[i].name))
+        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, otherPlayersInfo[i].position.yaw, otherPlayersInfo[i].position.pitch, otherPlayersInfo[i].name))
     }
 })
 
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
-    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.yaw, player.pitch, player.name));
+    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.pitch, player.name));
 })
 
 socket.on("playerLeave", (name) => {
@@ -236,12 +265,8 @@ socket.on("playerUpdate", (data) => {
             for (var j = 0; j < otherPlayers.length; j++) {
                 if (data[i].name == otherPlayers[j].name) {
                     otherPlayers[j].lastPosition = otherPlayers[j].serverPosition
-                    otherPlayers[j].lastYaw = otherPlayers[j].serverYaw
-                    otherPlayers[j].lastPitch = otherPlayers[j].serverPitch
                     otherPlayers[j].serverPosition = data[i].position;
-                    otherPlayers[j].serverYaw = data[i].yaw;
-                    otherPlayers[j].serverPitch = data[i].pitch;
-                    //otherPlayers[j].updatePosition(); ** Moved this to update loop **
+                    //otherPlayers[j].updateWorldPosition(); ** Moved this to update loop **
                     break;
                 }
             }
@@ -376,9 +401,9 @@ function update(now) {
 	player.updateAnimation()
 
 
-	player.yaw = lookAngleY
-	player.pitch = lookAngleX
-	player.updatePosition() // this must go last
+	player.position.yaw = lookAngleY
+	player.position.pitch = lookAngleX
+	player.updateWorldPosition() // this must go last
 
 
     // update other player positions
@@ -403,8 +428,8 @@ function update(now) {
                 z: otherPlayers[i].serverPosition.z + (otherPlayers[i].serverPosition.z - otherPlayers[i].lastPosition.z) * currentTickStage
             }
     
-            otherPlayers[i].yaw = otherPlayers[i].serverYaw + (otherPlayers[i].serverYaw - otherPlayers[i].lastYaw) * currentTickStage
-            otherPlayers[i].pitch = otherPlayers[i].serverPitch + (otherPlayers[i].serverPitch - otherPlayers[i].lastPitch) * currentTickStage
+            otherPlayers[i].position.yaw = otherPlayers[i].serverPosition.yaw + (otherPlayers[i].serverPosition.yaw - otherPlayers[i].lastPosition.yaw) * currentTickStage
+            otherPlayers[i].position.pitch = otherPlayers[i].serverPosition.pitch + (otherPlayers[i].serverPosition.pitch - otherPlayers[i].lastPosition.pitch) * currentTickStage
             
             otherPlayers[i].pastPositions.splice(0, 0, otherPlayers[i].position)
             otherPlayers[i].pastPositions.splice(100)
@@ -416,19 +441,23 @@ function update(now) {
                 Math.pow(otherPlayers[i].pastPositions[0].z - otherPlayers[i].pastPositions[1].z, 2), .1
             ))
 
-            smoothing = 10
+            smoothing = 5
             if (smoothing > otherPlayers[i].pastPositions.length) smoothing = otherPlayers[i].pastPositions.length
 
             //console.log(smoothing)
             let smoothedPosition = {
                 x: 0,
                 y: 0,
-                z: 0
+                z: 0,
+                yaw: 0,
+                pitch: 0
             }
             for (let j = 0; j < smoothing; j++) smoothedPosition = {
                 x: smoothedPosition.x + otherPlayers[i].pastPositions[j].x / smoothing,
                 y: smoothedPosition.y + otherPlayers[i].pastPositions[j].y / smoothing,
-                z: smoothedPosition.z + otherPlayers[i].pastPositions[j].z / smoothing
+                z: smoothedPosition.z + otherPlayers[i].pastPositions[j].z / smoothing,
+                yaw: smoothedPosition.yaw + otherPlayers[i].pastPositions[j].yaw / smoothing,
+                pitch: smoothedPosition.pitch + otherPlayers[i].pastPositions[j].pitch / smoothing
             }
 
             if (smoothing > 0) otherPlayers[i].position = smoothedPosition
@@ -443,33 +472,44 @@ function update(now) {
                 z: otherPlayers[i].serverPosition.z
             }
     
-            otherPlayers[i].yaw = otherPlayers[i].serverYaw
-            otherPlayers[i].pitch = otherPlayers[i].serverPitch
+            otherPlayers[i].position.yaw = otherPlayers[i].serverPosition.yaw
+            otherPlayers[i].position.pitch = otherPlayers[i].serverPosition.pitch
 
         }
 
-        otherPlayers[i].updatePosition();
+        otherPlayers[i].updateWorldPosition();
     }
 
 
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
-    inventory.currentWeapon.model.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
+    //let distanceFromPlayer = 2
+
+    inventory.currentWeapon.models.main.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
     
-    inventory.currentWeapon.position.x = player.position.x + Math.cos(player.yaw) * distanceFromPlayer
+    inventory.currentWeapon.position.x = player.position.x + Math.cos(player.position.yaw) * 2//distanceFromPlayer
     inventory.currentWeapon.position.y = player.position.y + 1.5
-    inventory.currentWeapon.position.z = player.position.z + Math.sin(player.yaw) * distanceFromPlayer
-    inventory.currentWeapon.yaw = Date.now() / 1000 + player.yaw
+    inventory.currentWeapon.position.z = player.position.z + Math.sin(player.position.yaw) * 2//distanceFromPlayer
+    inventory.currentWeapon.position.yaw = Date.now() / 1000 + player.position.yaw
     inventory.currentWeapon.updatePosition(deltaTime)
 
-    for (let i = 0; i < otherWeapons.length; i++) {
+    for (let i = otherWeapons.length - 1; i >= 0; i--) {
         if (otherWeapons[i].shooted) {
-            otherWeapons[i].yaw += deltaTime / 1000
+            otherWeapons[i].position.yaw += deltaTime / 1000
             otherWeapons[i].updatePosition(deltaTime)
+
+            if (otherWeapons[i].position.x < -50 || otherWeapons[i].position.x > 50 || otherWeapons[i].position.z < -50 || otherWeapons[i].position.z > 50) {
+                otherWeapons[i].remove()
+                otherWeapons.splice(i, 1)
+            }
         }
     }
 
-    webgl.renderFrame(player.position, lookAngleX, lookAngleY);
+
+    camera.position.yaw = player.position.yaw
+    camera.position.pitch = player.position.pitch
+
+    webgl.renderFrame(player.position, camera);
     if (running) requestAnimationFrame(update)
 }
 
@@ -482,9 +522,7 @@ function fixedUpdate() {
 
 	// -- Movement -- //
 
-    player.lastPosition = { x: player.position.x, y: player.position.y, z: player.position.z }
-
-	let speed = .005;
+	let speed = .0075;
 	let walkAnimationSpeed = .001 / speed
 
 	if (w) {
@@ -492,10 +530,12 @@ function fixedUpdate() {
 		player.position.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         if (player.animation.finished) {
-            stepNoise.currentTime = 0.25
-            stepNoise.volume = .05
-            stepNoise.playbackRate = 1
-            stepNoise.play()
+            if (player.onGround) {
+                stepNoise.currentTime = 0.25
+                stepNoise.volume = .05
+                stepNoise.playbackRate = 1
+                stepNoise.play()
+            }
             if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
             else if (player.animation.currentMeshName == "stepRightFoot") player.startAnimation("stepRightFoot", "walkLeftFoot", walkAnimationSpeed, true)
             else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
@@ -511,10 +551,12 @@ function fixedUpdate() {
 		player.position.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
         
         if (player.animation.finished) {
-            stepNoise.currentTime = 0.2
-            stepNoise.volume = .05
-            stepNoise.playbackRate = 1.5
-            stepNoise.play()
+            if (player.onGround) {
+                stepNoise.currentTime = 0.2
+                stepNoise.volume = .05
+                stepNoise.playbackRate = 1.5
+                stepNoise.play()
+            }
             if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
             else if (player.animation.currentMeshName == "stepRightFoot") player.startAnimation("stepRightFoot", "walkLeftFoot", walkAnimationSpeed, true)
             else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
@@ -535,8 +577,8 @@ function fixedUpdate() {
 	else crouching = false
 
 	if (space) {
-		if (onGround) {
-            gravity = .0125
+		if (player.onGround) {
+            player.gravity = .015
             jumpNoise.currentTime = 0.025
             jumpNoise.play()
         }
@@ -552,51 +594,20 @@ function fixedUpdate() {
     }
 
 
-	// gravity //
+
+    player.calculatePosition(deltaTime)
+
+    if (!player.lastOnGround && player.onGround && (player.position.y - player.lastPosition.y) < -.1) {
+        splatNoise.currentTime = .1
+        splatNoise.playbackRate = 1.5
+        splatNoise.play()
+    }
     
-	player.position.y += gravity * deltaTime
 
-
-	onGround = (player.position.y <= 0)
-	if (onGround) {
-		player.position.y = 0
-		gravity = 0
-	}
-	else {
-		gravity -= .00003 * deltaTime // subtract by gravitational constant (units/frames^2)
-	}
-
-
-    // collision //
-
-    let movementFunctions = Platform.calculateSlopes(player.lastPosition, player.position)
-    let collision = platform.calculateCollision(player.lastPosition, player.position, movementFunctions, gravity)
-
-    player.position = collision.correctedPosition
-    gravity = collision.gravity
-    if (collision.onPlatform) onGround = true
-
-
-    lastOnGround = onGround
-
+    player.lastPosition = { x: player.position.x, y: player.position.y, z: player.position.z }
+    player.lastOnGround = player.onGround
 
 	// ingredient jiggle //
-	lastYPositions.splice(0, 0, player.position.y)
-	lastYPositions.splice(200)
-
-	let weight = .925
-
-	breadY += gravity * deltaTime * .2
-	breadY = (breadY * weight + Math.pow(lastYPositions[0], 1.2) * (1 - weight))
-
-	tomatoY += gravity * deltaTime * .2
-	tomatoY = (tomatoY * weight + Math.pow(lastYPositions[4], 1.2) * (1 - weight))
-
-	cheeseY += gravity * deltaTime * .5
-	cheeseY = (cheeseY * weight + Math.pow(lastYPositions[8], 1.2) * (1 - weight))
-
-	meatY += gravity * deltaTime * .7
-	meatY = (meatY * weight + Math.pow(lastYPositions[14], 1.2) * (1 - weight))
 
 
     // combat updates //
@@ -623,8 +634,7 @@ if (event.keyCode == 65) a = true
 if (event.keyCode == 68) d = true
 
 if (event.keyCode == 16) {
-    inventory.currentWeapon.model.delete()
-    console.log("deleted")
+    inventory.currentWeapon.remove()
 
 	shift = true
 }
@@ -651,8 +661,9 @@ if (event.keyCode == 32) space = false
 // -- mouse -- //
 
 
-
+var lastPointerLockExited = Date.now()
 document.addEventListener("pointerlockchange", function () {
+    lastPointerLockExited = Date.now()
 	if (document.pointerLockElement === canvas) {
 		pointerLocked = true
 		if (!running) {
@@ -694,11 +705,14 @@ document.addEventListener("mousemove", function (event) {
 
 // -- menu -- //
 startButton.onclick = () => {
+    if ((Date.now() - lastPointerLockExited) < 1500) return
+    
 	console.log("starting")
 
     backgroundNoises.play()
 	menu.style.display = "none"
 
+    
 	canvas.requestPointerLock()
 }
 

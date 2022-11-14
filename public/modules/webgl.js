@@ -207,7 +207,7 @@ var webgl = {
 
 
 
-  renderFrame: function(playerPosition, angleX, yaw) {
+  renderFrame: function(playerPosition, camera) {
 
 
 
@@ -251,17 +251,78 @@ var webgl = {
 
     let tMatrix = mat4.create();
 
-    angleX += Math.PI / 12
+    //angleX += Math.PI / 12
 
-    let cameraDistance = 8
-    let cameraPositionY = (playerPosition.y + 1) - Math.sin(angleX) * -cameraDistance
-    let ratio = 1
-    if (cameraPositionY < 0) ratio = Math.pow((playerPosition.y + 1) / (Math.sin(angleX) * -cameraDistance), 1.5)
+    //let cameraDistance = 8
+    //let cameraPositionY = (playerPosition.y + 1) - Math.sin(angleX) * -cameraDistance
+    //let ratio = 1
+    //if (cameraPositionY < 0) ratio = Math.pow((playerPosition.y + 1) / (Math.sin(angleX) * -cameraDistance), 1.5)
 
-  	mat4.translate(tMatrix, tMatrix, [-2, -1, -cameraDistance * ratio]);
-    mat4.rotateX(tMatrix, tMatrix, angleX);
-    mat4.rotateY(tMatrix, tMatrix, yaw);
-    mat4.translate(tMatrix, tMatrix, [-playerPosition.x, -playerPosition.y, -playerPosition.z]);
+
+    camera.lastPosition.x = playerPosition.x
+    camera.lastPosition.y = playerPosition.y + 1
+    camera.lastPosition.z = playerPosition.z
+
+    let cameraX = 2
+    let cameraY = 1
+    let cameraZ = 8
+
+    let cameraRY = Math.cos(-camera.position.pitch) * cameraY - Math.sin(-camera.position.pitch) * cameraZ
+    let cameraRZ = Math.sin(-camera.position.pitch) * cameraY + Math.cos(-camera.position.pitch) * cameraZ
+    let cameraRX = cameraX
+
+    camera.position.z = Math.cos(-camera.position.yaw) * cameraRZ - Math.sin(-camera.position.yaw) * cameraRX + playerPosition.z
+    camera.position.x = Math.sin(-camera.position.yaw) * cameraRZ + Math.cos(-camera.position.yaw) * cameraRX + playerPosition.x
+    camera.position.y = cameraRY + playerPosition.y
+
+
+    for (let i = 0; i < camera.collidableObjects.length; i++) {
+      for (let j = 0; j < camera.collidableObjects[i].length; j++) {
+        let movement = camera.calculateSlopes()
+        let collision = camera.collidableObjects[i][j].collision(camera.lastPosition, camera.position, movement, {mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05})
+
+        if (collision.mx.intersects) {
+          camera.position.x = collision.mx.x
+          camera.position.y = collision.mx.y
+          camera.position.z = collision.mx.z
+        }
+        if (collision.px.intersects) {
+          camera.position.x = collision.px.x
+          camera.position.y = collision.px.y
+          camera.position.z = collision.px.z
+        }
+
+        if (collision.my.intersects) {
+          camera.position.x = collision.my.x
+          camera.position.y = collision.my.y
+          camera.position.z = collision.my.z
+        }
+        if (collision.py.intersects) {
+          camera.position.x = collision.py.x
+          camera.position.y = collision.py.y
+          camera.position.z = collision.py.z
+        }
+
+        if (collision.mz.intersects) {
+          camera.position.x = collision.mz.x
+          camera.position.y = collision.mz.y
+          camera.position.z = collision.mz.z
+        }
+        if (collision.pz.intersects) {
+          camera.position.x = collision.pz.x
+          camera.position.y = collision.pz.y
+          camera.position.z = collision.pz.z
+        }
+
+      }
+    }
+
+
+
+  	//mat4.translate(tMatrix, tMatrix, [-2, -1, -cameraDistance * ratio]);
+    mat4.rotateX(tMatrix, tMatrix, camera.position.pitch);
+    mat4.rotateY(tMatrix, tMatrix, camera.position.yaw);
+    mat4.translate(tMatrix, tMatrix, [-camera.position.x, -camera.position.y, -camera.position.z]);
 
     let tMatrixLocation = this.gl.getUniformLocation(this.program, "tMatrix");
     this.gl.uniformMatrix4fv(tMatrixLocation, false, tMatrix);
@@ -348,7 +409,7 @@ class Point {
 
 class Model {
   static allModels = []
-  constructor(geometryInfo, scale, r, g, b, texture) {
+  constructor(geometryInfo, scale, texture) {
     Model.allModels.push(this)
 // 1 2 3
 
@@ -414,24 +475,22 @@ class Model {
 
 
     let geometryInfo = this.geometryInfo
-    let positions = geometryInfo.positions
-    let normals = geometryInfo.normals
-    let texcoords = geometryInfo.texcoords
-    let smooth = geometryInfo.smooth
     let indices = geometryInfo.indices
-
-    //if (pitch != 0) console.log(pitch)
 
     for (let i = 0; i < this.pointIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
         for (let j = 0; j < this.pointIndices[i].length; j++) {
 
           let modelX = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][0] * this.scale, stage)
           let modelY = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][1] * this.scale, stage)
-          let modelZ = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage) - Math.sin(pitch) * modelY * modelY / 2
+          let modelZ = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage)
 
-          let rotatedX = modelX * this.scale  * Math.cos(yaw) - modelZ * this.scale  * Math.sin(yaw) + x 
-          let rotatedY = (modelY - (1 - Math.cos(pitch)) * modelY / 2) * this.scale + y
-          let rotatedZ = modelX * this.scale  * Math.sin(yaw) + modelZ * this.scale  * Math.cos(yaw) + z
+          let xRotatedZ = modelZ * this.scale * Math.cos(pitch * modelY / 3) - modelY * this.scale * Math.sin(pitch * modelY / 3)
+          let xRotatedY = modelZ * this.scale * Math.sin(pitch * modelY / 3) + modelY * this.scale * Math.cos(pitch * modelY / 3)
+          let xRotatedX = modelX * this.scale
+
+          let rotatedX = xRotatedX * Math.cos(yaw) - xRotatedZ * Math.sin(yaw) + x
+          let rotatedY = xRotatedY + y
+          let rotatedZ = xRotatedX * Math.sin(yaw) + xRotatedZ * Math.cos(yaw) + z
 
           webgl.points.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
             rotatedX, 
@@ -445,9 +504,13 @@ class Model {
           let modelN2 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][1], mesh2.normals[mesh2.indices[i].normals[j]][1], stage)
           let modelN3 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][2], mesh2.normals[mesh2.indices[i].normals[j]][2], stage)
 
-          let rotatedN1 = modelN1 * Math.cos(yaw) - modelN3 * Math.sin(yaw)
-          let rotatedN2 = modelN2
-          let rotatedN3 = modelN1 * Math.sin(yaw) + modelN3 * Math.cos(yaw)
+          let xRotatedN3 = modelN3 * Math.cos(pitch * modelY / 3) - modelN2 * Math.sin(pitch * modelY / 3)
+          let xRotatedN2 = modelN3 * Math.sin(pitch * modelY / 3) + modelN2 * Math.cos(pitch * modelY / 3)
+          let xRotatedN1 = modelN1
+
+          let rotatedN1 = xRotatedN1 * Math.cos(yaw) - xRotatedN3 * Math.sin(yaw)
+          let rotatedN2 = xRotatedN2
+          let rotatedN3 = xRotatedN1 * Math.sin(yaw) + xRotatedN3 * Math.cos(yaw)
 
           webgl.pointNormals.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
             rotatedN1, 
@@ -466,53 +529,241 @@ class Model {
   }
 
   delete() {
-    for (let i = 0; i < this.pointIndices.length; i++) {
-      for (let j = 0; j < this.pointIndices[i].length; j++) {
-        webgl.points.splice(this.pointIndices[i][j] * 3, 3, null, null, null)
-        webgl.pointNormals.splice(this.pointIndices[i][j] * 3, 3, null, null, null)
-        webgl.texCoords.splice(this.pointIndices[i][j] * 2, 2, null, null)
+    let allModelsLocation = Model.allModels.indexOf(this)
 
-        webgl.pointCount--
-      }
+    if (allModelsLocation == -1) {
+      console.log("this model has already been deleted")
+      return
     }
-
-    //for (let i = webgl.points.length - 1; i >= 0; i--) if (webgl.points[i] == null) webgl.points.splice(i, 1)
-    //for (let i = webgl.pointNormals.length - 1; i >= 0; i--) if (webgl.pointNormals[i] == null) webgl.pointNormals.splice(i, 1)
-    //for (let i = webgl.texCoords.length - 1; i >= 0; i--) if (webgl.texCoords[i] == null) webgl.texCoords.splice(i, 1)
 
     Model.allModels.splice(Model.allModels.indexOf(this), 1)
 
-    //console.log(this.pointIndices[0][0])
+    let deletedPoints = this.pointIndices.length * 3
+
+    webgl.points.splice((this.pointIndices[0][0] + this.indexOffset) * 3, deletedPoints * 3)
+    webgl.pointNormals.splice((this.pointIndices[0][0] + this.indexOffset) * 3, deletedPoints * 3)
+    webgl.texCoords.splice((this.pointIndices[0][0] + this.indexOffset) * 2, deletedPoints * 2)
+
+    webgl.pointCount -= deletedPoints
+
+    
     for (let i = 0; i < Model.allModels.length; i++) {
-      if (Model.allModels[i].pointIndices[0][0] + Model.allModels[i].indexOffset >= this.pointIndices[0][0]){
+      if (Model.allModels[i].pointIndices[0][0] + Model.allModels[i].indexOffset >= this.pointIndices[0][0] + this.indexOffset){
         
-        Model.allModels[i].indexOffset -= this.pointIndices.length * 3
-        //console.log(Model.allModels[i].pointIndices[0][0])
+        Model.allModels[i].indexOffset -= deletedPoints
       }
       
     }
     this.pointIndices = []
+    console.log("deleted")
   }
 
 }
 
 
 
-class Player {
+
+class PhysicalObject {
+  constructor(x, y, z, yaw, pitch, width, height, length) {
+    this.position = { // world position
+      x: x,
+      y: y,
+      z: z,
+      yaw: yaw,
+      pitch, pitch
+    }
+    this.lastPosition = { // used for collision
+      x: x,
+      y: y,
+      z: z,
+      yaw: yaw,
+      pitch: pitch
+    }
+    this.serverPosition = { // updated in tick function
+      x: x,
+      y: y,
+      z: z,
+      yaw: yaw,
+      pitch: pitch
+    }
+    this.pastPositions = [ // optional use for smoothing
+      {
+        x: x,
+        y: y,
+        z: z,
+        yaw: yaw,
+        pitch: pitch
+      }
+    ]
+    // dimensions used for collision
+    this.width = width
+    this.height = height
+    this.length = length
+
+    this.models = {}
+
+    this.collidableObjects = [] // ex. [platforms, players]
+
+
+
+
+
+
+  }
+
+
+  calculateSlopes() {
+    // calculate 6 slopes
+
+    let x1 = this.lastPosition.x
+    let x2 = this.position.x
+    let y1 = this.lastPosition.y
+    let y2 = this.position.y
+    let z1 = this.lastPosition.z
+    let z2 = this.position.z
+
+
+    let functions = {
+      x: {
+        dependY: function(y){ return ((x2 - x1) / (y2 - y1) * y + ((x2 - x1) / (y2 - y1) * -y1) + x1) },
+        dependZ: function(z){ return ((x2 - x1) / (z2 - z1) * z + ((x2 - x1) / (z2 - z1) * -z1) + x1) }
+      },
+      y: {
+        dependZ: function(z){ return ((y2 - y1) / (z2 - z1) * z + ((y2 - y1) / (z2 - z1) * -z1) + y1) },
+        dependX: function(x){ return ((y2 - y1) / (x2 - x1) * x + ((y2 - y1) / (x2 - x1) * -x1) + y1) }
+      },
+      z: {
+        dependX: function(x){ return ((z2 - z1) / (x2 - x1) * x + ((z2 - z1) / (x2 - x1) * -x1) + z1) },
+        dependY: function(y){ return ((z2 - z1) / (y2 - y1) * y + ((z2 - z1) / (y2 - y1) * -y1) + z1) }
+      }
+    }
+
+
+
+    return functions
+  }
+
+  collision(lastPosition, position, movement, dimensions) {
+    if (dimensions == null) dimensions = {
+      mx: 0,
+      px: 0,
+      my: 0,
+      py: 0,
+      mz: 0,
+      pz: 0
+    }
+    
+    let mx = this.mx + dimensions.mx
+    let px = this.px + dimensions.px
+    let my = this.my + dimensions.my
+    let py = this.py + dimensions.py
+    let mz = this.mz + dimensions.mz
+    let pz = this.pz + dimensions.pz
+
+    let collision = {
+      mx: {
+        intersects: false,
+        y: movement.y.dependX(mx),
+        z: movement.z.dependX(mx),
+        x: mx
+      },
+      my: {
+        intersects: false,
+        z: movement.z.dependY(my),
+        x: movement.x.dependY(my),
+        y: my
+      },
+      mz: {
+        intersects: false,
+        x: movement.x.dependZ(mz),
+        y: movement.y.dependZ(mz),
+        z: mz
+      },
+      px: {
+        intersects: false,
+        y: movement.y.dependX(px),
+        z: movement.z.dependX(px),
+        x: px
+      },
+      py: {
+        intersects: false,
+        z: movement.z.dependY(py),
+        x: movement.x.dependY(py),
+        y: py
+      },
+      pz: {
+        intersects: false,
+        x: movement.x.dependZ(pz),
+        y: movement.y.dependZ(pz),
+        z: pz
+      }
+    }
+
+    // calculate if intersection is within bounds of face and that the point has passed the face in the dependent direction
+    if (lastPosition.x <= mx && mx <= position.x) {
+      if (my <= collision.mx.y && collision.mx.y <= py && mz <= collision.mx.z && collision.mx.z <= pz) {
+        collision.mx.intersects = true
+      }
+    }
+
+    if (lastPosition.x >= px && px >= position.x) {
+      if (my <= collision.px.y && collision.px.y <= py && mz <= collision.px.z && collision.px.z <= pz) {
+        collision.px.intersects = true
+      }
+    }
+
+    if (lastPosition.y <= my && my <= position.y) {
+      if (mz <= collision.my.z && collision.my.z <= pz && mx <= collision.my.x && collision.my.x <= px) {
+        collision.my.intersects = true
+      }
+    }
+
+    if (lastPosition.y >= py && py >= position.y) {
+      if (mz <= collision.py.z && collision.py.z <= pz && mx <= collision.py.x && collision.py.x <= px) {
+        collision.py.intersects = true
+      }
+    }
+    
+    if (lastPosition.z <= mz && mz <= position.z) {
+      if (mx <= collision.mz.x && collision.mz.x <= px && my <= collision.mz.y && collision.mz.y <= py) {
+        collision.mz.intersects = true
+      }
+    }
+    
+    if (lastPosition.z >= pz && pz >= position.z) {
+      if (mx <= collision.pz.x && collision.pz.x <= px && my <= collision.pz.y && collision.pz.y <= py) {
+        collision.pz.intersects = true
+      }
+    }
+
+      
+
+    return collision
+  }
+
+  remove() {
+    for (let modelName in this.models) {
+      this.models[modelName].delete()
+    }
+  }
+
+}
+
+
+
+class Player extends PhysicalObject {
   constructor(geometries, x, y, z, yaw, pitch, name) {
+    super(x, y, z, yaw, pitch, 4, 4, 4)
+
     this.geometries = geometries
-    this.ingredientModels = {}
     for (let ingredient in geometries.idle) {
-      let r = .5
-      let g = .5
-      let b = .5
       let scale = 1
       let texture = 0
-      if (ingredient.indexOf("Slice") != -1) { r = .25; g = .15; b = .05; texture = "bread"; }
-      if (ingredient.indexOf("cheese") != -1) { r = .6; g = .4; b = .1; texture = "jerry"; }
-      if (ingredient.indexOf("meat") != -1) { r = .6; g = .4; b = .4; texture = "sub"; }
-      if (ingredient.indexOf("tomato") != -1) { r = .9; g = .2; b = .1; scale = 1.05; texture = "jerry"; }
-      this.ingredientModels[ingredient] = new Model(geometries.idle[ingredient], scale, r, g, b, texture)
+      if (ingredient.indexOf("Slice") != -1) { texture = "bread"; }
+      if (ingredient.indexOf("cheese") != -1) { texture = "jerry"; }
+      if (ingredient.indexOf("meat") != -1) { texture = "sub"; }
+      if (ingredient.indexOf("tomato") != -1) { scale = 1.05; texture = "jerry"; }
+      this.models[ingredient] = new Model(geometries.idle[ingredient], scale, texture)
     }
 
 
@@ -528,56 +779,60 @@ class Player {
       stage: 1
     }
 
-    this.position = {
-      x: x,
-      y: y,
-      z: z
-    }
-
-    this.pastPositions = [
-      {
-        x: x,
-        y: y,
-        z: z
-      },
-      {
-        x: x,
-        y: y,
-        z: z
-      }
-    ]
-
-    this.lastPosition = {
-      x: x,
-      y: y,
-      z: z
-    }
-
-    this.serverPosition = {
-      x: x,
-      y: y,
-      z: z
-    }
-
-    this.yaw = yaw
-
-    this.pitch = pitch
-
-    this.lastYaw = yaw
-
-    this.lastPitch = pitch
-
-    this.serverYaw = yaw
-
     this.name = name
+
+    this.gravity = 0
+    this.onGround = true
+    
 
 
 
   }
 
-  updatePosition() {
-    for (let ingredient in this.ingredientModels) {
-      this.ingredientModels[ingredient].setPosition(this.yaw, this.pitch, this.position.x, this.position.y, this.position.z, this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], this.animation.stage)
+  calculatePosition(deltaTime) {
+
+    this.gravity -= .00003 * deltaTime // subtract by gravitational constant (units/frames^2)
+
+    this.position.y += this.gravity * deltaTime
+
+
+    this.onGround = false
+
+
+    // calculate collisions
+    let movement = this.calculateSlopes()
+    for (let i = 0; i < this.collidableObjects.length; i++) {
+      for (let j = 0; j < this.collidableObjects[i].length; j++) {
+        let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, {mx: -1, px: 1, my: -2, py: 0, mz: -1, pz: 1})
+        if (collision.py.intersects) {
+          this.position.y = collision.py.y
+          this.gravity = 0
+          this.onGround = true
+        }
+        if (collision.my.intersects) {
+          this.position.y = collision.my.y
+          this.gravity = 0
+        }
+        if (collision.mx.intersects) {
+          this.position.x = collision.mx.x
+        }
+        if (collision.px.intersects) {
+          this.position.x = collision.px.x
+        }
+        if (collision.mz.intersects) {
+          this.position.z = collision.mz.z
+        }
+        if (collision.pz.intersects) {
+          this.position.z = collision.pz.z
+        }
+      }
+    }
+
+  }
+
+  updateWorldPosition() {
+    for (let ingredient in this.models) {
+      this.models[ingredient].setPosition(this.position.yaw, this.position.pitch, this.position.x, this.position.y, this.position.z, this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], this.animation.stage)
     }
   }
 
@@ -609,18 +864,14 @@ class Player {
   }
 
 
-  remove() {
-    for (let ingredient in this.ingredientModels) {
-      this.ingredientModels[ingredient].delete()
-    }
-  }
 
 
 }
 
 
-class Weapon {
+class Weapon extends PhysicalObject {
   constructor(geometryInfos, type) {
+    super(0, 0, 0, 0, 0, 1, 1, 1)
 
     this.geometryInfos = geometryInfos
     this.type = type
@@ -642,7 +893,7 @@ class Weapon {
       this.damage = 5
 
       this.scale = .625
-      this.model = new Model(geometryInfos.tomato, this.scale, .6, .1, .1, "sub")
+      this.models.main = new Model(geometryInfos.tomato, this.scale, "sub")
     }
     
     if (type == "olive") {
@@ -651,7 +902,7 @@ class Weapon {
       this.damage = 5
 
       this.scale = .925
-      this.model = new Model(geometryInfos.olive, this.scale, .2, .3, .2, "sub")
+      this.models.main = new Model(geometryInfos.olive, this.scale, "sub")
     }
 
     if (type == "pickle") {
@@ -660,7 +911,7 @@ class Weapon {
       this.damage = 5
 
       this.scale = .625
-      this.model = new Model(geometryInfos.pickle, this.scale, .1, .4, .1, "sub")
+      this.models.main = new Model(geometryInfos.pickle, this.scale, "sub")
     }
 
     if (type == "sausage") {
@@ -669,7 +920,7 @@ class Weapon {
       this.damage = 5
 
       this.scale = .625
-      this.model = new Model(geometryInfos.sausage, this.scale, .6, .1, .1, "jerry")
+      this.models.main = new Model(geometryInfos.sausage, this.scale, "jerry")
     }
 
     
@@ -679,7 +930,7 @@ class Weapon {
       this.damage = 5
 
       this.scale = 1
-      this.model = new Model(geometryInfos.anchovy, this.scale, .6, .1, .1, "jerry")
+      this.models.main = new Model(geometryInfos.anchovy, this.scale, "jerry")
     }
 
 
@@ -689,16 +940,9 @@ class Weapon {
       this.damage = 5
 
       this.scale = 1
-      this.model = new Model(geometryInfos.pan, this.scale, .6, .1, .1, "sub")
+      this.models.main = new Model(geometryInfos.pan, this.scale, "sub")
     }
 
-
-    this.position = {
-      x: 0,
-      y: 0, 
-      z: 0
-    }
-    this.yaw = 0
 
 
     this.shooted = false
@@ -716,7 +960,7 @@ class Weapon {
       this.position.y += this.shootMovementVector.y * deltaTime
       this.position.z += this.shootMovementVector.z * deltaTime
     }
-    this.model.setPosition(this.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type], this.geometryInfos[this.type], 1)
+    this.models.main.setPosition(this.position.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type], this.geometryInfos[this.type], 1)
   }
 
   shoot(angleX, yaw) {
@@ -753,34 +997,47 @@ class Weapon {
 
 
 
-class Platform {
-  constructor(geometryInfo, type, x, y, z) {
-    console.log(geometryInfo[type])
-    this.x = x
-    this.y = y
-    this.z = z
+class Platform extends PhysicalObject {
+  constructor(geometryInfo, type, x, y, z, scale) {
+    super(x, y, z, 0, 0, null, null, null)
+    this.scale = scale || 1
 
     if (type == "basic") {
-      this.model = new Model(geometryInfo[type], 1, Math.random() / 2, Math.random() / 2, Math.random() / 2, "sub")
-      this.model.setPosition(0, 0, this.x, this.y, this.z, geometryInfo[type], geometryInfo[type], 1)
-      this.width = 7
-      this.height = 1.5
-      this.length = 7
+      this.models.main = new Model(geometryInfo[type], this.scale, "sub")
+      this.width = 5 * this.scale * this.scale
+      this.height = 1.5 * this.scale * this.scale
+      this.length = 6 * this.scale * this.scale
+      
+      this.models.main.setPosition(0, 0, this.position.x, this.position.y, this.position.z, geometryInfo[type], geometryInfo[type], 1)
     }
     if (type == "crate") {
-      this.model = new Model(geometryInfo[type], 1, .5, .1, .1, "wood")
-      this.model.setPosition(0, 0, this.x, this.y + 1, this.z, geometryInfo[type], geometryInfo[type], 1)
-      this.width = 4
-      this.height = 2
-      this.length = 4
+      this.models.main = new Model(geometryInfo[type], this.scale, "wood")
+      this.width = 2 * this.scale * this.scale
+      this.height = 2 * this.scale * this.scale
+      this.length = 2 * this.scale * this.scale
+
+      this.models.main.setPosition(0, 0, this.position.x, this.position.y + this.height / 2, this.position.z, geometryInfo[type], geometryInfo[type], 1)
 
     }
-    this.mx = this.x - this.width / 2
-    this.px = this.x + this.width / 2
-    this.my = this.y
-    this.py = this.y + this.height
-    this.mz = this.z - this.length / 2
-    this.pz = this.z + this.length / 2
+    if (type == "pinetree") {
+      this.models.main = new Model(geometryInfo[type], this.scale, "jerry")
+      this.width = .5 * this.scale * this.scale
+      this.height = 5.8 * this.scale * this.scale
+      this.length = .5 * this.scale * this.scale
+
+      //setInterval(() => {
+      //  this.models.main.setPosition(0, Math.sin(Date.now() / 500) / 5, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
+      //}, 20)
+
+      this.models.main.setPosition(0, 0, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
+    }
+
+    this.mx = this.position.x - this.width / 2
+    this.px = this.position.x + this.width / 2
+    this.my = this.position.y
+    this.py = this.position.y + this.height
+    this.mz = this.position.z - this.length / 2
+    this.pz = this.position.z + this.length / 2
   }
 
 
@@ -907,4 +1164,4 @@ class Platform {
 
 
 
-export default { webgl, Point, Model, Player, Weapon, Platform }
+export default { webgl, Point, Model, PhysicalObject, Player, Weapon, Platform }

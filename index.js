@@ -43,9 +43,65 @@ const availableNames = [
   "Anthony"*/
 ];
 
+
+var maps = {
+
+  lobby: {
+    floorTexture: "sub",
+  
+    platforms: [
+      {
+        type: "crate",
+        scale: 1,
+        x: -15,
+        y: 0,
+        z: -5
+      },
+      {
+        type: "pinetree",
+        scale: 2,
+        x: 0,
+        y: 0,
+        z: 0
+      },
+      {
+        type: "crate",
+        scale: 1.5,
+        x: -20,
+        y: 0,
+        z: -7
+      },
+      {
+        type: "crate",
+        scale: 1.75,
+        x: -23,
+        y: 0,
+        z: -15
+      },
+      {
+        type: "crate",
+        scale: 2,
+        x: -33,
+        y: 0,
+        z: -10
+      }
+      
+  
+  
+    ]
+    
+  }
+
+
+
+
+}
+
+
+
 var players = [];
 
-var TPS = 20;
+var TPS = 50;
 
 app.use(express.static("public"));
 
@@ -54,7 +110,7 @@ var timeOfLastTick;
 function tick() {
   var data = []
   for (var name in players) {
-    if (players[name] != null) data.push({name: name, position: players[name].position, yaw: players[name].yaw, pitch: players[name].pitch})
+    if (players[name] != null) data.push({name: name, position: players[name].position})
   }
   //console.log(data)
   for (var name in players) {
@@ -82,10 +138,12 @@ socketServer.on("connection", (socket) => {
   })*/
   
   socket.emit("startTicking", TPS)
+  
+  socket.emit("map", maps.lobby);
 
   var otherPlayersInfo = [];
   for (var name in players) {
-    if (players[name] != null) otherPlayersInfo.push({ name: name, position: players[name].position, yaw: players[name].yaw, pitch: players[name].pitch});
+    if (players[name] != null) otherPlayersInfo.push({ name: name, position: players[name].position});
   }
   socket.emit("otherPlayers", otherPlayersInfo);
 
@@ -97,8 +155,8 @@ socketServer.on("connection", (socket) => {
     var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, pitch: 0, socket: socket };
     players[name] = newPlayer;
     console.log(name + " joined! 😃😃😃😃😃😃😃")
-    socket.emit("assignPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw, pitch: newPlayer.pitch});
-    socket.broadcast.emit("newPlayer", { name: name, position: newPlayer.position, yaw: newPlayer.yaw, pitch: newPlayer.pitch});
+    socket.emit("assignPlayer", { name: name, position: newPlayer.position});
+    socket.broadcast.emit("newPlayer", { name: name, position: newPlayer.position});
   } else {
     socket.emit("tooManyPlayers");
   }
@@ -106,20 +164,18 @@ socketServer.on("connection", (socket) => {
   socket.on("playerUpdate", (data) => {
     if (players[data.name] != null) {
       players[data.name].position = data.position;
-      players[data.name].yaw = data.yaw;
-      players[data.name].pitch = data.pitch;
     }
   })
 
   socket.on("disconnect", () => {
     for (var name in players) {
-      // maybe using object takes a little too long to fully delete the object?
+      // maybe using object takes a little too long to fully delete the name value pair?
       // adding if (players[name] != null) fixes problem
       if (players[name] != null && socket == players[name].socket) {
         socket.broadcast.emit("playerLeave", name);
         console.log(name + " left. 😭😭😭😭😭😭😭");
         availableNames.push(name);
-        players[name] = undefined;
+        delete players[name];
       }
     }
   })
