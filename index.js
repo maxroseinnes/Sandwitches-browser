@@ -101,7 +101,7 @@ var maps = {
 
 var players = [];
 
-var TPS = 50;
+var TPS = 20;
 
 app.use(express.static("public"));
 
@@ -165,6 +165,18 @@ socketServer.on("connection", (socket) => {
     if (players[data.name] != null) {
       players[data.name].position = data.position;
     }
+  })
+
+  socket.on("death", (deathInfo) => {
+    console.log("death")
+    var deathMessage = deathInfo.name;
+    if (deathInfo.type = "void") {
+      deathMessage += " fell into the void."
+    } else {
+      deathMessage += " died from an unknown cause."
+    }
+    console.log(deathMessage)
+    socket.broadcast.emit("death", deathMessage)
   })
 
   socket.on("disconnect", () => {

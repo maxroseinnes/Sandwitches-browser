@@ -172,6 +172,18 @@ var player;
 var ticks = 0;
 function tick() {
     ticks++;
+    if (player.position.y < -100) {
+        var respawnPositionX = Math.random() * 10 - 5;
+        var respawnPositionZ = Math.random() * 10 - 5;
+        player.position.x = respawnPositionX;
+        player.position.y = 0;
+        player.position.z = respawnPositionZ;
+        player.lastPosition.x = respawnPositionX;
+        player.lastPosition.y = 0
+        player.lastPosition.z = respawnPositionZ
+        console.log("You fell into the void. Respawned at X" + respawnPositionX + ", Y0, " + respawnPositionZ + "Z.")
+        socket.emit("death", { type: "void", name: player.name });
+    }
     socket.emit("playerUpdate", { position: player.position, name: player.name } );
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
@@ -205,8 +217,10 @@ socket.on("startTicking", (TPS) => {
     ticksPerSecond = TPS
 })
 
-socket.on("assignPlayer", (player_) => {
-    player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, 0, 0, player_.name, [platforms]);
+socket.on("assignPlayer", (playerInfo) => {
+    console.log("assignPlayer")
+    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.name, [platforms]);
+    console.log("player: " + player)
 });
 
 socket.on("map", (mapInfo) => {
@@ -271,6 +285,14 @@ socket.on("playerUpdate", (data) => {
             }
         }
     }
+})
+
+socket.on("death", (deathMessage) => {
+    console.log(deathMessage)
+})
+
+socket.on("respawn", (position) => {
+    player.position = position;
 })
 
 socket.on("tooManyPlayers", () => {
