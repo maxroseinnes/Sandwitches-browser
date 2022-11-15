@@ -751,7 +751,7 @@ class PhysicalObject {
 
 class Player extends PhysicalObject {
   constructor(geometries, x, y, z, yaw, pitch, name, collidableObjects) {
-    super(x, y, z, yaw, pitch, {mx: -1, px: 1, my: 0, py: 2, mz: -1, pz: 1}, collidableObjects)
+    super(x, y, z, yaw, pitch, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
 
     this.geometries = geometries
     for (let ingredient in geometries.idle) {
