@@ -376,6 +376,26 @@ console.log(duplicates)
 console.log(weaponGeometry.tomato.indices.length)
 
 
+// MAP EDITOR STUFF //
+
+var editorInterface = document.createElement("div")
+editorInterface.style = `
+    position: fixed;
+    right: 0px;
+    top: 0px;
+    height: 100%;
+    width: 500px;
+
+    z-index: 500;
+
+    background-color: darkgray;
+
+
+`
+
+
+document.body.appendChild(editorInterface)
+
 
 
 
