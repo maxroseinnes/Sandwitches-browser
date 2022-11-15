@@ -279,7 +279,7 @@ var webgl = {
     for (let i = 0; i < camera.collidableObjects.length; i++) {
       for (let j = 0; j < camera.collidableObjects[i].length; j++) {
         let movement = camera.calculateSlopes()
-        let collision = camera.collidableObjects[i][j].collision(camera.lastPosition, camera.position, movement, {mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05})
+        let collision = camera.collidableObjects[i][j].collision(camera.lastPosition, camera.position, movement, camera.dimensions)
 
         if (collision.mx.intersects) {
           camera.position.x = collision.mx.x
@@ -564,7 +564,7 @@ class Model {
 
 
 class PhysicalObject {
-  constructor(x, y, z, yaw, pitch, width, height, length) {
+  constructor(x, y, z, yaw, pitch, dimensions, collidableObjects) {
     this.position = { // world position
       x: x,
       y: y,
@@ -596,13 +596,11 @@ class PhysicalObject {
       }
     ]
     // dimensions used for collision
-    this.width = width
-    this.height = height
-    this.length = length
+    this.dimensions = dimensions
 
     this.models = {}
 
-    this.collidableObjects = [] // ex. [platforms, players]
+    this.collidableObjects = collidableObjects || [] // ex. [platforms, players]
 
 
 
@@ -653,12 +651,12 @@ class PhysicalObject {
       pz: 0
     }
     
-    let mx = this.mx + dimensions.mx
-    let px = this.px + dimensions.px
-    let my = this.my + dimensions.my
-    let py = this.py + dimensions.py
-    let mz = this.mz + dimensions.mz
-    let pz = this.pz + dimensions.pz
+    let mx = this.position.x + this.dimensions.mx - dimensions.px
+    let px = this.position.x + this.dimensions.px - dimensions.mx
+    let my = this.position.y + this.dimensions.my - dimensions.py
+    let py = this.position.y + this.dimensions.py - dimensions.my
+    let mz = this.position.z + this.dimensions.mz - dimensions.pz
+    let pz = this.position.z + this.dimensions.pz - dimensions.mz
 
     let collision = {
       mx: {
@@ -701,37 +699,37 @@ class PhysicalObject {
 
     // calculate if intersection is within bounds of face and that the point has passed the face in the dependent direction
     if (lastPosition.x <= mx && mx <= position.x) {
-      if (my <= collision.mx.y && collision.mx.y <= py && mz <= collision.mx.z && collision.mx.z <= pz) {
+      if (my < collision.mx.y && collision.mx.y < py && mz < collision.mx.z && collision.mx.z < pz) {
         collision.mx.intersects = true
       }
     }
 
     if (lastPosition.x >= px && px >= position.x) {
-      if (my <= collision.px.y && collision.px.y <= py && mz <= collision.px.z && collision.px.z <= pz) {
+      if (my < collision.px.y && collision.px.y < py && mz < collision.px.z && collision.px.z < pz) {
         collision.px.intersects = true
       }
     }
 
     if (lastPosition.y <= my && my <= position.y) {
-      if (mz <= collision.my.z && collision.my.z <= pz && mx <= collision.my.x && collision.my.x <= px) {
+      if (mz < collision.my.z && collision.my.z < pz && mx < collision.my.x && collision.my.x < px) {
         collision.my.intersects = true
       }
     }
 
     if (lastPosition.y >= py && py >= position.y) {
-      if (mz <= collision.py.z && collision.py.z <= pz && mx <= collision.py.x && collision.py.x <= px) {
+      if (mz < collision.py.z && collision.py.z < pz && mx < collision.py.x && collision.py.x < px) {
         collision.py.intersects = true
       }
     }
-    
+
     if (lastPosition.z <= mz && mz <= position.z) {
-      if (mx <= collision.mz.x && collision.mz.x <= px && my <= collision.mz.y && collision.mz.y <= py) {
+      if (mx < collision.mz.x && collision.mz.x < px && my < collision.mz.y && collision.mz.y < py) {
         collision.mz.intersects = true
       }
     }
     
     if (lastPosition.z >= pz && pz >= position.z) {
-      if (mx <= collision.pz.x && collision.pz.x <= px && my <= collision.pz.y && collision.pz.y <= py) {
+      if (mx < collision.pz.x && collision.pz.x < px && my < collision.pz.y && collision.pz.y < py) {
         collision.pz.intersects = true
       }
     }
@@ -752,8 +750,8 @@ class PhysicalObject {
 
 
 class Player extends PhysicalObject {
-  constructor(geometries, x, y, z, yaw, pitch, name) {
-    super(x, y, z, yaw, pitch, 4, 4, 4)
+  constructor(geometries, x, y, z, yaw, pitch, name, collidableObjects) {
+    super(x, y, z, yaw, pitch, {mx: -1, px: 1, my: 0, py: 2, mz: -1, pz: 1}, collidableObjects)
 
     this.geometries = geometries
     for (let ingredient in geometries.idle) {
@@ -803,7 +801,7 @@ class Player extends PhysicalObject {
     let movement = this.calculateSlopes()
     for (let i = 0; i < this.collidableObjects.length; i++) {
       for (let j = 0; j < this.collidableObjects[i].length; j++) {
-        let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, {mx: -1, px: 1, my: -2, py: 0, mz: -1, pz: 1})
+        let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
         if (collision.py.intersects) {
           this.position.y = collision.py.y
           this.gravity = 0
@@ -870,8 +868,8 @@ class Player extends PhysicalObject {
 
 
 class Weapon extends PhysicalObject {
-  constructor(geometryInfos, type) {
-    super(0, 0, 0, 0, 0, 1, 1, 1)
+  constructor(geometryInfos, type, collidableObjects) {
+    super(0, 0, 0, 0, 0, {mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25}, collidableObjects)
 
     this.geometryInfos = geometryInfos
     this.type = type
@@ -954,12 +952,39 @@ class Weapon extends PhysicalObject {
 
   }
 
-  updatePosition(deltaTime) {
+  calculatePosition(deltaTime) {
+    this.lastPosition = {x: this.position.x, y: this.position.y, z: this.position.z}
     if (this.shooted) {
       this.position.x += this.shootMovementVector.x * deltaTime
       this.position.y += this.shootMovementVector.y * deltaTime
       this.position.z += this.shootMovementVector.z * deltaTime
+    } else {
+      return
     }
+
+    for (let i = 0; i < this.collidableObjects.length; i++) {
+      for (let j = 0; j < this.collidableObjects[i].length; j++) {
+        let movement = this.calculateSlopes()
+        let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
+
+        for (let side in collision) {
+          if (collision[side].intersects) {
+            this.shooted = false
+            this.position.x = collision[side].x
+            this.position.y = collision[side].y
+            this.position.z = collision[side].z
+
+            if (this.collidableObjects[i][j] instanceof Player) {
+              console.log("hit " + this.collidableObjects[i][j].name)
+            }
+          }
+        }
+
+      }
+    }
+  }
+
+  updateWorldPosition() {
     this.models.main.setPosition(this.position.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type], this.geometryInfos[this.type], 1)
   }
 
@@ -999,31 +1024,46 @@ class Weapon extends PhysicalObject {
 
 class Platform extends PhysicalObject {
   constructor(geometryInfo, type, x, y, z, scale) {
-    super(x, y, z, 0, 0, null, null, null)
+    super(x, y, z, 0, 0, {mx: 0, px: 0, my: 0, py: 0, mz: 0, pz: 0})
     this.scale = scale || 1
 
     if (type == "basic") {
       this.models.main = new Model(geometryInfo[type], this.scale, "sub")
-      this.width = 5 * this.scale * this.scale
-      this.height = 1.5 * this.scale * this.scale
-      this.length = 6 * this.scale * this.scale
+      this.dimensions = {
+        mx: -2.5 * this.scale * this.scale,
+        px: 2.5 * this.scale * this.scale,
+        my: 0,
+        py: 1.5 * this.scale * this.scale,
+        mz: -3 * this.scale * this.scale,
+        pz: 3 * this.scale * this.scale
+      }
       
       this.models.main.setPosition(0, 0, this.position.x, this.position.y, this.position.z, geometryInfo[type], geometryInfo[type], 1)
     }
     if (type == "crate") {
       this.models.main = new Model(geometryInfo[type], this.scale, "wood")
-      this.width = 2 * this.scale * this.scale
-      this.height = 2 * this.scale * this.scale
-      this.length = 2 * this.scale * this.scale
+      this.dimensions = {
+        mx: -1 * this.scale * this.scale,
+        px: 1 * this.scale * this.scale,
+        my: 0,
+        py: 2 * this.scale * this.scale,
+        mz: -1 * this.scale * this.scale,
+        pz: 1 * this.scale * this.scale
+      }
 
-      this.models.main.setPosition(0, 0, this.position.x, this.position.y + this.height / 2, this.position.z, geometryInfo[type], geometryInfo[type], 1)
+      this.models.main.setPosition(0, 0, this.position.x, this.position.y + this.dimensions.py / 2, this.position.z, geometryInfo[type], geometryInfo[type], 1)
 
     }
     if (type == "pinetree") {
       this.models.main = new Model(geometryInfo[type], this.scale, "jerry")
-      this.width = .5 * this.scale * this.scale
-      this.height = 5.8 * this.scale * this.scale
-      this.length = .5 * this.scale * this.scale
+      this.dimensions = {
+        mx: -.25 * this.scale * this.scale,
+        px: .25 * this.scale * this.scale,
+        my: 0,
+        py: 5.8 * this.scale * this.scale,
+        mz: -.25 * this.scale * this.scale,
+        pz: .25 * this.scale * this.scale
+      }
 
       //setInterval(() => {
       //  this.models.main.setPosition(0, Math.sin(Date.now() / 500) / 5, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
@@ -1031,13 +1071,6 @@ class Platform extends PhysicalObject {
 
       this.models.main.setPosition(0, 0, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
     }
-
-    this.mx = this.position.x - this.width / 2
-    this.px = this.position.x + this.width / 2
-    this.my = this.position.y
-    this.py = this.position.y + this.height
-    this.mz = this.position.z - this.length / 2
-    this.pz = this.position.z + this.length / 2
   }
 
 

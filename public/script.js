@@ -80,8 +80,7 @@ var averageClientTPS = ticksPerSecond
 var socket = io();
 var otherPlayers = [];
 var platforms = [];
-var camera = new PhysicalObject(0, 0, 0, 0, 0, 0, 0, 0)
-camera.collidableObjects.push(platforms)
+var camera = new PhysicalObject(0, 0, 0, 0, 0, {mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05}, [platforms])
 
 // html elements //
 const menu = document.getElementById("menu")
@@ -207,8 +206,7 @@ socket.on("startTicking", (TPS) => {
 })
 
 socket.on("assignPlayer", (player_) => {
-    player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, 0, 0, player_.name);
-    player.collidableObjects.push(platforms)
+    player = new Player(playerGeometry, player_.position.x, player_.position.y, player_.position.z, 0, 0, player_.name, [platforms]);
 });
 
 socket.on("map", (mapInfo) => {
@@ -223,6 +221,7 @@ socket.on("map", (mapInfo) => {
     }
     platforms.push(
         new Platform(platformGeometry, "crate", 0, -128, 0, 8),
+        new Platform(platformGeometry, "basic", 10, 1,    16,  1),
         new Platform(platformGeometry, "basic", 10, 1,    10,  1),
         new Platform(platformGeometry, "basic", 15, 3.5,  5,   1),
         new Platform(platformGeometry, "basic", 19, 6,    -5,  1),
@@ -330,7 +329,7 @@ var inventory = {
         }
 
         //this.currentWeapon = this.weaponModels[this.currentSelection]
-        this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0])
+        this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0], [platforms, otherPlayers])
     },
 
     updateHUD: function() {
@@ -481,7 +480,6 @@ function update(now) {
     }
 
 
-
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
     //let distanceFromPlayer = 2
 
@@ -491,19 +489,10 @@ function update(now) {
     inventory.currentWeapon.position.y = player.position.y + 1.5
     inventory.currentWeapon.position.z = player.position.z + Math.sin(player.position.yaw) * 2//distanceFromPlayer
     inventory.currentWeapon.position.yaw = Date.now() / 1000 + player.position.yaw
-    inventory.currentWeapon.updatePosition(deltaTime)
+    inventory.currentWeapon.calculatePosition(deltaTime)
 
-    for (let i = otherWeapons.length - 1; i >= 0; i--) {
-        if (otherWeapons[i].shooted) {
-            otherWeapons[i].position.yaw += deltaTime / 1000
-            otherWeapons[i].updatePosition(deltaTime)
-
-            if (otherWeapons[i].position.x < -50 || otherWeapons[i].position.x > 50 || otherWeapons[i].position.z < -50 || otherWeapons[i].position.z > 50) {
-                otherWeapons[i].remove()
-                otherWeapons.splice(i, 1)
-            }
-        }
-    }
+    inventory.currentWeapon.updateWorldPosition()
+    for (let i = 0; i < otherWeapons.length; i++) otherWeapons[i].updateWorldPosition()
 
 
     camera.position.yaw = player.position.yaw
@@ -589,7 +578,7 @@ function fixedUpdate() {
               currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
               cooldownTimer = currentCooldown
               otherWeapons.push(inventory.currentWeapon)
-              inventory.currentWeapon = new Weapon(weaponGeometry, "tomato")
+              inventory.currentWeapon = new Weapon(weaponGeometry, "tomato", [platforms, otherPlayers])
         }
     }
 
@@ -606,6 +595,23 @@ function fixedUpdate() {
 
     player.lastPosition = { x: player.position.x, y: player.position.y, z: player.position.z }
     player.lastOnGround = player.onGround
+
+
+
+
+    for (let i = otherWeapons.length - 1; i >= 0; i--) {
+        if (otherWeapons[i].shooted) {
+            otherWeapons[i].position.yaw += deltaTime / 1000
+            otherWeapons[i].calculatePosition(deltaTime)
+
+            if (otherWeapons[i].position.x < -50 || otherWeapons[i].position.x > 50 || otherWeapons[i].position.z < -50 || otherWeapons[i].position.z > 50) {
+                otherWeapons[i].remove()
+                otherWeapons.splice(i, 1)
+            }
+        }
+    }
+
+
 
 	// ingredient jiggle //
 
