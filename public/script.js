@@ -210,29 +210,8 @@ socket.on("assignPlayer", (player_) => {
 });
 
 socket.on("map", (mapInfo) => {
-    for (let i = 0; i < mapInfo.platforms.length; i++) {
-        platforms.push(new Platform(platformGeometry,
-            mapInfo.platforms[i].type,
-            mapInfo.platforms[i].x,
-            mapInfo.platforms[i].y,
-            mapInfo.platforms[i].z,
-            mapInfo.platforms[i].scale    
-        ))
-    }
     platforms.push(
-        new Platform(platformGeometry, "crate", 0, -128, 0, 8),
-        new Platform(platformGeometry, "basic", 10, 1,    16,  1),
-        new Platform(platformGeometry, "basic", 10, 1,    10,  1),
-        new Platform(platformGeometry, "basic", 15, 3.5,  5,   1),
-        new Platform(platformGeometry, "basic", 19, 6,    -5,  1),
-        new Platform(platformGeometry, "basic", 26, 8.5,  -9,  1),
-        new Platform(platformGeometry, "basic", 25, 10,   -15, 1),
-        new Platform(platformGeometry, "basic", 19, 11.5, -10, 1),
-        new Platform(platformGeometry, "basic", 13, 13.5, -2,  1),
-        new Platform(platformGeometry, "basic", 10, 16,   5,   1),
-        new Platform(platformGeometry, "basic", 5,  18.5, 10,  1),
-        new Platform(platformGeometry, "basic", 2,  21,   8,   1),
-        new Platform(platformGeometry, "basic", -5, 23.5, 5,   1)
+        new Platform(platformGeometry, "crate", 0, -128, 0, 8)
     )
 
 })
@@ -330,6 +309,7 @@ var inventory = {
 
         //this.currentWeapon = this.weaponModels[this.currentSelection]
         this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0], [platforms, otherPlayers])
+        this.currentWeapon.remove()
     },
 
     updateHUD: function() {
@@ -384,17 +364,264 @@ editorInterface.style = `
     right: 0px;
     top: 0px;
     height: 100%;
-    width: 500px;
+    width: 300px;
 
     z-index: 500;
 
-    background-color: darkgray;
+    background-color: rgb(25, 25, 25);
+
+    overflow-y: auto;
 
 
 `
 
 
 document.body.appendChild(editorInterface)
+
+var mapObjects = []
+
+var addMapObjectButton = document.createElement("button")
+addMapObjectButton.style = `
+    margin: 10px;
+    padding: 10px;
+    font-size: 15px;
+`
+addMapObjectButton.textContent = "Add Thing"
+
+editorInterface.appendChild(addMapObjectButton)
+
+addMapObjectButton.onclick = () => {
+    mapObjects.push(new MapObject(0, 0, 0, 0, 0, "crate", 1))
+}
+
+
+var mapObjectsWrapper = document.createElement("div")
+editorInterface.appendChild(mapObjectsWrapper)
+
+var exportWrapper = document.createElement("div")
+exportWrapper.style.margin = "10px"
+editorInterface.appendChild(exportWrapper)
+
+var mapNameInputLabel = document.createElement("span")
+mapNameInputLabel.style.color = "white"
+mapNameInputLabel.innerHTML = "<br>Map Name: "
+exportWrapper.appendChild(mapNameInputLabel)
+
+
+var mapNameInput = document.createElement("input")
+mapNameInput.type = "text"
+exportWrapper.appendChild(mapNameInput)
+
+var downloadFileButton = document.createElement("button")
+downloadFileButton.style = `
+    margin-top: 10px;
+    padding: 10px;
+    font-size: 15px;
+`
+downloadFileButton.textContent = "Download JSON"
+exportWrapper.appendChild(downloadFileButton)
+downloadFileButton.onclick = () => {
+    let mapData = {
+        platforms: []
+    }
+
+    for (let i = 0; i < mapObjects.length; i++) {
+        mapData.platforms.push({
+            type: mapObjects[i].type,
+            x: mapObjects[i].x,
+            y: mapObjects[i].y,
+            z: mapObjects[i].z,
+            yaw: mapObjects[i].yaw,
+            pitch: mapObjects[i].pitch,
+            scale: mapObjects[i].scale
+        })
+    }
+
+    let blob = new Blob([JSON.stringify(mapData, "\t")], {type: "application/json"})
+    let url = URL.createObjectURL(blob)
+
+    let a = document.createElement("a")
+    a.href = url
+    a.download = mapNameInput.value + ".json"
+    a.click()
+    window.setTimeout(() => {URL.revokeObjectURL(url)}, 0)
+
+}
+
+
+
+class MapObject {
+    constructor(x, y, z, yaw, pitch, type, scale) {
+        this.x = x
+        this.y = y
+        this.z = z
+        this.yaw = yaw
+        this.pitch = pitch
+        this.type = type
+        this.scale = scale
+
+        this.wrapper = document.createElement("div")
+        this.wrapper.style.padding = "15px"
+        this.wrapper.style.margin = "10px"
+        this.wrapper.style.backgroundColor = "rgba(255, 255, 255, .75)"
+        this.wrapper.style.borderRadius = "10px"
+        this.wrapper.style.overflowY = "hidden"
+        this.wrapper.style.height = "200px"
+        this.wrapper.style.transition = "height .25s"
+        
+        mapObjectsWrapper.appendChild(this.wrapper)
+
+        this.collapseButton = document.createElement("button")
+        this.collapseButton.style.float = "right"
+        this.collapseButton.style.backgroundColor = "transparent"
+        this.collapseButton.style.fontSize = "20px"
+        this.collapseButton.style.borderStyle = "none"
+        this.collapseButton.style.cursor = "pointer"
+        this.collapseButton.style.transition = "transform .25s"
+        this.collapseButton.innerHTML = "&#8964;"
+        this.wrapper.appendChild(this.collapseButton)
+        this.collapsed = false
+        this.collapseButton.onclick = () => {
+            if (!this.collapsed) {
+                this.wrapper.style.height = "25px"
+                this.collapseButton.style.transform = "rotate(-90deg)"
+                this.collapsed = true
+            }
+            else {
+                this.wrapper.style.height = "200px"
+                this.collapseButton.style.transform = "rotate(0deg)"
+                this.collapsed = false
+            }
+        }
+
+        this.typeSelector = document.createElement("select")
+        this.typeSelector.style.padding = "5px"
+        this.typeSelector.style.marginBottom = "5px"
+        this.typeSelector.style.backgroundColor = "rgba(255, 255, 255, .5)"
+        this.typeSelector.style.borderRadius = "5px"
+        this.typeSelector.style.borderStyle = "none"
+        this.typeSelector.innerHTML = `
+            <option value = "crate">crate</option>
+            <option value = "basic">basic</option>
+            <option value = "pinetree">tree</option>
+        `
+        this.wrapper.appendChild(this.typeSelector)
+        this.typeSelector.onchange = () => {
+            this.type = this.typeSelector.value
+            this.setType()
+        }
+        
+
+        this.xLabel = document.createElement("span")
+        this.xLabel.innerHTML = "<br>x: "
+        this.wrapper.appendChild(this.xLabel)
+        this.xInput = document.createElement("input")
+        this.xInput.style.padding = "5px"
+        this.xInput.style.margin = "5px"
+        this.xInput.style.backgroundColor = "rgba(255, 255, 255, .5)"
+        this.xInput.style.borderRadius = "5px"
+        this.xInput.style.borderStyle = "none"
+        this.xInput.type = "number"
+        this.xInput.value = "0"
+        this.xInput.step = ".1"
+        this.wrapper.appendChild(this.xInput)
+        this.xInput.onchange = () => {
+            this.x = Number(this.xInput.value)
+            this.setPosition()
+        }
+
+        this.yLabel = document.createElement("span")
+        this.yLabel.innerHTML = "<br>y: "
+        this.wrapper.appendChild(this.yLabel)
+        this.yInput = document.createElement("input")
+        this.yInput.style.padding = "5px"
+        this.yInput.style.margin = "5px"
+        this.yInput.style.backgroundColor = "rgba(255, 255, 255, .5)"
+        this.yInput.style.borderRadius = "5px"
+        this.yInput.style.borderStyle = "none"
+        this.yInput.type = "number"
+        this.yInput.value = "0"
+        this.yInput.step = ".1"
+        this.wrapper.appendChild(this.yInput)
+        this.yInput.onchange = () => {
+            this.y = Number(this.yInput.value)
+            this.setType()
+        }
+
+        this.zLabel = document.createElement("span")
+        this.zLabel.innerHTML = "<br>z: "
+        this.wrapper.appendChild(this.zLabel)
+        this.zInput = document.createElement("input")
+        this.zInput.style.padding = "5px"
+        this.zInput.style.margin = "5px"
+        this.zInput.style.backgroundColor = "rgba(255, 255, 255, .5)"
+        this.zInput.style.borderRadius = "5px"
+        this.zInput.style.borderStyle = "none"
+        this.zInput.type = "number"
+        this.zInput.value = "0"
+        this.zInput.step = ".1"
+        this.wrapper.appendChild(this.zInput)
+        this.zInput.onchange = () => {
+            this.z = Number(this.zInput.value)
+            this.setType()
+        }
+
+        this.scaleLabel = document.createElement("span")
+        this.scaleLabel.innerHTML = "<br>scale: "
+        this.wrapper.appendChild(this.scaleLabel)
+        this.scaleInput = document.createElement("input")
+        this.scaleInput.style.padding = "5px"
+        this.scaleInput.style.margin = "5px"
+        this.scaleInput.style.backgroundColor = "rgba(255, 255, 255, .5)"
+        this.scaleInput.style.borderRadius = "5px"
+        this.scaleInput.style.borderStyle = "none"
+        this.scaleInput.type = "number"
+        this.scaleInput.value = "1"
+        this.scaleInput.step = ".1"
+        this.wrapper.appendChild(this.scaleInput)
+        this.scaleInput.onchange = () => {
+            this.scale = Number(this.scaleInput.value)
+            this.setType()
+        }
+
+        this.setType()
+
+
+    }
+
+    setType() {
+        if (this.object != null) {
+            this.object.remove()
+            platforms.splice(platforms.indexOf(this.object), 1)
+            delete this.object
+        }
+        
+        this.object = new Platform(platformGeometry, this.type, this.x, this.y, this.z, this.scale)
+        platforms.push(this.object)
+
+        //this.object.models.main.setPosition(0, 0, 1, 0 + this.object.dimensions.py / 2, 2, platformGeometry[this.type], platformGeometry[this.type], 1)
+    }
+
+    setPosition() {
+        this.object.position = {
+            x: this.x,
+            y: this.y,
+            z: this.z,
+            yaw: this.yaw,
+            pitch: this.pitch
+        }
+
+        this.object.models.main.scale = this.scale
+        this.object.models.main.setPosition(this.yaw, this.pitch, this.x, this.y + this.object.dimensions.py / 2, this.z, platformGeometry[this.type], platformGeometry[this.type], 1)
+    }
+
+    delete() {
+        if (this.object != null) this.object.remove()
+    }
+
+
+}
+
 
 
 
@@ -593,13 +820,13 @@ function fixedUpdate() {
         }
 	}
 
-    if (leftClicking) {
+    if (leftClicking) {/*
         if (!inventory.currentWeapon.shooted && cooldownTimer <= 0) {
               currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
               cooldownTimer = currentCooldown
               otherWeapons.push(inventory.currentWeapon)
               inventory.currentWeapon = new Weapon(weaponGeometry, "tomato", [platforms, otherPlayers])
-        }
+        }*/
     }
 
 
@@ -647,7 +874,7 @@ function fixedUpdate() {
 // -- key pressing -- //
 
 document.addEventListener('keydown', function(event) {
-event.preventDefault();
+//event.preventDefault();
 
 if (event.keyCode == 37) left = true
 if (event.keyCode == 39) right = true
@@ -668,7 +895,7 @@ if (event.keyCode == 32) space = true
 });
 
 document.addEventListener('keyup', function(event) {
-event.preventDefault();
+//event.preventDefault();
 
 if (event.keyCode == 37) left = false
 if (event.keyCode == 39) right = false
@@ -687,35 +914,13 @@ if (event.keyCode == 32) space = false
 // -- mouse -- //
 
 
-var lastPointerLockExited = Date.now()
-document.addEventListener("pointerlockchange", function () {
-    lastPointerLockExited = Date.now()
-	if (document.pointerLockElement === canvas) {
-		pointerLocked = true
-		if (!running) {
-			running = true
-			update()
-	        fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
-		}
-	} else {
-	    console.log("stopped")
-
-		pointerLocked = false
-		running = false
-
-	    fixedUpdateThen = Date.now();
-	    clearInterval(fixedUpdateInterval)
-
-	    menu.style.display = ""
-	}
-}, false)
 
 
 
 
 
 document.addEventListener("mousemove", function (event) {
-	if (pointerLocked) {
+	if (leftClicking) {
 		let sensitivity = .1
 		sensitivity = Math.PI / 512;
 		lookAngleX += sensitivity * event.movementY
@@ -731,15 +936,17 @@ document.addEventListener("mousemove", function (event) {
 
 // -- menu -- //
 startButton.onclick = () => {
-    if ((Date.now() - lastPointerLockExited) < 1500) return
     
 	console.log("starting")
 
     backgroundNoises.play()
 	menu.style.display = "none"
 
-    
-	canvas.requestPointerLock()
+    if (!running) {
+        running = true
+        update()
+        fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
+    }
 }
 
 

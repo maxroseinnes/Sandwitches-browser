@@ -44,7 +44,7 @@ var webgl = {
   initialize: function() {
 
     this.canvas = document.getElementById("canvas"),
-    this.canvas.width = window.innerWidth // THESE HAVE TO BE SET BEFORE GL IS MADE
+    this.canvas.width = window.innerWidth - 300 // THESE HAVE TO BE SET BEFORE GL IS MADE
     this.canvas.height = window.innerHeight
     document.getElementById("effectsCanvas").width = window.innerWidth
     document.getElementById("effectsCanvas").height = window.innerHeight
