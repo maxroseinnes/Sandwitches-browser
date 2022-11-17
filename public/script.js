@@ -110,7 +110,7 @@ var playerWalkRightFootInfo = obj.parseWavefront(fetchObj("player/PlayerRightNub
 
 var playerGeometry = {
 	idle: {
-		frontSlice: playerIdleInfo["Bread"],
+		frontSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
 		backSlice: playerIdleInfo["Bread.001"],
 		cheese: playerIdleInfo["Cheese"],
 		meat: playerIdleInfo["Meat"],
@@ -165,6 +165,9 @@ var platformGeometry = {
     crate: obj.parseWavefront(fetchObj("platforms/crate.obj"), false),
     pinetree: obj.parseWavefront(fetchObj("platforms/pinetree.obj"), false)
 }
+
+var groundModel = new Model(obj.parseWavefront(fetchObj("grounds/plane.obj"), false), 1, "jerry")
+
 
 var player;
 //var enemy = new Player(playerGeometry, 10, 0, 0, angleY, angleX, "jeff")
@@ -315,7 +318,7 @@ const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp
 
 var otherWeapons = []
 
-{
+{/*
     let groundPoint1 = new Point(50, -.01, 50, 0, 1, 0, 1, 1, 1, 0.0, 0.0)
     let groundPoint2 = new Point(-50, -.01, 50, 0, 1, 0, 1, 1, 1, 1.0, 0.0)
     let groundPoint3 = new Point(-50, -.01, -50, 0, 1, 0, 1, 1, 1, 1.0, 1.0)
@@ -323,7 +326,7 @@ var otherWeapons = []
     let groundPoint5 = new Point(50, -.01, -50, 0, 1, 0, 1, 1, 1, 0.0, 1.0)
     let groundPoint6 = new Point(50, -.01, 50, 0, 1, 0, 1, 1, 1, 0.0, 0.0)
     
-
+*/
 }
 
 // 2D EFFECTS //

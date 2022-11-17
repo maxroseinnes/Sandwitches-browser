@@ -22,7 +22,7 @@ var webgl = {
       index: 1
     },
     bread: {
-      url: "./assets/textures/sandwich_guy.png",
+      url: "./assets/textures/PlayerBreadTex.png",
       index: 2
     },
     wood: {
