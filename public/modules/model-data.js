@@ -166,8 +166,8 @@ var obj = {
             let currentLine = lines[i].slice(lines[i].indexOf(" ") + 1)
 
             if (identifier == "o") {
-                /*if (currentLine.indexOf(" ") == -1) name = currentLine
-                else*/ name = currentLine.slice(0, -1)
+                if (currentLine.indexOf(String.fromCharCode([13])) == -1) name = currentLine
+                else name = currentLine.slice(0, -1)
             }
 
             if (identifier == "v") positions.push(this.parseFloats(this.parseWords(currentLine)))
