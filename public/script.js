@@ -16,6 +16,7 @@ var PhysicalObject = webglStuff.PhysicalObject
 var Player = webglStuff.Player
 var Weapon = webglStuff.Weapon
 var Platform = webglStuff.Platform
+var Ground = webglStuff.Ground
 
 
 
@@ -110,7 +111,7 @@ var playerWalkRightFootInfo = obj.parseWavefront(fetchObj("player/PlayerRightNub
 
 var playerGeometry = {
 	idle: {
-		frontSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
+		frontSlice: playerIdleInfo["Bread"],
 		backSlice: playerIdleInfo["Bread.001"],
 		cheese: playerIdleInfo["Cheese"],
 		meat: playerIdleInfo["Meat"],
@@ -166,7 +167,7 @@ var platformGeometry = {
     pinetree: obj.parseWavefront(fetchObj("platforms/pinetree.obj"), false)
 }
 
-var groundModel = new Model(obj.parseWavefront(fetchObj("grounds/plane.obj"), false), 1, "jerry")
+var ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
 
 
 var player;

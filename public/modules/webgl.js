@@ -1193,8 +1193,57 @@ class Platform extends PhysicalObject {
 }
 
 
+class Ground {
+  constructor(geometryInfo) {
+    console.log(geometryInfo)
+
+    this.model = new Model(geometryInfo, 1, "jerry")
+
+    let xValues = []
+    let positions = geometryInfo.positions
+    for (let i = 0; i < positions.length; i++) xValues.push(positions[i][0])
+
+    xValues.sort((a, b) => { return a - b })
+
+    let xDifferenceTotal = 0
+    let xDifferenceCount = 0
+    for (let i = 0; i < xValues.length - 1; i++) {
+      let difference = xValues[i + 1] - xValues[i]
+      if (Math.abs(difference) > 0.1) {
+        xDifferenceTotal += difference
+        xDifferenceCount++
+      }
+    }
+    let xWidth = xDifferenceTotal / xDifferenceCount
+
+
+    positions.sort((a, b) => { return a[0] - b[0] })
+    let positionsMap = []
+    let index = -1
+    for (let i = 0; i < positions.length; i++) {
+      if (i == 0 || (positions[i][0] - positions[i-1][0]) > .1) {
+        positionsMap.push([])
+        index++
+      }
+      positionsMap[index].push(positions[i])
+    }
+    for (let i = 0; i < positionsMap.length; i++) positionsMap[i].sort((a, b) => { return a[2] - b[2] })
+    
+
+  }
+
+  collision(lastPosition, position, movement, dimensions) {
+    
+  }
 
 
 
 
-export default { webgl, Point, Model, PhysicalObject, Player, Weapon, Platform }
+}
+
+
+
+
+
+
+export default { webgl, Point, Model, PhysicalObject, Player, Weapon, Platform, Ground }
