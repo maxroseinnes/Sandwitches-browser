@@ -223,7 +223,7 @@ socket.on("startTicking", (TPS) => {
 
 socket.on("assignPlayer", (playerInfo) => {
     console.log("assignPlayer")
-    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.name, [platforms]);
+    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.name, [platforms, [ground]]);
     console.log("player: " + player)
 });
 
@@ -238,7 +238,6 @@ socket.on("map", (mapInfo) => {
         ))
     }
     platforms.push(
-        new Platform(platformGeometry, "crate", 0, -128, 0, 8),
         new Platform(platformGeometry, "basic", 10, 1,    16,  1),
         new Platform(platformGeometry, "basic", 10, 1,    10,  1),
         new Platform(platformGeometry, "basic", 15, 3.5,  5,   1),

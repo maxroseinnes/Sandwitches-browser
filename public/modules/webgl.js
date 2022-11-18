@@ -1204,6 +1204,7 @@ class Ground {
     for (let i = 0; i < positions.length; i++) xValues.push(positions[i][0])
 
     xValues.sort((a, b) => { return a - b })
+    this.xMin = xValues[0]
 
     let xDifferenceTotal = 0
     let xDifferenceCount = 0
@@ -1214,7 +1215,7 @@ class Ground {
         xDifferenceCount++
       }
     }
-    let xWidth = xDifferenceTotal / xDifferenceCount
+    this.xWidth = xDifferenceTotal / xDifferenceCount
 
 
     positions.sort((a, b) => { return a[0] - b[0] })
@@ -1228,12 +1229,77 @@ class Ground {
       positionsMap[index].push(positions[i])
     }
     for (let i = 0; i < positionsMap.length; i++) positionsMap[i].sort((a, b) => { return a[2] - b[2] })
+    this.zMin = positionsMap[0][0][2]
     
+    this.heightMap = []
+    for (let i = 0; i < positionsMap.length; i++) {
+      this.heightMap.push([])
+      for (let j = 0; j < positionsMap[i].length; j++) {
+        this.heightMap[i].push(positionsMap[i][j][1])
+      }
+    }
+
 
   }
 
+  lerp(a, b, x) {
+    return a + (b - a) * x
+  }
+  
   collision(lastPosition, position, movement, dimensions) {
     
+    let xIndex = parseInt((position.x - this.xMin) / this.xWidth, 10)
+    let zIndex = parseInt((position.z - this.zMin) / this.xWidth, 10)
+
+    let xPositionInSquare = (position.x - this.xMin) % this.xWidth
+    let zPositionInSquare = (position.z - this.zMin) % this.xWidth
+
+    console.log(xPositionInSquare)
+
+    
+
+
+    let yPosition = this.heightMap[xIndex][zIndex]
+
+
+    return {
+      mx: {
+        intersects: false,
+        y: 0,
+        z: 0,
+        x: 0
+      },
+      my: {
+        intersects: false,
+        z: 0,
+        x: 0,
+        y: 0
+      },
+      mz: {
+        intersects: false,
+        x: 0,
+        y: 0,
+        z: 0
+      },
+      px: {
+        intersects: false,
+        y: 0,
+        z: 0,
+        x: 0
+      },
+      py: {
+        intersects: (position.y < yPosition),
+        z: position.z,
+        x: position.x,
+        y: this.heightMap[xIndex][zIndex]
+      },
+      pz: {
+        intersects: false,
+        x: 0,
+        y: 0,
+        z: 0
+      }
+    }
   }
 
 
