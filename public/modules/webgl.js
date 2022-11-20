@@ -267,8 +267,8 @@ var webgl = {
     let cameraY = 1
     let cameraZ = 8
 
-    let cameraRY = Math.cos(-camera.position.pitch) * cameraY - Math.sin(-camera.position.pitch) * cameraZ
-    let cameraRZ = Math.sin(-camera.position.pitch) * cameraY + Math.cos(-camera.position.pitch) * cameraZ
+    let cameraRY = Math.cos(-camera.position.lean) * cameraY - Math.sin(-camera.position.lean) * cameraZ
+    let cameraRZ = Math.sin(-camera.position.lean) * cameraY + Math.cos(-camera.position.lean) * cameraZ
     let cameraRX = cameraX
 
     camera.position.z = Math.cos(-camera.position.yaw) * cameraRZ - Math.sin(-camera.position.yaw) * cameraRX + playerPosition.z
@@ -320,7 +320,7 @@ var webgl = {
 
 
   	//mat4.translate(tMatrix, tMatrix, [-2, -1, -cameraDistance * ratio]);
-    mat4.rotateX(tMatrix, tMatrix, camera.position.pitch);
+    mat4.rotateX(tMatrix, tMatrix, camera.position.lean);
     mat4.rotateY(tMatrix, tMatrix, camera.position.yaw);
     mat4.translate(tMatrix, tMatrix, [-camera.position.x, -camera.position.y, -camera.position.z]);
 
@@ -470,8 +470,12 @@ class Model {
   }
 
 
-  setPosition(yaw, pitch, x, y, z, mesh1, mesh2, stage) {
-    // pitch is used only for player models leaning
+  setPosition(yaw, lean, x, y, z, mesh, walkCycle, crouchValue, slideValue) {
+    // lean is used only for player models leaning
+
+    walkCycle = walkCycle || 0
+    crouchValue = crouchValue || 0
+    slideValue = slideValue || 0
 
 
     let geometryInfo = this.geometryInfo
@@ -480,16 +484,21 @@ class Model {
     for (let i = 0; i < this.pointIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
         for (let j = 0; j < this.pointIndices[i].length; j++) {
 
-          let modelX = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][0] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][0] * this.scale, stage)
-          let modelY = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][1] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][1] * this.scale, stage)
-          let modelZ = this.lerp(mesh1.positions[mesh1.indices[i].vertexes[j]][2] * this.scale, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage)
+          let modelX = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][0] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][0] * this.scale, stage)*/
+          let modelY = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][1] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][1] * this.scale, stage)*/
+          let modelZ = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][2] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage)*/
 
-          let xRotatedZ = modelZ * this.scale * Math.cos(pitch * modelY / 3) - modelY * this.scale * Math.sin(pitch * modelY / 3)
-          let xRotatedY = modelZ * this.scale * Math.sin(pitch * modelY / 3) + modelY * this.scale * Math.cos(pitch * modelY / 3)
-          let xRotatedX = modelX * this.scale
+          let walk = Math.sin(walkCycle) * (2 - modelY) * Math.sin(modelX * 2)
+          let walkX = modelX// + .25 * Math.sin(walkCycle) * (2 - modelY) * Math.sin(modelX)
+          let walkY = modelY
+          let walkZ = modelZ + .2 * walk
+
+          let xRotatedZ = walkZ * this.scale * Math.cos(lean * walkY / 3) - walkY * this.scale * Math.sin(lean * walkY / 3)
+          let xRotatedY = walkZ * this.scale * Math.sin(lean * walkY / 3) + walkY * this.scale * Math.cos(lean * walkY / 3)
+          let xRotatedX = walkX * this.scale
 
           let rotatedX = xRotatedX * Math.cos(yaw) - xRotatedZ * Math.sin(yaw) + x
-          let rotatedY = xRotatedY + y
+          let rotatedY = xRotatedY * (1 - (crouchValue / 2)) + y
           let rotatedZ = xRotatedX * Math.sin(yaw) + xRotatedZ * Math.cos(yaw) + z
 
           webgl.points.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
@@ -500,17 +509,21 @@ class Model {
 
           
 
-          let modelN1 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][0], mesh2.normals[mesh2.indices[i].normals[j]][0], stage)
-          let modelN2 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][1], mesh2.normals[mesh2.indices[i].normals[j]][1], stage)
-          let modelN3 = this.lerp(mesh1.normals[mesh1.indices[i].normals[j]][2], mesh2.normals[mesh2.indices[i].normals[j]][2], stage)
+          let modelN1 = /*this.lerp(*/mesh.normals[mesh.indices[i].normals[j]][0]/*, mesh2.normals[mesh2.indices[i].normals[j]][0], stage)*/
+          let modelN2 = /*this.lerp(*/mesh.normals[mesh.indices[i].normals[j]][1]/*, mesh2.normals[mesh2.indices[i].normals[j]][1], stage)*/
+          let modelN3 = /*this.lerp(*/mesh.normals[mesh.indices[i].normals[j]][2]/*, mesh2.normals[mesh2.indices[i].normals[j]][2], stage)*/
 
-          let xRotatedN3 = modelN3 * Math.cos(pitch * modelY / 3) - modelN2 * Math.sin(pitch * modelY / 3)
-          let xRotatedN2 = modelN3 * Math.sin(pitch * modelY / 3) + modelN2 * Math.cos(pitch * modelY / 3)
+          let xRotatedN3 = modelN3 * Math.cos(lean * modelY / 3) - modelN2 * Math.sin(lean * modelY / 3)
+          let xRotatedN2 = modelN3 * Math.sin(lean * modelY / 3) + modelN2 * Math.cos(lean * modelY / 3)
           let xRotatedN1 = modelN1
 
-          let rotatedN1 = xRotatedN1 * Math.cos(yaw) - xRotatedN3 * Math.sin(yaw)
-          let rotatedN2 = xRotatedN2
-          let rotatedN3 = xRotatedN1 * Math.sin(yaw) + xRotatedN3 * Math.cos(yaw)
+          let wRotatedN3 = xRotatedN3 * Math.cos(.2 * walk) - xRotatedN2 * Math.sin(.2 * walk)
+          let wRotatedN2 = xRotatedN3 * Math.sin(.2 * walk) + xRotatedN2 * Math.cos(.2 * walk)
+          let wRotatedN1 = xRotatedN1
+
+          let rotatedN1 = wRotatedN1 * Math.cos(yaw) - wRotatedN3 * Math.sin(yaw)
+          let rotatedN2 = wRotatedN2
+          let rotatedN3 = wRotatedN1 * Math.sin(yaw) + wRotatedN3 * Math.cos(yaw)
 
           webgl.pointNormals.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
             rotatedN1, 
@@ -564,27 +577,27 @@ class Model {
 
 
 class PhysicalObject {
-  constructor(x, y, z, yaw, pitch, dimensions, collidableObjects) {
+  constructor(x, y, z, yaw, lean, dimensions, collidableObjects) {
     this.position = { // world position
       x: x,
       y: y,
       z: z,
       yaw: yaw,
-      pitch, pitch
+      lean: lean
     }
     this.lastPosition = { // used for collision
       x: x,
       y: y,
       z: z,
       yaw: yaw,
-      pitch: pitch
+      lean: lean
     }
     this.serverPosition = { // updated in tick function
       x: x,
       y: y,
       z: z,
       yaw: yaw,
-      pitch: pitch
+      lean: lean
     }
     this.pastPositions = [ // optional use for smoothing
       {
@@ -592,7 +605,7 @@ class PhysicalObject {
         y: y,
         z: z,
         yaw: yaw,
-        pitch: pitch
+        lean: lean
       }
     ]
     // dimensions used for collision
@@ -750,8 +763,8 @@ class PhysicalObject {
 
 
 class Player extends PhysicalObject {
-  constructor(geometries, x, y, z, yaw, pitch, name, collidableObjects) {
-    super(x, y, z, yaw, pitch, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
+  constructor(geometries, x, y, z, yaw, lean, name, collidableObjects) {
+    super(x, y, z, yaw, lean, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
 
     this.geometries = geometries
     for (let ingredient in geometries.idle) {
@@ -781,8 +794,32 @@ class Player extends PhysicalObject {
 
     this.gravity = 0
     this.onGround = true
-    
+    this.movementState = "walking"
 
+    this.slideCountown = 0
+    this.state = {
+      walkCycle: 0,
+      crouchValue: 0,
+      slideValue: 0
+    }
+    this.lastState = {
+      walkCycle: 0,
+      crouchValue: 0,
+      slideValue: 0
+    }
+    this.serverState = {
+      walkCycle: 0,
+      crouchValue: 0,
+      slideValue: 0
+    }
+    this.pastStates = [
+      {
+        walkCycle: 0,
+        crouchValue: 0,
+        slideValue: 0
+      }
+    ]
+    
 
 
   }
@@ -830,7 +867,7 @@ class Player extends PhysicalObject {
 
   updateWorldPosition() {
     for (let ingredient in this.models) {
-      this.models[ingredient].setPosition(this.position.yaw, this.position.pitch, this.position.x, this.position.y, this.position.z, this.geometries[this.animation.startMeshName][ingredient], this.geometries[this.animation.endMeshName][ingredient], this.animation.stage)
+      this.models[ingredient].setPosition(this.position.yaw, this.position.lean, this.position.x, this.position.y, this.position.z, this.geometries[/*this.animation.startMeshName*/"idle"][ingredient]/*, this.geometries[this.animation.endMeshName][ingredient], this.animation.stage*/, this.state.walkCycle, this.state.crouchValue, this.state.slideValue)
     }
   }
 
@@ -985,7 +1022,7 @@ class Weapon extends PhysicalObject {
   }
 
   updateWorldPosition() {
-    this.models.main.setPosition(this.position.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type], this.geometryInfos[this.type], 1)
+    this.models.main.setPosition(this.position.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type]/*, this.geometryInfos[this.type], 1*/, 0)
   }
 
   shoot(angleX, yaw) {
@@ -1038,7 +1075,7 @@ class Platform extends PhysicalObject {
         pz: 3 * this.scale * this.scale
       }
       
-      this.models.main.setPosition(0, 0, this.position.x, this.position.y, this.position.z, geometryInfo[type], geometryInfo[type], 1)
+      this.models.main.setPosition(0, 0, this.position.x, this.position.y, this.position.z, geometryInfo[type]/*, geometryInfo[type], 1*/, 0)
     }
     if (type == "crate") {
       this.models.main = new Model(geometryInfo[type], this.scale, "wood")
@@ -1051,7 +1088,7 @@ class Platform extends PhysicalObject {
         pz: 1 * this.scale * this.scale
       }
 
-      this.models.main.setPosition(0, 0, this.position.x, this.position.y + this.dimensions.py / 2, this.position.z, geometryInfo[type], geometryInfo[type], 1)
+      this.models.main.setPosition(0, 0, this.position.x, this.position.y + this.dimensions.py / 2, this.position.z, geometryInfo[type]/*, geometryInfo[type], 1*/, 0)
 
     }
     if (type == "pinetree") {
@@ -1069,7 +1106,7 @@ class Platform extends PhysicalObject {
       //  this.models.main.setPosition(0, Math.sin(Date.now() / 500) / 5, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
       //}, 20)
 
-      this.models.main.setPosition(0, 0, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
+      this.models.main.setPosition(0, 0, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type]/*, geometryInfo[type], 1*/, 0)
     }
   }
 
@@ -1206,16 +1243,16 @@ class Ground {
     xValues.sort((a, b) => { return a - b })
     this.xMin = xValues[0]
 
-    let xDifferenceTotal = 0
+    //let xDifferenceTotal = 0
     let xDifferenceCount = 0
     for (let i = 0; i < xValues.length - 1; i++) {
       let difference = xValues[i + 1] - xValues[i]
       if (Math.abs(difference) > 0.1) {
-        xDifferenceTotal += difference
+        //xDifferenceTotal += difference
         xDifferenceCount++
       }
     }
-    this.xWidth = xDifferenceTotal / xDifferenceCount
+    this.xWidth = (xValues[xValues.length - 1] - xValues[0]) / xDifferenceCount
 
 
     positions.sort((a, b) => { return a[0] - b[0] })
@@ -1245,21 +1282,34 @@ class Ground {
   lerp(a, b, x) {
     return a + (b - a) * x
   }
+
+  hypotenuse (a, b) {
+    return Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2))
+  }
   
   collision(lastPosition, position, movement, dimensions) {
     
     let xIndex = parseInt((position.x - this.xMin) / this.xWidth, 10)
     let zIndex = parseInt((position.z - this.zMin) / this.xWidth, 10)
 
-    let xPositionInSquare = (position.x - this.xMin) % this.xWidth
-    let zPositionInSquare = (position.z - this.zMin) % this.xWidth
+    //console.log(xIndex + ", " + zIndex)
 
-    console.log(xPositionInSquare)
+    let xPositionInSquare = ((position.x - this.xMin) % this.xWidth) / this.xWidth
+    let zPositionInSquare = ((position.z - this.zMin) % this.xWidth) / this.xWidth
 
-    
+    //let yPositionX = this.lerp(this.heightMap[xIndex][zIndex], this.heightMap[xIndex+1][zIndex], xPositionInSquare)
 
+    //console.log(xIndex / this.heightMap.length)
 
-    let yPosition = this.heightMap[xIndex][zIndex]
+    let yPosition = -1000000
+
+    if (0 <= xIndex && xIndex + 1 < this.heightMap.length && 0 <= zIndex && zIndex + 1 < this.heightMap[0].length) {
+      let yMinX = this.lerp(this.heightMap[xIndex][zIndex], this.heightMap[xIndex][zIndex+1], zPositionInSquare)
+      let yPluX = this.lerp(this.heightMap[xIndex+1][zIndex], this.heightMap[xIndex+1][zIndex+1], zPositionInSquare)
+
+      yPosition = this.lerp(yMinX, yPluX, xPositionInSquare)
+    }
+
 
 
     return {
@@ -1288,10 +1338,10 @@ class Ground {
         x: 0
       },
       py: {
-        intersects: (position.y < yPosition),
+        intersects: (position.y < yPosition - dimensions.my),
         z: position.z,
         x: position.x,
-        y: this.heightMap[xIndex][zIndex]
+        y: yPosition - dimensions.my
       },
       pz: {
         intersects: false,

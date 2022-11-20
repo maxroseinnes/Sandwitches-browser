@@ -110,7 +110,7 @@ var timeOfLastTick;
 function tick() {
   var data = []
   for (var name in players) {
-    if (players[name] != null) data.push({name: name, position: players[name].position})
+    if (players[name] != null) data.push({name: name, position: players[name].position, state: players[name].state})
   }
   //console.log(data)
   for (var name in players) {
@@ -143,7 +143,7 @@ socketServer.on("connection", (socket) => {
 
   var otherPlayersInfo = [];
   for (var name in players) {
-    if (players[name] != null) otherPlayersInfo.push({ name: name, position: players[name].position});
+    if (players[name] != null) otherPlayersInfo.push({ name: name, position: players[name].position, state: players[name].state });
   }
   socket.emit("otherPlayers", otherPlayersInfo);
 
@@ -152,11 +152,11 @@ socketServer.on("connection", (socket) => {
   availableNames.splice(nameIndex, 1);
 
   if (name != null) { 
-    var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5 }, yaw: 0, pitch: 0, socket: socket };
+    var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5, yaw: 0, lean: 0 }, state: { walkCycle: 0, crouchValue: 0, slideValue: 0 }, socket: socket };
     players[name] = newPlayer;
     console.log(name + " joined! 😃😃😃😃😃😃😃")
-    socket.emit("assignPlayer", { name: name, position: newPlayer.position});
-    socket.broadcast.emit("newPlayer", { name: name, position: newPlayer.position});
+    socket.emit("assignPlayer", { name: name, position: newPlayer.position, state: newPlayer.state});
+    socket.broadcast.emit("newPlayer", { name: name, position: newPlayer.position, state: newPlayer.state});
   } else {
     socket.emit("tooManyPlayers");
   }
@@ -164,6 +164,7 @@ socketServer.on("connection", (socket) => {
   socket.on("playerUpdate", (data) => {
     if (players[data.name] != null) {
       players[data.name].position = data.position;
+      players[data.name].state = data.state;
     }
   })
 
