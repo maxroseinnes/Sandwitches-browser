@@ -344,6 +344,7 @@ socket.on("respawn", (data) => {
     player.lastPosition = data.position
     player.lastState = data.state
     player.position = data.position
+    players.health = data.health
     player.state = data.state
 })
 
