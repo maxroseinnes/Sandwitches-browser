@@ -1,3 +1,4 @@
+
 const express = require("express");
 const app = express();
 const http = require("http");
@@ -7,6 +8,8 @@ const socketServer = new socketio.Server(server);
 const ipv4 = require("ip").address();
 const localhost = false;
 const port = 3000;
+
+const DEFAULT_PLAYER_HEALTH = 100 
 
 const availableNames = [
   "Steve", 
@@ -42,6 +45,8 @@ const availableNames = [
   "Betty",
   "Anthony"*/
 ];
+
+
 
 
 var maps = {
@@ -99,22 +104,49 @@ var maps = {
 
 
 
-var players = [];
+var players = {};
 
 var TPS = 20;
 
 app.use(express.static("public"));
 
+function respawnPlayer(name) {
+  console.log("test")
+
+  players[name].position.x = Math.random() * 10 - 5;
+  players[name].position.z = Math.random() * 10 - 5;
+  players[name].position.yaw = 0
+  players[name].position.pitch = 0
+  players[name].respawnedThisTick = true
+  players[name].socket.emit("respawn", {
+    position: {
+      x: players[name].position.x, 
+      y: players[name].position.y, 
+      z: players[name].position.z, 
+      yaw: players[name].position.yaw, 
+      lean: players[name].position.lean
+    },
+    state: players[name].state,
+    health: DEFAULT_PLAYER_HEALTH,
+  })
+}
 
 var timeOfLastTick;
 function tick() {
-  var data = []
+  var playersData = []
   for (var name in players) {
-    if (players[name] != null) data.push({name: name, position: players[name].position, state: players[name].state})
+    if (players[name] != null) playersData.push({
+      name: name, 
+      position: players[name].position, 
+      health: players[name].health, 
+      respawnedThisTick: players[name].respawnedThisTick,
+      state: players[name].state})
   }
-  //console.log(data)
   for (var name in players) {
-    if (players[name] != null) players[name].socket.emit("playerUpdate", data);
+    if (players[name] != null) players[name].socket.emit("playerUpdate", playersData);
+  }
+  for (var name in players) {
+    players[name].respawnedThisTick = false
   }
   if (timeOfLastTick != undefined) {
     //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
@@ -152,11 +184,23 @@ socketServer.on("connection", (socket) => {
   availableNames.splice(nameIndex, 1);
 
   if (name != null) { 
-    var newPlayer = { position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5, yaw: 0, lean: 0 }, state: { walkCycle: 0, crouchValue: 0, slideValue: 0 }, socket: socket };
+    var newPlayer = { 
+      position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5, yaw: 0, lean: 0 }, 
+      health: DEFAULT_PLAYER_HEALTH,
+      state: { walkCycle: 0, crouchValue: 0, slideValue: 0 }, 
+      socket: socket};
     players[name] = newPlayer;
     console.log(name + " joined! 😃😃😃😃😃😃😃")
-    socket.emit("assignPlayer", { name: name, position: newPlayer.position, state: newPlayer.state});
-    socket.broadcast.emit("newPlayer", { name: name, position: newPlayer.position, state: newPlayer.state});
+    socket.emit("assignPlayer", { 
+      name: name, 
+      position: newPlayer.position, 
+      health: newPlayer.health, 
+      state: newPlayer.state});
+    socket.broadcast.emit("newPlayer", { 
+      name: name, 
+      position: newPlayer.position, 
+      health: newPlayer.health, 
+      state: newPlayer.state});
   } else {
     socket.emit("tooManyPlayers");
   }
@@ -168,16 +212,29 @@ socketServer.on("connection", (socket) => {
     }
   })
 
-  socket.on("death", (deathInfo) => {
-    console.log("death")
-    var deathMessage = deathInfo.name;
-    if (deathInfo.type = "void") {
-      deathMessage += " fell into the void."
+  socket.on("playerHit", (hitInfo) => {
+    var newHealth = players[hitInfo.target].health - hitInfo.damage
+    if (newHealth > 0) {
+      players[hitInfo.target].health = newHealth
+      console.log(newHealth)
     } else {
-      deathMessage += " died from an unknown cause."
+      var deathMessage = hitInfo.target + " was killed by " + hitInfo.from
+      socket.broadcast.emit("chatMessage", deathMessage)
+      respawnPlayer(hitInfo.target)
+    }
+  })
+
+  socket.on("death", (deathInfo) => {
+    respawnPlayer(deathInfo.name)
+
+    var deathMessage;
+    if (deathInfo.type == "void") {
+      deathMessage = deathInfo.name + " fell into the void."
+    } else {
+      deathMessage = deathInfo.name + " died."
     }
     console.log(deathMessage)
-    socket.broadcast.emit("death", deathMessage)
+    socket.broadcast.emit("chatMessage", deathMessage)
   })
 
   socket.on("disconnect", () => {

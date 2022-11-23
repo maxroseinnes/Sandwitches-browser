@@ -89,7 +89,7 @@ const effectsCanvas = document.getElementById("effectsCanvas")
 // helpful functions //
 
 function lerp(a, b, x) {
-return a + (b - a) * x
+    return a + (b - a) * x
 }
 
 
@@ -166,22 +166,21 @@ var ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false)
 
 var camera = new PhysicalObject(0, 0, 0, 0, 0, {mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05}, [platforms, [ground]])
 
-var player;
-//var enemy = new Player(playerGeometry, 10, 0, 0, angleY, angleX, "jeff")
+var player
 
 var ticks = 0;
 function tick() {
     ticks++;
+    console.log(player.position.y)
     if (player.position.y < -100) {
-        var respawnPositionX = Math.random() * 10 - 5;
+        /*var respawnPositionX = Math.random() * 10 - 5;
         var respawnPositionZ = Math.random() * 10 - 5;
         player.position.x = respawnPositionX;
         player.position.y = 0;
         player.position.z = respawnPositionZ;
         player.lastPosition.x = respawnPositionX;
         player.lastPosition.y = 0
-        player.lastPosition.z = respawnPositionZ
-        console.log("You fell into the void. Respawned at X" + respawnPositionX + ", Y0, " + respawnPositionZ + "Z.")
+        player.lastPosition.z = respawnPositionZ*/
         socket.emit("death", { type: "void", name: player.name });
     }
     socket.emit("playerUpdate", { position: player.position, name: player.name, state: player.state } );
@@ -218,9 +217,41 @@ socket.on("startTicking", (TPS) => {
 })
 
 socket.on("assignPlayer", (playerInfo) => {
-    console.log("assignPlayer")
-    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.name, [platforms, [ground]]);
-    console.log("player: " + player)
+    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.name, [platforms, [ground]]);
+    inventory = {
+        loadOut: ["anchovy", "olive", "pickle", "sausage"],
+        weaponModels: [],
+        currentSelection: 0,
+        currentWeapon: null,
+        
+    
+    
+        initialize: function() {
+            for (let i = 0; i < this.loadOut.length; i++) {
+                //this.weaponModels.push(new Weapon(weaponGeometry, this.loadOut[i]))
+            }
+    
+            //this.currentWeapon = this.weaponModels[this.currentSelection]
+            this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0], [platforms, otherPlayers, [ground]], player)
+        },
+    
+        updateHUD: function() {
+            let width = effectsCanvas.width
+            let height = effectsCanvas.height
+            ctx.clearRect(width - 400, height - 200, 400, 200)
+            ctx.fillRect(width - 400, height - 200, 400, 100)
+            
+            for (let i = 0; i < this.loadOut.length; i++) {
+                if (this.loadOut[i] == "tomato") ctx.fillStyle = "red"
+                if (this.loadOut[i] == "olive") ctx.fillStyle = "green"
+                if (this.loadOut[i] == "pickle") ctx.fillStyle = "lightgreen"
+                if (this.loadOut[i] == "sausage") ctx.fillStyle = "brown"
+    
+                ctx.fillRect(width - 400 + i * 100, height - 200, 100, 100)
+            }
+        }
+    }
+    inventory.initialize()
 });
 
 socket.on("map", (mapInfo) => {
@@ -250,19 +281,29 @@ socket.on("map", (mapInfo) => {
 
 })
 
+// receive necessary info about the other connected players upon joining
 socket.on("otherPlayers", (otherPlayersInfo) => {
     for (var i = 0; i < otherPlayersInfo.length; i++) {
-        otherPlayers.push(new Player(playerGeometry, otherPlayersInfo[i].position.x, otherPlayersInfo[i].position.y, otherPlayersInfo[i].position.z, otherPlayersInfo[i].position.yaw, otherPlayersInfo[i].position.lean, otherPlayersInfo[i].name))
+        otherPlayers.push(new Player(
+            playerGeometry, 
+            otherPlayersInfo[i].position.x, 
+            otherPlayersInfo[i].position.y, 
+            otherPlayersInfo[i].position.z, 
+            otherPlayersInfo[i].position.yaw, 
+            otherPlayersInfo[i].position.lean, 
+            otherPlayersInfo[i].health, 
+            otherPlayersInfo[i].name))
     }
 })
 
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
-    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.name));
+    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.name));
 })
 
 socket.on("playerLeave", (name) => {
-    console.log("someone left")
+
+    console.log(name + " left")
     for (var i = 0; i < otherPlayers.length; i++) {
         if (otherPlayers[i].name == name) {
             otherPlayers[i].remove();
@@ -271,15 +312,21 @@ socket.on("playerLeave", (name) => {
     }
 })
 
-socket.on("playerUpdate", (data) => {
-    for (var i = 0; i < data.length; i++) {
-        if (data[i].name != player.name) {
+socket.on("playerUpdate", (playersData) => {
+    for (var i = 0; i < playersData.length; i++) {
+        if (playersData[i].name != player.name) {
             for (var j = 0; j < otherPlayers.length; j++) {
-                if (data[i].name == otherPlayers[j].name) {
-                    otherPlayers[j].lastPosition = otherPlayers[j].serverPosition
-                    otherPlayers[j].serverPosition = data[i].position;
-                    otherPlayers[j].lastState = otherPlayers[j].serverState
-                    otherPlayers[j].serverState = data[i].state;
+                if (playersData[i].name == otherPlayers[j].name) {
+                    if (!playersData[i].respawnedThisTick) {
+                        otherPlayers[j].lastPosition = otherPlayers[j].serverPosition
+                        otherPlayers[j].lastState = otherPlayers[j].serverState
+                    } else {
+                        // if current player just respawned, set "last" variables to be equivalent to current
+                        otherPlayers[j].lastPosition = playersData[j].position
+                        otherPlayers[j].lastState = playersData[i].state
+                    }
+                    otherPlayers[j].serverPosition = playersData[i].position
+                    otherPlayers[j].serverState = playersData[i].state
                     //otherPlayers[j].updateWorldPosition(); ** Moved this to update loop **
                     break;
                 }
@@ -288,12 +335,16 @@ socket.on("playerUpdate", (data) => {
     }
 })
 
-socket.on("death", (deathMessage) => {
-    console.log(deathMessage)
+socket.on("chatMessage", (msg) => {
+    console.log(msg)
 })
 
-socket.on("respawn", (position) => {
-    player.position = position;
+socket.on("respawn", (data) => {
+    console.log("you respawn")
+    player.lastPosition = data.position
+    player.lastState = data.state
+    player.position = data.position
+    player.state = data.state
 })
 
 socket.on("tooManyPlayers", () => {
@@ -338,7 +389,7 @@ var chOffset = 10
 
 
 
-var inventory = {
+var inventory /*= {
     loadOut: ["anchovy", "olive", "pickle", "sausage"],
     weaponModels: [],
     currentSelection: 0,
@@ -352,7 +403,7 @@ var inventory = {
         }
 
         //this.currentWeapon = this.weaponModels[this.currentSelection]
-        this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0], [platforms, otherPlayers, [ground]])
+        this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0], [platforms, otherPlayers, [ground]], undefined)
     },
 
     updateHUD: function() {
@@ -370,9 +421,9 @@ var inventory = {
             ctx.fillRect(width - 400 + i * 100, height - 200, 100, 100)
         }
     }
-}
+}*/
 
-inventory.initialize()
+//inventory.initialize()
 //inventory.updateHUD()
 
 
@@ -500,15 +551,17 @@ function update(now) {
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
     //let distanceFromPlayer = 2
 
-    inventory.currentWeapon.models.main.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
+    if (inventory.currentWeapon != null) {
+        inventory.currentWeapon.models.main.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
     
-    inventory.currentWeapon.position.x = player.position.x + Math.cos(player.position.yaw) * 2//distanceFromPlayer
-    inventory.currentWeapon.position.y = player.position.y + 1.5
-    inventory.currentWeapon.position.z = player.position.z + Math.sin(player.position.yaw) * 2//distanceFromPlayer
-    inventory.currentWeapon.position.yaw = Date.now() / 1000 + player.position.yaw
-    inventory.currentWeapon.calculatePosition(deltaTime)
+        inventory.currentWeapon.position.x = player.position.x + Math.cos(player.position.yaw) * 2//distanceFromPlayer
+        inventory.currentWeapon.position.y = player.position.y + 1.5
+        inventory.currentWeapon.position.z = player.position.z + Math.sin(player.position.yaw) * 2//distanceFromPlayer
+        inventory.currentWeapon.position.yaw = Date.now() / 1000 + player.position.yaw
+        inventory.currentWeapon.calculatePosition(deltaTime, socket) // weapon collision updates need to be sent to the server in calculatePosition method
 
-    inventory.currentWeapon.updateWorldPosition()
+        inventory.currentWeapon.updateWorldPosition()
+    }
     for (let i = 0; i < otherWeapons.length; i++) otherWeapons[i].updateWorldPosition()
 
 
@@ -630,8 +683,11 @@ function fixedUpdate() {
         if (!inventory.currentWeapon.shooted && cooldownTimer <= 0) {
               currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
               cooldownTimer = currentCooldown
+              console.log(inventory.currentWeapon)
               otherWeapons.push(inventory.currentWeapon)
-              inventory.currentWeapon = new Weapon(weaponGeometry, "tomato", [platforms, otherPlayers, [ground]])
+              inventory.currentWeapon = new Weapon(weaponGeometry, "tomato", [platforms, otherPlayers, [ground]], player)
+              //console.log()
+              player.weapons.push(inventory.currentWeapon)
         }
     }
 
@@ -655,9 +711,9 @@ function fixedUpdate() {
     for (let i = otherWeapons.length - 1; i >= 0; i--) {
         if (otherWeapons[i].shooted) {
             otherWeapons[i].position.yaw += deltaTime / 1000
-            otherWeapons[i].calculatePosition(deltaTime)
+            otherWeapons[i].calculatePosition(deltaTime, socket)
 
-            if (otherWeapons[i].position.x < -50 || otherWeapons[i].position.x > 50 || otherWeapons[i].position.z < -50 || otherWeapons[i].position.z > 50) {
+            if (Math.abs(otherWeapons[i].position.x) > 50 || Math.abs(otherWeapons[i].position.z) > 50) {
                 otherWeapons[i].remove()
                 otherWeapons.splice(i, 1)
             }
