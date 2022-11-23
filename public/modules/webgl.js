@@ -763,7 +763,7 @@ class PhysicalObject {
 
 
 class Player extends PhysicalObject {
-  constructor(geometries, x, y, z, yaw, lean, name, collidableObjects) {
+  constructor(geometries, x, y, z, yaw, lean, health, name, collidableObjects) {
     super(x, y, z, yaw, lean, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
 
     this.geometries = geometries
@@ -776,6 +776,9 @@ class Player extends PhysicalObject {
       if (ingredient.indexOf("tomato") != -1) { scale = 1.05; texture = "jerry"; }
       this.models[ingredient] = new Model(geometries.idle[ingredient], scale, texture)
     }
+
+    // Stores this player's currently active weapons
+    this.weapons = []
 
 
     this.animation = {
@@ -791,6 +794,8 @@ class Player extends PhysicalObject {
     }
 
     this.name = name
+
+    this.health = health
 
     this.gravity = 0
     this.onGround = true
@@ -905,11 +910,13 @@ class Player extends PhysicalObject {
 
 
 class Weapon extends PhysicalObject {
-  constructor(geometryInfos, type, collidableObjects) {
+  constructor(geometryInfos, type, collidableObjects, owner) {
     super(0, 0, 0, 0, 0, {mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25}, collidableObjects)
 
     this.geometryInfos = geometryInfos
     this.type = type
+
+    this.owner = owner
 
     // default settings
     this.cooldown = 1 // seconds
@@ -989,7 +996,7 @@ class Weapon extends PhysicalObject {
 
   }
 
-  calculatePosition(deltaTime) {
+  calculatePosition(deltaTime, socket) {
     this.lastPosition = {x: this.position.x, y: this.position.y, z: this.position.z}
     if (this.shooted) {
       this.position.x += this.shootMovementVector.x * deltaTime
@@ -1012,7 +1019,13 @@ class Weapon extends PhysicalObject {
             this.position.z = collision[side].z
 
             if (this.collidableObjects[i][j] instanceof Player) {
+
               console.log("hit " + this.collidableObjects[i][j].name)
+              socket.emit("playerHit", {
+                from: this.owner.name,
+                target: this.collidableObjects[i][j].name,
+                damage: this.damage
+              })
             }
           }
         }
