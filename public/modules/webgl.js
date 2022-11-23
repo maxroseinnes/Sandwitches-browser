@@ -33,6 +33,8 @@ var webgl = {
 
   },
 
+  canvas: undefined,
+  ctx: undefined,
 
   loadedImages: [],
   squareWidth: null,
@@ -49,7 +51,7 @@ var webgl = {
     document.getElementById("effectsCanvas").width = window.innerWidth
     document.getElementById("effectsCanvas").height = window.innerHeight
     this.aspect = canvas.width / canvas.height
-    this.gl = this.canvas.getContext("webgl"),
+    this.gl = this.canvas.getContext("webgl")
 
     this.vertexShaderText = `
     precision mediump float;
@@ -133,7 +135,7 @@ var webgl = {
 
     this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true)
 
-    this.squareWidth = Math.round(Math.sqrt(Object.keys(this.textures).length) + .499999)
+    this.squareWidth = 20//Math.round(Math.sqrt(Object.keys(this.textures).length) + .499999)
     
     for (let name in this.textures) {
       let image = new Image()
@@ -155,30 +157,7 @@ var webgl = {
     if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) console.log(`Unable to initialize the shader program: ${this.gl.getProgramInfoLog(this.program)}`)
   },
 
-  mergeImages: (gl, loadedImages, texture) => {
-
-
-
-    let canvas = document.createElement("canvas")
-    canvas.width = webgl.squareWidth * 64
-    canvas.height = webgl.squareWidth * 64
-    document.body.appendChild(canvas)
-    canvas.style.imageRendering = "pixelated"
-    let ctx = canvas.getContext("2d")
-    //ctx.scale(-1, 1)
-
-    for (let i = 0; i < loadedImages.length; i++) {
-      if (loadedImages[i] != null) {
-        let yLocation = parseInt(i / webgl.squareWidth, 10)
-        let xLocation = i - yLocation * webgl.squareWidth
-
-        ctx.drawImage(
-          loadedImages[i], 
-          xLocation * 64, yLocation * 64, 64, 64)
-      }
-      
-    }
-    ctx.restore()
+  loadTexture: (gl, texture) => {
     let textures = new Image()
     textures.onload = () => {
 
@@ -200,7 +179,33 @@ var webgl = {
 
 
     }
-    textures.src = canvas.toDataURL()
+    textures.src = webgl.canvas.toDataURL()
+  },
+  
+  mergeImages: (gl, loadedImages, texture) => {
+
+    webgl.canvas = document.createElement("canvas")
+    webgl.canvas.width = webgl.squareWidth * 64
+    webgl.canvas.height = webgl.squareWidth * 64
+    //document.body.appendChild(webgl.canvas)
+    webgl.canvas.style.imageRendering = "pixelated"
+    webgl.ctx = webgl.canvas.getContext("2d")
+    //ctx.scale(-1, 1)
+
+    for (let i = 0; i < loadedImages.length; i++) {
+      if (loadedImages[i] != null) {
+        let yLocation = parseInt(i / webgl.squareWidth, 10)
+        let xLocation = i - yLocation * webgl.squareWidth
+
+        webgl.ctx.drawImage(
+          loadedImages[i], 
+          xLocation * 64, yLocation * 64, 64, 64)
+      }
+      
+    }
+    webgl.ctx.restore()
+
+    webgl.loadTexture(gl, texture)
 
 
   },
@@ -409,7 +414,7 @@ class Point {
 
 class Model {
   static allModels = []
-  constructor(geometryInfo, scale, texture) {
+  constructor(geometryInfo, scale, texture, offsetX, offsetY, offsetZ) {
     Model.allModels.push(this)
 // 1 2 3
 
@@ -429,6 +434,10 @@ class Model {
     
 
     this.scale = scale
+
+    this.offsetX = offsetX || 0
+    this.offsetY = offsetY || 0
+    this.offsetZ = offsetZ || 0
 
     let positions = geometryInfo.positions
     let normals = geometryInfo.normals
@@ -451,7 +460,7 @@ class Model {
 
         currentPointIndices.push(webgl.points.length / 3)
 
-        webgl.points.push(positions[indices[i].vertexes[j]][0] * scale, positions[indices[i].vertexes[j]][1] * scale, positions[indices[i].vertexes[j]][2] * scale)
+        webgl.points.push(positions[indices[i].vertexes[j]][0] * scale + this.offsetX, positions[indices[i].vertexes[j]][1] * scale + this.offsetY, positions[indices[i].vertexes[j]][2] * scale + this.offsetZ)
         webgl.pointNormals.push(normals[indices[i].normals[j]][0], normals[indices[i].normals[j]][1], normals[indices[i].normals[j]][2])
         webgl.texCoords.push((texcoords[indices[i].texcoords[j]][0] + textureLocationX) / squareWidth, (texcoords[indices[i].texcoords[j]][1] + textureLocationY) / squareWidth)
 
@@ -484,13 +493,13 @@ class Model {
     for (let i = 0; i < this.pointIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
         for (let j = 0; j < this.pointIndices[i].length; j++) {
 
-          let modelX = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][0] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][0] * this.scale, stage)*/
-          let modelY = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][1] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][1] * this.scale, stage)*/
-          let modelZ = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][2] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage)*/
+          let modelX = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][0] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][0] * this.scale, stage)*/ + this.offsetX
+          let modelY = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][1] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][1] * this.scale, stage)*/ + this.offsetY
+          let modelZ = /*this.lerp(*/mesh.positions[mesh.indices[i].vertexes[j]][2] * this.scale/*, mesh2.positions[mesh2.indices[i].vertexes[j]][2] * this.scale, stage)*/ + this.offsetZ
 
           let walk = Math.sin(walkCycle) * (2 - modelY) * Math.sin(modelX * 2)
           let walkX = modelX// + .25 * Math.sin(walkCycle) * (2 - modelY) * Math.sin(modelX)
-          let walkY = modelY
+          let walkY = modelY + modelY * Math.sin(modelX * 2) * Math.sin(walkCycle) * .025
           let walkZ = modelZ + .2 * walk
 
           let xRotatedZ = walkZ * this.scale * Math.cos(lean * walkY / 3) - walkY * this.scale * Math.sin(lean * walkY / 3)
@@ -762,12 +771,83 @@ class PhysicalObject {
 
 
 
+class GamerTag {
+  static allGamerTags = []
+  constructor(name) {
+    GamerTag.allGamerTags.push(this)
+
+    this.geometryInfo = {
+      positions: [
+        [-.75,   0 , 0],
+        [ .75,   0 , 0],
+        [ .75,  .375, 0],
+        [-.75,  .375, 0]
+      ],
+
+      normals: [
+        [-0, -0,  1]
+      ],
+
+      texcoords: [
+        [0,  0],
+        [1,  0],
+        [1, .2],
+        [0, .2]
+      ],
+
+      smooth: false,
+      material: undefined,
+
+      indices: [
+        {
+          vertexes: [0, 1, 2],
+          texcoords: [0, 1, 2],
+          normals: [0, 0, 0]
+        },
+        {
+          vertexes: [2, 3, 0],
+          texcoords: [2, 3, 0],
+          normals: [0, 0, 0]
+        }
+      ]
+    }
+
+    let textureIndex = Object.keys(webgl.textures).length
+    webgl.textures[name] = {
+      index: textureIndex
+    }
+    let yLocation = parseInt(textureIndex / webgl.squareWidth, 10)
+    let xLocation = textureIndex - yLocation * webgl.squareWidth
+    webgl.ctx.fillStyle = "black"
+    webgl.ctx.fillRect(xLocation * 64, yLocation * 64 + 51, 64, 13)
+    webgl.ctx.fillStyle = "white"//"rgb(240, 215, 160)"
+    webgl.ctx.fillRect(xLocation * 64 + 1, yLocation * 64 + 51, 62, 13)
+    webgl.ctx.font = "100 15px sans-serif"
+    let nameWidth = webgl.ctx.measureText(name).width
+    webgl.ctx.fillStyle = "black"
+    for (let i = 0; i < 3; i++) webgl.ctx.fillText(name, xLocation * 64 + ((nameWidth < 64) ? ((63 - nameWidth) / 2) : 1), yLocation * 64 + 63, 62)
+    //webgl.ctx.fillStyle = "white"
+    //for (let i = 0; i < 30; i++) webgl.ctx.strokeText(name, xLocation * 64 + ((nameWidth < 64) ? ((63 - nameWidth) / 2) : 1), yLocation * 64 + 63, 62)
+
+
+    webgl.loadTexture(webgl.gl, webgl.textureMap)
+
+    this.model = new Model(this.geometryInfo, 1, name, 0, 2.75, 0)
+  }
+}
+
+
+
 class Player extends PhysicalObject {
   constructor(geometries, x, y, z, yaw, lean, name, collidableObjects) {
     super(x, y, z, yaw, lean, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
 
+    this.gamerTag = new GamerTag(name)
+
+
+
     this.geometries = geometries
-    for (let ingredient in geometries.idle) {
+    /*for (let ingredient in geometries.idle) {
       let scale = 1
       let texture = 0
       if (ingredient.indexOf("Slice") != -1) { texture = "bread"; }
@@ -776,6 +856,10 @@ class Player extends PhysicalObject {
       if (ingredient.indexOf("tomato") != -1) { scale = 1.05; texture = "jerry"; }
       this.models[ingredient] = new Model(geometries.idle[ingredient], scale, texture)
     }
+    */
+
+    this.models.frontSlice = new Model(geometries.idle.frontSlice, 1, "bread", 0, 1, .15)
+    this.models.backSlice = new Model(geometries.idle.backSlice, 1, "bread", 0, 1, -.15)
 
 
     this.animation = {
@@ -819,7 +903,6 @@ class Player extends PhysicalObject {
         slideValue: 0
       }
     ]
-    
 
 
   }
@@ -865,7 +948,8 @@ class Player extends PhysicalObject {
 
   }
 
-  updateWorldPosition() {
+  updateWorldPosition(gamerTagAngle) {
+    this.gamerTag.model.setPosition(gamerTagAngle, 0, this.position.x, this.position.y, this.position.z, this.gamerTag.geometryInfo)
     for (let ingredient in this.models) {
       this.models[ingredient].setPosition(this.position.yaw, this.position.lean, this.position.x, this.position.y, this.position.z, this.geometries[/*this.animation.startMeshName*/"idle"][ingredient]/*, this.geometries[this.animation.endMeshName][ingredient], this.animation.stage*/, this.state.walkCycle, this.state.crouchValue, this.state.slideValue)
     }
@@ -899,6 +983,10 @@ class Player extends PhysicalObject {
   }
 
 
+  remove() {
+    super.remove()
+    this.gamerTag.model.delete()
+  }
 
 
 }
@@ -1107,122 +1195,6 @@ class Platform extends PhysicalObject {
       //}, 20)
 
       this.models.main.setPosition(0, 0, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type]/*, geometryInfo[type], 1*/, 0)
-    }
-  }
-
-
-  static calculateSlopes(lastPosition, currentPosition) {
-    // calculate 6 slopes
-
-    let x1 = lastPosition.x
-    let x2 = currentPosition.x
-    let y1 = lastPosition.y
-    let y2 = currentPosition.y
-    let z1 = lastPosition.z
-    let z2 = currentPosition.z
-
-
-    let functions = {
-      x: {
-        dependY: function(y){ return ((x2 - x1) / (y2 - y1) * y + ((x2 - x1) / (y2 - y1) * -y1) + x1) },
-        dependZ: function(z){ return ((x2 - x1) / (z2 - z1) * z + ((x2 - x1) / (z2 - z1) * -z1) + x1) }
-      },
-      y: {
-        dependZ: function(z){ return ((y2 - y1) / (z2 - z1) * z + ((y2 - y1) / (z2 - z1) * -z1) + y1) },
-        dependX: function(x){ return ((y2 - y1) / (x2 - x1) * x + ((y2 - y1) / (x2 - x1) * -x1) + y1) }
-      },
-      z: {
-        dependX: function(x){ return ((z2 - z1) / (x2 - x1) * x + ((z2 - z1) / (x2 - x1) * -x1) + z1) },
-        dependY: function(y){ return ((z2 - z1) / (y2 - y1) * y + ((z2 - z1) / (y2 - y1) * -y1) + z1) }
-      }
-    }
-
-
-
-    return functions
-  }
-
-
-  inRange(x, a, b) {
-    if (a > b) return (a <= x <= b)
-    else return (b <= x <= a)
-  }
-
-  calculateCollision(lastPosition, position, movement, gravity) {
-    let correctedPosition = { x: position.x, y: position.y, z: position.z }
-    let onPlatform = false
-
-    // calculate if intersection is within bounds of face and that the point has passed the face in the dependent direction
-    if (lastPosition.x <= this.mx && this.mx <= position.x) {
-
-
-      // minus x face -- dependent is x, calculate for y and z dependent on x
-      let yIntersect = movement.y.dependX(this.mx)
-      let zIntersect = movement.z.dependX(this.mx)
-
-      if (this.my <= yIntersect && yIntersect <= this.py && this.mz <= zIntersect && zIntersect <= this.pz) {
-        correctedPosition.x = this.mx
-      }
-    }
-
-    if (lastPosition.x >= this.px && this.px >= position.x) {
-
-
-      // minus x face -- dependent is x, calculate for y and z dependent on x
-      let yIntersect = movement.y.dependX(this.px)
-      let zIntersect = movement.z.dependX(this.px)
-
-      if (this.my <= yIntersect && yIntersect <= this.py && this.mz <= zIntersect && zIntersect <= this.pz) {
-        correctedPosition.x = this.px
-      }
-    }
-
-    if (lastPosition.z <= this.mz && this.mz <= position.z) {
-
-
-      // minus x face -- dependent is x, calculate for y and z dependent on x
-      let xIntersect = movement.x.dependZ(this.mz)
-      let yIntersect = movement.y.dependZ(this.mz)
-
-      if (this.mx <= xIntersect && xIntersect <= this.px && this.my <= yIntersect && yIntersect <= this.py) {
-        correctedPosition.z = this.mz
-      }
-    }
-
-    
-    if (lastPosition.z >= this.pz && this.pz >= position.z) {
-
-
-      // minus x face -- dependent is x, calculate for y and z dependent on x
-      let xIntersect = movement.x.dependZ(this.pz)
-      let yIntersect = movement.y.dependZ(this.pz)
-
-      if (this.mx <= xIntersect && xIntersect <= this.px && this.my <= yIntersect && yIntersect <= this.py) {
-        correctedPosition.z = this.pz
-      }
-    }
-
-      
-    if (lastPosition.y >= this.py && this.py >= position.y) {
-
-
-      // minus x face -- dependent is x, calculate for y and z dependent on x
-      let zIntersect = movement.z.dependY(this.py)
-      let xIntersect = movement.x.dependY(this.py)
-
-      if (this.mz <= zIntersect && zIntersect <= this.pz && this.mx <= xIntersect && xIntersect <= this.px) {
-        correctedPosition.y = this.py
-        onPlatform = true
-        gravity = 0
-      }
-
-    }
-
-
-    return {
-      correctedPosition: correctedPosition,
-      onPlatform: onPlatform,
-      gravity: gravity
     }
   }
 

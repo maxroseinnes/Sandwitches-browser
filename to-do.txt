@@ -11,3 +11,19 @@ Point and poly organization:
 
 
 sub in points and reorganize points and polys at a fixed rate
+
+
+Movement:
+    Make movementState variable in Player class
+        still
+        walking
+        sprinting (smaller hitbox)
+        sliding (smaller hitbox)
+
+send client TPS in player data
+
+
+drawing transparent stuff:
+    idea: make second canvas on top for transparent stuff
+
+

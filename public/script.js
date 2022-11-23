@@ -44,10 +44,6 @@ var pointerLocked = false
 var lastWRelease = Date.now()
 
 // movement global variables //
-var gravity = 0
-var crouching = false
-var onGround = true
-var lastOnGround = true
 
 
 var lookAngleX = 0.0
@@ -63,10 +59,6 @@ var currentCooldown = 1
 var lastFramerates = []
 var lastYPositions = []
 for (let i = 0; i < 200; i++) lastYPositions.push(0)
-var breadY = 0
-var cheeseY = 0
-var meatY = 0
-var tomatoY = 0
 
 var running = false;
 var updateThen = 0;
@@ -114,8 +106,8 @@ var playerWalkRightFootInfo = obj.parseWavefront(fetchObj("player/PlayerRightNub
 
 var playerGeometry = {
 	idle: {
-		frontSlice: playerIdleInfo["Bread"],
-		backSlice: playerIdleInfo["Bread.001"],
+		frontSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
+		backSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
 		cheese: playerIdleInfo["Cheese"],
 		meat: playerIdleInfo["Meat"],
 		tomato1: playerIdleInfo["Tomato"],
@@ -433,7 +425,7 @@ function update(now) {
 
 	player.position.yaw = lookAngleY
 	player.position.lean = lookAngleX
-	player.updateWorldPosition() // this must go last
+	player.updateWorldPosition(lookAngleY) // this must go last
 
 
     // update other player positions
@@ -501,7 +493,7 @@ function update(now) {
 
 
 
-        otherPlayers[i].updateWorldPosition();
+        otherPlayers[i].updateWorldPosition(lookAngleY);
     }
 
 
@@ -540,13 +532,14 @@ function fixedUpdate() {
     if (player.movementState == "walking") speed = .0075
     if (player.movementState == "crouching") speed = .0025
     if (player.movementState == "sprinting") speed = .015
+    if (player.movementState == "sliding") speed = .01
 	let walkAnimationSpeed = 2.25 * deltaTime * speed
 
 	if (w) {
 		player.position.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
 		player.position.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
-        player.state.walkCycle += walkAnimationSpeed
+        if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
 /*
         if (player.animation.finished) {
             if (player.onGround) {
@@ -588,7 +581,7 @@ function fixedUpdate() {
 		player.position.x += speed * Math.cos(lookAngleY) * deltaTime
 		player.position.z += speed * Math.sin(lookAngleY) * deltaTime
 	}
-    if (!w && !s) {
+    if ((!w && !s) || player.movementState == "sliding") {
         let r = player.state.walkCycle % Math.PI
         if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
         else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
@@ -599,23 +592,31 @@ function fixedUpdate() {
         }*/
     }
 
+    if (player.movementState == "sliding") {
+        player.slideCountdown -= deltaTime
+        if (player.slideCountdown != null && player.slideCountdown <= 0) {
+            player.movementState = "crouching"
+            player.slideCountdown = 1000
+        }
+    }
 	if (shift && player.movementState == "walking") {
         player.movementState = "crouching"
+        player.state.crouchValue += .015 * deltaTime
+        if (player.state.crouchValue > 1) player.state.crouchValue = 1
     }
-    else if (shift && player.movementState == "crouching") {
-        player.state.crouchValue += .01 * deltaTime
+    else if (shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
+        player.state.crouchValue += .015 * deltaTime
         if (player.state.crouchValue > 1) player.state.crouchValue = 1
     }
     else if (!shift && player.movementState != "crouching") {
-        player.state.crouchValue -= .01 * deltaTime
+        player.state.crouchValue -= .015 * deltaTime
         if (player.state.crouchValue < 0) player.state.crouchValue = 0
     }
 	else if (shift && player.movementState == "sprinting") {
         player.movementState = "sliding"
-        player.slideCountdown = 200
+        player.slideCountdown = 1000
     }
 	else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) player.movementState = "walking"
-    else if (player.movementState == "sliding") player.slideCountdown -= deltaTime
 
 	if (space) {
 		if (player.onGround) {
@@ -688,7 +689,7 @@ if (event.code == 40) down = true
 
 if (event.code == "KeyW") {
     w = true
-    if (Date.now() - lastWRelease < 150) {
+    if (Date.now() - lastWRelease < 125) {
         player.movementState = "sprinting"
     }
 }
