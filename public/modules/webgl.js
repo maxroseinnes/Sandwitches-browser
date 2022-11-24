@@ -29,6 +29,10 @@ var webgl = {
       url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSTvQrFPAcP14DaOSKKum5YSaAsmgthQIMksQ&usqp=CAU",
       index: 3
     },
+    purple: {
+      url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQMAAADCCAMAAAB6zFdcAAAAA1BMVEV9Js3dWPvwAAAASElEQVR4nO3BMQEAAADCoPVPbQwfoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIC3AcUIAAFkqh/QAAAAAElFTkSuQmCC",
+      index: 4
+    },
 
 
   },
@@ -837,6 +841,73 @@ class GamerTag {
 }
 
 
+class Particle extends PhysicalObject {
+  constructor(x, y, z, movementVector, lifeSpan, collidableObjects) {
+    super(x, y, z, 0, 0, {mx: -.1, px: .1, my: -.1, py: .1, mz: -.1, pz: .1}, collidableObjects)
+
+    this.startTime = Date.now()
+    this.lifeSpan = lifeSpan
+
+    this.movementVector = movementVector
+
+    this.geometryInfo = {
+      positions: [
+        [(Math.random() - .5)/3, (Math.random() - .5)/5, (Math.random() - .5)/2],
+        [(Math.random() - .5)/1, (Math.random() - .5)/3, (Math.random() - .5)/3],
+        [(Math.random() - .5)/1, (Math.random() - .5)/2, (Math.random() - .5)/1],
+        [(Math.random() - .5)/2, (Math.random() - .5)/1, (Math.random() - .5)/1]
+      ],
+      normals: [
+        [Math.random(), Math.random(), Math.random()]
+      ],
+      texcoords: [
+        [0, 0],
+        [0, 0],
+        [0, 0]
+      ],
+      smooth: false,
+      material: undefined,
+      indices: [
+        {
+          vertexes: [0, 1, 2],
+          texcoords: [0, 1, 2],
+          normals: [0, 0, 0]
+        },
+        {
+          vertexes: [3, 0, 1],
+          texcoords: [0, 1, 2],
+          normals: [0, 0, 0]
+        },
+        {
+          vertexes: [3, 2, 1],
+          texcoords: [0, 1, 2],
+          normals: [0, 0, 0]
+        }
+      ]
+    }
+
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 3; j++) {
+        this.geometryInfo.positions[i][j] /= 1.5
+      }
+    }
+
+    this.models.main = new Model(this.geometryInfo, 1, "purple", 0, 0, 0)
+
+  }
+
+  updateWorldPosition(deltaTime) {
+    this.position.x += this.movementVector.x * deltaTime * .0035
+    this.position.y += this.movementVector.y * deltaTime * .0035
+    this.position.z += this.movementVector.z * deltaTime * .0035
+    //this.position.yaw += deltaTime * .001
+
+    this.models.main.scale = Math.sin(Math.sqrt((Date.now() - this.startTime) / this.lifeSpan) * Math.PI)
+    this.models.main.setPosition(this.position.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfo)
+  }
+
+}
+
 
 class Player extends PhysicalObject {
   constructor(geometries, x, y, z, yaw, lean, health, name, collidableObjects) {
@@ -928,15 +999,19 @@ class Player extends PhysicalObject {
         }
         if (collision.mx.intersects) {
           this.position.x = collision.mx.x
+          if (this.movementState == "sprinting") this.movementState = "walking"
         }
         if (collision.px.intersects) {
           this.position.x = collision.px.x
+          if (this.movementState == "sprinting") this.movementState = "walking"
         }
         if (collision.mz.intersects) {
           this.position.z = collision.mz.z
+          if (this.movementState == "sprinting") this.movementState = "walking"
         }
         if (collision.pz.intersects) {
           this.position.z = collision.pz.z
+          if (this.movementState == "sprinting") this.movementState = "walking"
         }
       }
     }
@@ -990,6 +1065,8 @@ class Player extends PhysicalObject {
 class Weapon extends PhysicalObject {
   constructor(geometryInfos, type, collidableObjects, owner) {
     super(0, 0, 0, 0, 0, {mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25}, collidableObjects)
+
+    this.particles = []
 
     this.geometryInfos = geometryInfos
     this.type = type
@@ -1075,6 +1152,15 @@ class Weapon extends PhysicalObject {
   }
 
   calculatePosition(deltaTime, socket) {
+
+    for (let i = 0; i < this.particles.length; i++) {
+      this.particles[i].updateWorldPosition(deltaTime)
+      if (Date.now() - this.particles[i].startTime > this.particles[i].lifeSpan) {
+        this.particles[i].remove()
+        this.particles.splice(i, 1)
+      }
+    }
+
     this.lastPosition = {x: this.position.x, y: this.position.y, z: this.position.z}
     if (this.shooted) {
       this.position.x += this.shootMovementVector.x * deltaTime
@@ -1113,6 +1199,10 @@ class Weapon extends PhysicalObject {
   }
 
   updateWorldPosition() {
+    if (Math.random() < 1 && this.shooted) for (let i = 0; i < 2; i++) this.particles.push(
+      new Particle(this.position.x, this.position.y, this.position.z, {x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5}, 1500, [])
+    )
+
     this.models.main.setPosition(this.position.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type]/*, this.geometryInfos[this.type], 1*/, 0)
   }
 
@@ -1145,6 +1235,11 @@ class Weapon extends PhysicalObject {
   }
 
 
+  remove() {
+    super.remove()
+    for (let i = 0; i < this.particles.length; i++) this.particles[i].remove()
+  }
+  
 
 }
 

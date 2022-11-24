@@ -322,7 +322,7 @@ var updateHUD = () => {
     }
 
     ctx.fillStyle = "yellow"
-    ctx.strokeRect(width - 505 + inventory.currentSelection * 100, height - 205, 110, 110)
+    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - 500 - i + inventory.currentSelection * 100, height - 200 - i, 100 + i * 2, 100 + i * 2)
 }
 
 var changeWeaponSelection = (selection) => {
@@ -485,25 +485,35 @@ function fixedUpdate() {
 	let speed = .0075;
     if (player.movementState == "walking") {
         speed = .0075
-        webgl.fov = Math.PI / 3
+        webgl.fov -= deltaTime * .0025
+        if (webgl.fov < Math.PI / 3) webgl.fov = Math.PI / 3
     }
     if (player.movementState == "crouching") {
         speed = .0025
-        webgl.fov = Math.PI / 3
+        webgl.fov -= deltaTime * .0025
+        if (webgl.fov < Math.PI / 3) webgl.fov = Math.PI / 3
     }
     if (player.movementState == "sprinting") {
         speed = .015
-        webgl.fov = Math.PI / 5 * 2
+        webgl.fov += deltaTime * .0025
+        if (webgl.fov > Math.PI / 5 * 2) webgl.fov = Math.PI / 5 * 2
     }
     if (player.movementState == "sliding") {
         speed = .01
-        webgl.fov = Math.PI / 3
+        webgl.fov += deltaTime * .0025
+        if (webgl.fov > Math.PI / 5 * 2) webgl.fov = Math.PI / 5 * 2
     }
 	let walkAnimationSpeed = 2.25 * deltaTime * speed
 
+    let movementVector = {
+        x: 0,
+        y: 0,
+        z: 0
+    }
+
 	if (w) {
-		player.position.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-		player.position.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+		movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+		movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
 /*
@@ -521,12 +531,12 @@ function fixedUpdate() {
         }*/
 	}
 	if (a) {
-		player.position.x -= speed * Math.cos(lookAngleY) * deltaTime
-		player.position.z -= speed * Math.sin(lookAngleY) * deltaTime
+		movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
+		movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
 	}
 	if (s) {
-		player.position.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-		player.position.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+		movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+		movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         player.state.walkCycle -= walkAnimationSpeed
         /*
@@ -544,8 +554,8 @@ function fixedUpdate() {
         }*/
 	}
 	if (d) {
-		player.position.x += speed * Math.cos(lookAngleY) * deltaTime
-		player.position.z += speed * Math.sin(lookAngleY) * deltaTime
+		movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
+		movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
 	}
     if ((!w && !s) || player.movementState == "sliding") {
         let r = player.state.walkCycle % Math.PI
@@ -606,6 +616,14 @@ function fixedUpdate() {
         }
     }
 
+
+    // normalize movement vector //
+    let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2) + Math.pow(movementVector.z, 2))
+    if (hypotenuse > 0) {
+        player.position.x += movementVector.x / hypotenuse * speed * deltaTime
+        player.position.y += movementVector.y / hypotenuse * speed * deltaTime
+        player.position.z += movementVector.z / hypotenuse * speed * deltaTime
+    }
 
 
     player.calculatePosition(deltaTime)
@@ -689,7 +707,6 @@ if (event.code == "KeyA") a = true
 if (event.code == "KeyD") d = true
 
 if (event.code == "ShiftLeft") {
-    inventory.currentWeapon.remove()
 
 	shift = true
 }
