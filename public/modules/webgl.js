@@ -210,7 +210,7 @@ var webgl = {
 
   },
 
-
+  fov: Math.PI / 3,
 
   renderFrame: function(playerPosition, camera) {
 
@@ -335,7 +335,7 @@ var webgl = {
     let pMatrix = mat4.create();
 
     //                        fov        , aspect, near, far
-    mat4.perspective(pMatrix, Math.PI / 3, this.aspect, .1, 1000);
+    mat4.perspective(pMatrix, this.fov, this.aspect, .1, 1000);
 
 
     let pMatrixLocation = this.gl.getUniformLocation(this.program, "pMatrix");
@@ -847,19 +847,9 @@ class Player extends PhysicalObject {
 
 
     this.geometries = geometries
-    /*for (let ingredient in geometries.idle) {
-      let scale = 1
-      let texture = 0
-      if (ingredient.indexOf("Slice") != -1) { texture = "bread"; }
-      if (ingredient.indexOf("cheese") != -1) { texture = "jerry"; }
-      if (ingredient.indexOf("meat") != -1) { texture = "sub"; }
-      if (ingredient.indexOf("tomato") != -1) { scale = 1.05; texture = "jerry"; }
-      this.models[ingredient] = new Model(geometries.idle[ingredient], scale, texture)
-    }
-    */
 
-    this.models.frontSlice = new Model(geometries.idle.frontSlice, 1, "bread", 0, 1, .15)
-    this.models.backSlice = new Model(geometries.idle.backSlice, 1, "bread", 0, 1, -.15)
+    this.models.frontSlice = new Model(geometries.frontSlice, 1, "bread", 0, 1, .15)
+    this.models.backSlice = new Model(geometries.backSlice, 1, "bread", 0, 1, -.15)
 
     // Stores this player's currently active weapons
     this.weapons = []
@@ -956,7 +946,7 @@ class Player extends PhysicalObject {
   updateWorldPosition(gamerTagAngle) {
     this.gamerTag.model.setPosition(gamerTagAngle, 0, this.position.x, this.position.y, this.position.z, this.gamerTag.geometryInfo)
     for (let ingredient in this.models) {
-      this.models[ingredient].setPosition(this.position.yaw, this.position.lean, this.position.x, this.position.y, this.position.z, this.geometries[/*this.animation.startMeshName*/"idle"][ingredient]/*, this.geometries[this.animation.endMeshName][ingredient], this.animation.stage*/, this.state.walkCycle, this.state.crouchValue, this.state.slideValue)
+      this.models[ingredient].setPosition(this.position.yaw, this.position.lean, this.position.x, this.position.y, this.position.z, this.geometries[ingredient]/*, this.geometries[this.animation.endMeshName][ingredient], this.animation.stage*/, this.state.walkCycle, this.state.crouchValue, this.state.slideValue)
     }
   }
 
@@ -1165,50 +1155,41 @@ class Platform extends PhysicalObject {
     super(x, y, z, 0, 0, {mx: 0, px: 0, my: 0, py: 0, mz: 0, pz: 0})
     this.scale = scale || 1
 
-    if (type == "basic") {
-      this.models.main = new Model(geometryInfo[type], this.scale, "sub")
+    let positions = geometryInfo[type].positions
+    for (let i = 0; i < positions.length; i++) {
       this.dimensions = {
-        mx: -2.5 * this.scale * this.scale,
-        px: 2.5 * this.scale * this.scale,
-        my: 0,
-        py: 1.5 * this.scale * this.scale,
-        mz: -3 * this.scale * this.scale,
-        pz: 3 * this.scale * this.scale
+        mx: (positions[i][0] * this.scale * this.scale < this.dimensions.mx) ? positions[i][0] * this.scale * this.scale : this.dimensions.mx,
+        px: (positions[i][0] * this.scale * this.scale > this.dimensions.px) ? positions[i][0] * this.scale * this.scale : this.dimensions.px,
+        my: (positions[i][1] * this.scale * this.scale < this.dimensions.my) ? positions[i][1] * this.scale * this.scale : this.dimensions.my,
+        py: (positions[i][1] * this.scale * this.scale > this.dimensions.py) ? positions[i][1] * this.scale * this.scale : this.dimensions.py,
+        mz: (positions[i][2] * this.scale * this.scale < this.dimensions.mz) ? positions[i][2] * this.scale * this.scale : this.dimensions.mz,
+        pz: (positions[i][2] * this.scale * this.scale > this.dimensions.pz) ? positions[i][2] * this.scale * this.scale : this.dimensions.pz
       }
-      
-      this.models.main.setPosition(0, 0, this.position.x, this.position.y, this.position.z, geometryInfo[type]/*, geometryInfo[type], 1*/, 0)
+    }
+
+    this.texture = "jerry"
+
+    if (type == "basic") {
+      this.texture = "sub"
     }
     if (type == "crate") {
-      this.models.main = new Model(geometryInfo[type], this.scale, "wood")
-      this.dimensions = {
-        mx: -1 * this.scale * this.scale,
-        px: 1 * this.scale * this.scale,
-        my: 0,
-        py: 2 * this.scale * this.scale,
-        mz: -1 * this.scale * this.scale,
-        pz: 1 * this.scale * this.scale
-      }
-
-      this.models.main.setPosition(0, 0, this.position.x, this.position.y + this.dimensions.py / 2, this.position.z, geometryInfo[type]/*, geometryInfo[type], 1*/, 0)
-
+      this.texture = "wood"
     }
     if (type == "pinetree") {
-      this.models.main = new Model(geometryInfo[type], this.scale, "jerry")
-      this.dimensions = {
-        mx: -.25 * this.scale * this.scale,
-        px: .25 * this.scale * this.scale,
-        my: 0,
-        py: 5.8 * this.scale * this.scale,
-        mz: -.25 * this.scale * this.scale,
-        pz: .25 * this.scale * this.scale
-      }
+      this.texture = "jerry"
+      
+      this.dimensions.mx = -.25 * this.scale * this.scale,
+      this.dimensions.px = .25 * this.scale * this.scale,
+      this.dimensions.mz = -.25 * this.scale * this.scale
+      this.dimensions.pz = .25 * this.scale * this.scale
 
       //setInterval(() => {
       //  this.models.main.setPosition(0, Math.sin(Date.now() / 500) / 5, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
       //}, 20)
-
-      this.models.main.setPosition(0, 0, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type]/*, geometryInfo[type], 1*/, 0)
     }
+
+    this.models.main = new Model(geometryInfo[type], this.scale, this.texture)
+    this.models.main.setPosition(0, 0, this.position.x, this.position.y, this.position.z, geometryInfo[type], 0)
   }
 
 
