@@ -49,9 +49,6 @@ var lastWPress = Date.now()
 var lookAngleX = 0.0
 var lookAngleY = 0.0
 
-// combat global variables //
-var cooldownTimer = 0
-var currentCooldown = 1
 
 
 
@@ -280,7 +277,7 @@ socket.on("respawn", (data) => {
     player.lastPosition = data.position
     player.lastState = data.state
     player.position = data.position
-    players.health = data.health
+    player.health = data.health
     player.state = data.state
 })
 
@@ -349,7 +346,20 @@ var inventory
 // TESTING //
 
 
+var testMatrix = mat4.create()
+mat4.translate(testMatrix, testMatrix, [.5, .6, .7])
 
+var testAngle = Math.PI
+
+var matrix = [
+    1, 0, 0,
+    0, Math.cos(testAngle), -Math.sin(testAngle),
+    0, Math.sin(testAngle), Math.cos(testAngle),
+]
+
+console.log(matrix)
+
+console.log(testMatrix)
 
 
 
@@ -377,7 +387,7 @@ function update(now) {
 
 	player.position.yaw = lookAngleY
 	player.position.lean = lookAngleX
-	player.updateWorldPosition(lookAngleY) // this must go last
+	player.updateWorldPosition(lookAngleY, lookAngleX) // this must go last
 
 
     // update other player positions
@@ -445,20 +455,12 @@ function update(now) {
 
 
 
-        otherPlayers[i].updateWorldPosition(lookAngleY);
+        otherPlayers[i].updateWorldPosition(lookAngleY, lookAngleX);
     }
 
 
-    let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
-    //let distanceFromPlayer = 2
 
     if (inventory.currentWeapon != null) {
-        inventory.currentWeapon.models.main.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
-    
-        inventory.currentWeapon.position.x = player.position.x + Math.cos(player.position.yaw) * 2//distanceFromPlayer
-        inventory.currentWeapon.position.y = player.position.y + 1.5
-        inventory.currentWeapon.position.z = player.position.z + Math.sin(player.position.yaw) * 2//distanceFromPlayer
-        inventory.currentWeapon.position.yaw = Date.now() / 1000 + player.position.yaw
         inventory.currentWeapon.calculatePosition(deltaTime, socket) // weapon collision updates need to be sent to the server in calculatePosition method
 
         inventory.currentWeapon.updateWorldPosition()
@@ -605,9 +607,9 @@ function fixedUpdate() {
 	}
 
     if (leftClicking) {
-        if (!inventory.currentWeapon.shooted && cooldownTimer <= 0) {
-              currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
-              cooldownTimer = currentCooldown
+        if (!inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
+              player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
+              player.cooldownTimer = player.currentCooldown
               console.log(inventory.currentWeapon)
               otherWeapons.push(inventory.currentWeapon)
               inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[inventory.currentSelection], [platforms, otherPlayers, [ground]], player)
@@ -643,7 +645,6 @@ function fixedUpdate() {
 
     for (let i = otherWeapons.length - 1; i >= 0; i--) {
         if (otherWeapons[i].shooted) {
-            otherWeapons[i].position.yaw += deltaTime / 1000
             otherWeapons[i].calculatePosition(deltaTime, socket)
 
             if (Math.abs(otherWeapons[i].position.x) > 50 || Math.abs(otherWeapons[i].position.z) > 50) {
@@ -659,8 +660,8 @@ function fixedUpdate() {
 
 
     // combat updates //
-    cooldownTimer -= deltaTime / 1000
-    if (cooldownTimer < 0) cooldownTimer = 0
+    player.cooldownTimer -= deltaTime / 1000
+    if (player.cooldownTimer < 0) player.cooldownTimer = 0
 
 }
 

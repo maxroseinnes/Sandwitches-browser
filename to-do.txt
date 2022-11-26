@@ -27,3 +27,5 @@ drawing transparent stuff:
     idea: make second canvas on top for transparent stuff
 
 
+make smoothPosition method for PhysicalObject class
+

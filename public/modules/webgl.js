@@ -483,7 +483,7 @@ class Model {
   }
 
 
-  setPosition(yaw, lean, x, y, z, mesh, walkCycle, crouchValue, slideValue) {
+  setPosition(yaw, lean, pitch, roll, x, y, z, mesh, walkCycle, crouchValue, slideValue) {
     // lean is used only for player models leaning
 
     walkCycle = walkCycle || 0
@@ -494,6 +494,21 @@ class Model {
     let geometryInfo = this.geometryInfo
     let indices = geometryInfo.indices
 
+    let matrix = mat4.create()
+    mat4.translate(matrix, matrix, [x, y, z])
+    mat4.rotateY(matrix, matrix, -yaw)
+    mat4.rotateX(matrix, matrix, -pitch)
+    mat4.rotateZ(matrix, matrix, roll)
+    //mat4.translate(matrix, matrix, [this.offsetX, this.offsetY, this.offsetZ])
+
+    // ** save walk in w slot? **
+
+
+    
+    let testVec4 = vec4.fromValues(0, 0, 1, 1)
+    vec4.transformMat4(testVec4, [0, 0, 1, 1], matrix)
+    
+
     for (let i = 0; i < this.pointIndices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
         for (let j = 0; j < this.pointIndices[i].length; j++) {
 
@@ -503,21 +518,37 @@ class Model {
 
           let walk = Math.sin(walkCycle) * (2 - modelY) * Math.sin(modelX * 2)
           let walkX = modelX// + .25 * Math.sin(walkCycle) * (2 - modelY) * Math.sin(modelX)
-          let walkY = modelY + modelY * Math.sin(modelX * 2) * Math.sin(walkCycle) * .025
+          let walkY = modelY * (1 - (crouchValue / 2)) + modelY * Math.sin(modelX * 2) * Math.sin(walkCycle) * .025
           let walkZ = modelZ + .2 * walk
 
-          let xRotatedZ = walkZ * this.scale * Math.cos(lean * walkY / 3) - walkY * this.scale * Math.sin(lean * walkY / 3)
-          let xRotatedY = walkZ * this.scale * Math.sin(lean * walkY / 3) + walkY * this.scale * Math.cos(lean * walkY / 3)
-          let xRotatedX = walkX * this.scale
+          //let zRotatedX = walkX * Math.cos(roll) - walkY * Math.sin(roll)
+          //let zRotatedY = walkX * Math.sin(roll) + walkY * Math.cos(roll)
+          //let zRotatedZ = walkZ
 
-          let rotatedX = xRotatedX * Math.cos(yaw) - xRotatedZ * Math.sin(yaw) + x
-          let rotatedY = xRotatedY * (1 - (crouchValue / 2)) + y
-          let rotatedZ = xRotatedX * Math.sin(yaw) + xRotatedZ * Math.cos(yaw) + z
+          //let xRotatedZ = zRotatedZ * Math.cos(pitch) - zRotatedY * Math.sin(pitch)
+          //let xRotatedY = zRotatedZ * Math.sin(pitch) + zRotatedY * Math.cos(pitch)
+          //let xRotatedX = zRotatedX
+
+          let lRotatedZ = walkZ * Math.cos(lean * modelY / 3) - walkY * Math.sin(lean * modelY / 3)
+          let lRotatedY = walkZ * Math.sin(lean * modelY / 3) + walkY * Math.cos(lean * modelY / 3)
+          let lRotatedX = walkX
+
+          //let rotatedX = lRotatedX * Math.cos(yaw) - lRotatedZ * Math.sin(yaw) + x
+          //let rotatedY = lRotatedY * (1 - (crouchValue / 2)) + y
+          //let rotatedZ = lRotatedX * Math.sin(yaw) + lRotatedZ * Math.cos(yaw) + z
+
+          let transformedPosition = vec4.create()
+          vec4.transformMat4(transformedPosition, [
+            lRotatedX,
+            lRotatedY,
+            lRotatedZ,
+            1
+          ], matrix)
 
           webgl.points.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3, 
-            rotatedX, 
-            rotatedY, 
-            rotatedZ
+            transformedPosition[0], 
+            transformedPosition[1], 
+            transformedPosition[2]
           )
 
           
@@ -526,9 +557,17 @@ class Model {
           let modelN2 = /*this.lerp(*/mesh.normals[mesh.indices[i].normals[j]][1]/*, mesh2.normals[mesh2.indices[i].normals[j]][1], stage)*/
           let modelN3 = /*this.lerp(*/mesh.normals[mesh.indices[i].normals[j]][2]/*, mesh2.normals[mesh2.indices[i].normals[j]][2], stage)*/
 
-          let xRotatedN3 = modelN3 * Math.cos(lean * modelY / 3) - modelN2 * Math.sin(lean * modelY / 3)
-          let xRotatedN2 = modelN3 * Math.sin(lean * modelY / 3) + modelN2 * Math.cos(lean * modelY / 3)
-          let xRotatedN1 = modelN1
+          let walkN3 = modelN3 * Math.cos(lean * modelY / 3) - modelN2 * Math.sin(lean * modelY / 3)
+          let walkN2 = modelN3 * Math.sin(lean * modelY / 3) + modelN2 * Math.cos(lean * modelY / 3)
+          let walkN1 = modelN1
+
+          let zRotatedN1 = walkN1 * Math.cos(roll) - walkN2 * Math.sin(roll)
+          let zRotatedN2 = walkN1 * Math.sin(roll) + walkN2 * Math.cos(roll)
+          let zRotatedN3 = walkN3
+
+          let xRotatedN3 = zRotatedN3 * Math.cos(pitch) - zRotatedN2 * Math.sin(pitch)
+          let xRotatedN2 = zRotatedN3 * Math.sin(pitch) + zRotatedN2 * Math.cos(pitch)
+          let xRotatedN1 = zRotatedN1
 
           let wRotatedN3 = xRotatedN3 * Math.cos(.2 * walk) - xRotatedN2 * Math.sin(.2 * walk)
           let wRotatedN2 = xRotatedN3 * Math.sin(.2 * walk) + xRotatedN2 * Math.cos(.2 * walk)
@@ -562,8 +601,6 @@ class Model {
       return
     }
 
-    Model.allModels.splice(Model.allModels.indexOf(this), 1)
-
     let deletedPoints = this.pointIndices.length * 3
 
     webgl.points.splice((this.pointIndices[0][0] + this.indexOffset) * 3, deletedPoints * 3)
@@ -573,15 +610,12 @@ class Model {
     webgl.pointCount -= deletedPoints
 
     
-    for (let i = 0; i < Model.allModels.length; i++) {
-      if (Model.allModels[i].pointIndices[0][0] + Model.allModels[i].indexOffset >= this.pointIndices[0][0] + this.indexOffset){
-        
-        Model.allModels[i].indexOffset -= deletedPoints
-      }
-      
+    for (let i = Model.allModels.indexOf(this); i < Model.allModels.length; i++) {
+      Model.allModels[i].indexOffset -= deletedPoints
     }
+    Model.allModels.splice(Model.allModels.indexOf(this), 1)
+
     this.pointIndices = []
-    console.log("deleted")
   }
 
 }
@@ -596,21 +630,27 @@ class PhysicalObject {
       y: y,
       z: z,
       yaw: yaw,
-      lean: lean
+      lean: lean,
+      pitch: 0,
+      roll: 0
     }
     this.lastPosition = { // used for collision
       x: x,
       y: y,
       z: z,
       yaw: yaw,
-      lean: lean
+      lean: lean,
+      pitch: 0,
+      roll: 0
     }
     this.serverPosition = { // updated in tick function
       x: x,
       y: y,
       z: z,
       yaw: yaw,
-      lean: lean
+      lean: lean,
+      pitch: 0,
+      roll: 0
     }
     this.pastPositions = [ // optional use for smoothing
       {
@@ -618,7 +658,9 @@ class PhysicalObject {
         y: y,
         z: z,
         yaw: yaw,
-        lean: lean
+        lean: lean,
+        pitch: 0,
+        roll: 0
       }
     ]
     // dimensions used for collision
@@ -836,7 +878,7 @@ class GamerTag {
 
     webgl.loadTexture(webgl.gl, webgl.textureMap)
 
-    this.model = new Model(this.geometryInfo, 1, name, 0, 2.75, 0)
+    this.model = new Model(this.geometryInfo, 1, name, 0, 0, 0)
   }
 }
 
@@ -903,7 +945,7 @@ class Particle extends PhysicalObject {
     //this.position.yaw += deltaTime * .001
 
     this.models.main.scale = Math.sin(Math.sqrt((Date.now() - this.startTime) / this.lifeSpan) * Math.PI)
-    this.models.main.setPosition(this.position.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfo)
+    this.models.main.setPosition(this.position.yaw, 0, 0, 0, this.position.x, this.position.y, this.position.z, this.geometryInfo)
   }
 
 }
@@ -924,6 +966,9 @@ class Player extends PhysicalObject {
 
     // Stores this player's currently active weapons
     this.weapons = []
+
+    this.cooldownTimer = 0
+    this.currentCooldown = 1
 
 
     this.animation = {
@@ -999,29 +1044,29 @@ class Player extends PhysicalObject {
         }
         if (collision.mx.intersects) {
           this.position.x = collision.mx.x
-          if (this.movementState == "sprinting") this.movementState = "walking"
+          if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
         }
         if (collision.px.intersects) {
           this.position.x = collision.px.x
-          if (this.movementState == "sprinting") this.movementState = "walking"
+          if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
         }
         if (collision.mz.intersects) {
           this.position.z = collision.mz.z
-          if (this.movementState == "sprinting") this.movementState = "walking"
+          if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
         }
         if (collision.pz.intersects) {
           this.position.z = collision.pz.z
-          if (this.movementState == "sprinting") this.movementState = "walking"
+          if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
         }
       }
     }
 
   }
 
-  updateWorldPosition(gamerTagAngle) {
-    this.gamerTag.model.setPosition(gamerTagAngle, 0, this.position.x, this.position.y, this.position.z, this.gamerTag.geometryInfo)
+  updateWorldPosition(gamerTagAngleY, gamerTagAngleX) {
+    this.gamerTag.model.setPosition(gamerTagAngleY, 0, gamerTagAngleX, 0, this.position.x, this.position.y + 2.75, this.position.z, this.gamerTag.geometryInfo)
     for (let ingredient in this.models) {
-      this.models[ingredient].setPosition(this.position.yaw, this.position.lean, this.position.x, this.position.y, this.position.z, this.geometries[ingredient]/*, this.geometries[this.animation.endMeshName][ingredient], this.animation.stage*/, this.state.walkCycle, this.state.crouchValue, this.state.slideValue)
+      this.models[ingredient].setPosition(this.position.yaw, this.position.lean, 0, 0, this.position.x, this.position.y, this.position.z, this.geometries[ingredient]/*, this.geometries[this.animation.endMeshName][ingredient], this.animation.stage*/, this.state.walkCycle, this.state.crouchValue, this.state.slideValue)
     }
   }
 
@@ -1074,17 +1119,24 @@ class Weapon extends PhysicalObject {
     this.owner = owner
 
     // default settings
+    this.class = "projectile"
+
     this.cooldown = 1 // seconds
-    this.automatic = false
-    this.speed = .05 // units/millisecond
+
+    this.speed = .025 // units/millisecond
     this.manaCost = 20
     this.damage = 10 // this might be handled server
+
     this.chargeTime = 0 // seconds
+
     this.burstCount = 1
     this.burstInterval = .5 // time between shots of bursts, seconds
+
     this.scale = 1
 
     if (type == "tomato") {
+      this.class = "projectile"
+
       this.cooldown = .5
       this.manaCost = 5
       this.damage = 5
@@ -1094,7 +1146,9 @@ class Weapon extends PhysicalObject {
     }
     
     if (type == "olive") {
-      this.cooldown = .5
+      this.class = "projectile"
+
+      this.cooldown = .15
       this.manaCost = 5
       this.damage = 5
 
@@ -1103,6 +1157,8 @@ class Weapon extends PhysicalObject {
     }
 
     if (type == "pickle") {
+      this.class = "projectile"
+
       this.cooldown = .5
       this.manaCost = 5
       this.damage = 5
@@ -1112,6 +1168,8 @@ class Weapon extends PhysicalObject {
     }
 
     if (type == "sausage") {
+      this.class = "melee"
+    
       this.cooldown = .5
       this.manaCost = 5
       this.damage = 5
@@ -1122,6 +1180,8 @@ class Weapon extends PhysicalObject {
 
     
     if (type == "anchovy") {
+      this.class = "missile"
+
       this.cooldown = .5
       this.manaCost = 5
       this.damage = 5
@@ -1132,6 +1192,8 @@ class Weapon extends PhysicalObject {
 
 
     if (type == "pan") {
+      this.class = "melee"
+    
       this.cooldown = .5
       this.manaCost = 5
       this.damage = 5
@@ -1160,6 +1222,21 @@ class Weapon extends PhysicalObject {
         this.particles.splice(i, 1)
       }
     }
+
+    let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((this.owner.currentCooldown - this.owner.cooldownTimer) / this.owner.currentCooldown - 1)) + 1) / 2
+    if (!this.shooted) {
+      this.models.main.scale = this.scale * distanceFromPlayer / 2
+      
+      this.position.x = this.owner.position.x + Math.cos(this.owner.position.yaw) * distanceFromPlayer
+      this.position.y = this.owner.position.y + 1.5
+      this.position.z = this.owner.position.z + Math.sin(this.owner.position.yaw) * distanceFromPlayer
+
+    }
+    if (!this.shooted) this.position.yaw = this.owner.position.yaw + ((this.class == "projectile") ? Date.now() / 1000 : 0)
+    this.position.yaw += ((this.class == "projectile") ? deltaTime / 1000 : 0)
+
+    if (!this.shooted) this.position.pitch = (this.class == "missile") ? this.owner.position.lean : 0
+    //this.position.roll += ((this.class == "missile") ? deltaTime / 1000 : 0)
 
     this.lastPosition = {x: this.position.x, y: this.position.y, z: this.position.z}
     if (this.shooted) {
@@ -1203,7 +1280,7 @@ class Weapon extends PhysicalObject {
       new Particle(this.position.x, this.position.y, this.position.z, {x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5}, 1500, [])
     )
 
-    this.models.main.setPosition(this.position.yaw, 0, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type]/*, this.geometryInfos[this.type], 1*/, 0)
+    this.models.main.setPosition(this.position.yaw, 0, this.position.pitch, this.position.roll, this.position.x, this.position.y, this.position.z, this.geometryInfos[this.type]/*, this.geometryInfos[this.type], 1*/, 0)
   }
 
   shoot(angleX, yaw) {
@@ -1253,12 +1330,12 @@ class Platform extends PhysicalObject {
     let positions = geometryInfo[type].positions
     for (let i = 0; i < positions.length; i++) {
       this.dimensions = {
-        mx: (positions[i][0] * this.scale * this.scale < this.dimensions.mx) ? positions[i][0] * this.scale * this.scale : this.dimensions.mx,
-        px: (positions[i][0] * this.scale * this.scale > this.dimensions.px) ? positions[i][0] * this.scale * this.scale : this.dimensions.px,
-        my: (positions[i][1] * this.scale * this.scale < this.dimensions.my) ? positions[i][1] * this.scale * this.scale : this.dimensions.my,
-        py: (positions[i][1] * this.scale * this.scale > this.dimensions.py) ? positions[i][1] * this.scale * this.scale : this.dimensions.py,
-        mz: (positions[i][2] * this.scale * this.scale < this.dimensions.mz) ? positions[i][2] * this.scale * this.scale : this.dimensions.mz,
-        pz: (positions[i][2] * this.scale * this.scale > this.dimensions.pz) ? positions[i][2] * this.scale * this.scale : this.dimensions.pz
+        mx: (positions[i][0] * this.scale < this.dimensions.mx) ? positions[i][0] * this.scale : this.dimensions.mx,
+        px: (positions[i][0] * this.scale > this.dimensions.px) ? positions[i][0] * this.scale : this.dimensions.px,
+        my: (positions[i][1] * this.scale < this.dimensions.my) ? positions[i][1] * this.scale : this.dimensions.my,
+        py: (positions[i][1] * this.scale > this.dimensions.py) ? positions[i][1] * this.scale : this.dimensions.py,
+        mz: (positions[i][2] * this.scale < this.dimensions.mz) ? positions[i][2] * this.scale : this.dimensions.mz,
+        pz: (positions[i][2] * this.scale > this.dimensions.pz) ? positions[i][2] * this.scale : this.dimensions.pz
       }
     }
 
@@ -1273,18 +1350,18 @@ class Platform extends PhysicalObject {
     if (type == "pinetree") {
       this.texture = "jerry"
       
-      this.dimensions.mx = -.25 * this.scale * this.scale,
-      this.dimensions.px = .25 * this.scale * this.scale,
-      this.dimensions.mz = -.25 * this.scale * this.scale
-      this.dimensions.pz = .25 * this.scale * this.scale
+      this.dimensions.mx = -.25 * this.scale
+      this.dimensions.px = .25 * this.scale
+      this.dimensions.mz = -.25 * this.scale
+      this.dimensions.pz = .25 * this.scale
 
       //setInterval(() => {
-      //  this.models.main.setPosition(0, Math.sin(Date.now() / 500) / 5, this.position.x, this.position.y - .1 * this.scale * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
+      //  this.models.main.setPosition(0, Math.sin(Date.now() / 500) / 5, 0, 0, this.position.x, this.position.y - .1 * this.scale, this.position.z, geometryInfo[type], geometryInfo[type], 1)
       //}, 20)
     }
 
     this.models.main = new Model(geometryInfo[type], this.scale, this.texture)
-    this.models.main.setPosition(0, 0, this.position.x, this.position.y, this.position.z, geometryInfo[type], 0)
+    this.models.main.setPosition(0, 0, 0, 0, this.position.x, this.position.y, this.position.z, geometryInfo[type], 0)
   }
 
 
