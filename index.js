@@ -106,17 +106,17 @@ var maps = {
 
 var players = {};
 
-var TPS = 20;
+const TPS = 20;
 
 app.use(express.static("public"));
 
 function respawnPlayer(name) {
-  console.log("test")
-
   players[name].position.x = Math.random() * 10 - 5;
+  players[name].position.y = 0;
   players[name].position.z = Math.random() * 10 - 5;
   players[name].position.yaw = 0
   players[name].position.pitch = 0
+  players[name].health = DEFAULT_PLAYER_HEALTH
   players[name].respawnedThisTick = true
   players[name].socket.emit("respawn", {
     position: {
@@ -131,23 +131,46 @@ function respawnPlayer(name) {
   })
 }
 
+// Generate JSON containing data to be sent over the network for a specified player
+function genPlayerPacket(name) {
+  var data = {}
+  data.position = {
+    x: players[name].position.x,
+    y: players[name].position.y,
+    z: players[name].position.z,
+    yaw: players[name].position.yaw,
+    lean: players[name].position.lean,
+  }
+  data.respawnedThisTick = players[name].respawnedThisTick
+  data.state = players[name].state
+  data.health = players[name].health
+  data.name = name
+
+  return data
+}
+
+// Broadcast to all connected players except for a specified one
+function broadcast(eventName, msg, except) {
+  for (var name in players) {
+    if (name != except) players[name].socket.emit(eventName, msg)
+  }
+}
+
 var timeOfLastTick;
 function tick() {
+  // Compile player data into an array (will refactor to be a big JSON later which will hopefully optimized the client a bit)
   var playersData = []
   for (var name in players) {
-    if (players[name] != null) playersData.push({
-      name: name, 
-      position: players[name].position, 
-      health: players[name].health, 
-      respawnedThisTick: players[name].respawnedThisTick,
-      state: players[name].state})
+    if (players[name] != null) playersData.push(genPlayerPacket(name))
   }
-  for (var name in players) {
-    if (players[name] != null) players[name].socket.emit("playerUpdate", playersData);
-  }
+
+  // Send array to each connected player
+  broadcast("playerUpdate", playersData, null)
+
   for (var name in players) {
     players[name].respawnedThisTick = false
   }
+
   if (timeOfLastTick != undefined) {
     //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
   }
@@ -187,6 +210,7 @@ socketServer.on("connection", (socket) => {
     var newPlayer = { 
       position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5, yaw: 0, lean: 0 }, 
       health: DEFAULT_PLAYER_HEALTH,
+      respawnedThisTick: false,
       state: { walkCycle: 0, crouchValue: 0, slideValue: 0 }, 
       socket: socket};
     players[name] = newPlayer;
@@ -248,6 +272,7 @@ socketServer.on("connection", (socket) => {
         delete players[name];
       }
     }
+
   })
 });
 
