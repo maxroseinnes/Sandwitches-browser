@@ -41,21 +41,14 @@ var rightClicking = false
 
 var pointerLocked = false
 
-var lastWRelease = Date.now()
+var lastWPress = Date.now()
 
 // movement global variables //
-var gravity = 0
-var crouching = false
-var onGround = true
-var lastOnGround = true
 
 
 var lookAngleX = 0.0
 var lookAngleY = 0.0
 
-// combat global variables //
-var cooldownTimer = 0
-var currentCooldown = 1
 
 
 
@@ -63,10 +56,6 @@ var currentCooldown = 1
 var lastFramerates = []
 var lastYPositions = []
 for (let i = 0; i < 200; i++) lastYPositions.push(0)
-var breadY = 0
-var cheeseY = 0
-var meatY = 0
-var tomatoY = 0
 
 var running = false;
 var updateThen = 0;
@@ -108,51 +97,16 @@ webgl.initialize()
 
 
 var playerIdleInfo = obj.parseWavefront(fetchObj("player/PlayerIdle.obj"), true)
-var playerStepRightFootInfo = obj.parseWavefront(fetchObj("player/PlayerRightNubForward.obj"), true)
-var playerWalkLeftFootInfo = obj.parseWavefront(fetchObj("player/PlayerLeftNubForwardRightNubBack.obj"), true)
-var playerWalkRightFootInfo = obj.parseWavefront(fetchObj("player/PlayerRightNubForwardLeftNubBack.obj"), true)
 
 var playerGeometry = {
-	idle: {
-		frontSlice: playerIdleInfo["Bread"],
-		backSlice: playerIdleInfo["Bread.001"],
-		cheese: playerIdleInfo["Cheese"],
-		meat: playerIdleInfo["Meat"],
-		tomato1: playerIdleInfo["Tomato"],
-		tomato2: playerIdleInfo["Tomato.001"],
-		tomato3: playerIdleInfo["Tomato.002"],
-		tomato4: playerIdleInfo["Tomato.003"],
-	},
-	stepRightFoot: {
-		frontSlice: playerStepRightFootInfo["Bread"],
-		backSlice: playerStepRightFootInfo["Bread.001"],
-		cheese: playerStepRightFootInfo["Cheese"],
-		meat: playerStepRightFootInfo["Meat"],
-		tomato1: playerStepRightFootInfo["Tomato"],
-		tomato2: playerStepRightFootInfo["Tomato.001"],
-		tomato3: playerStepRightFootInfo["Tomato.002"],
-		tomato4: playerStepRightFootInfo["Tomato.003"],
-	},
-	walkLeftFoot: {
-		frontSlice: playerWalkLeftFootInfo["Bread"],
-		backSlice: playerWalkLeftFootInfo["Bread.001"],
-		cheese: playerWalkLeftFootInfo["Cheese"],
-		meat: playerWalkLeftFootInfo["Meat"],
-		tomato1: playerWalkLeftFootInfo["Tomato"],
-		tomato2: playerWalkLeftFootInfo["Tomato.001"],
-		tomato3: playerWalkLeftFootInfo["Tomato.002"],
-		tomato4: playerWalkLeftFootInfo["Tomato.003"],
-	},
-	walkRightFoot: {
-		frontSlice: playerWalkRightFootInfo["Bread"],
-		backSlice: playerWalkRightFootInfo["Bread.001"],
-		cheese: playerWalkRightFootInfo["Cheese"],
-		meat: playerWalkRightFootInfo["Meat"],
-		tomato1: playerWalkRightFootInfo["Tomato"],
-		tomato2: playerWalkRightFootInfo["Tomato.001"],
-		tomato3: playerWalkRightFootInfo["Tomato.002"],
-		tomato4: playerWalkRightFootInfo["Tomato.003"],
-	}
+    frontSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
+    backSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
+    cheese: playerIdleInfo["Cheese"],
+    meat: playerIdleInfo["Meat"],
+    tomato1: playerIdleInfo["Tomato"],
+    tomato2: playerIdleInfo["Tomato.001"],
+    tomato3: playerIdleInfo["Tomato.002"],
+    tomato4: playerIdleInfo["Tomato.003"]
 }
 
 var weaponGeometry = {
@@ -179,7 +133,6 @@ var player
 var ticks = 0;
 function tick() {
     ticks++;
-    console.log(player.position.y)
     if (player.position.y < -100) {
         /*var respawnPositionX = Math.random() * 10 - 5;
         var respawnPositionZ = Math.random() * 10 - 5;
@@ -228,38 +181,10 @@ socket.on("assignPlayer", (playerInfo) => {
     player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.name, [platforms, [ground]]);
     inventory = {
         loadOut: ["anchovy", "olive", "pickle", "sausage"],
-        weaponModels: [],
         currentSelection: 0,
-        currentWeapon: null,
-        
-    
-    
-        initialize: function() {
-            for (let i = 0; i < this.loadOut.length; i++) {
-                //this.weaponModels.push(new Weapon(weaponGeometry, this.loadOut[i]))
-            }
-    
-            //this.currentWeapon = this.weaponModels[this.currentSelection]
-            this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0], [platforms, otherPlayers, [ground]], player)
-        },
-    
-        updateHUD: function() {
-            let width = effectsCanvas.width
-            let height = effectsCanvas.height
-            ctx.clearRect(width - 400, height - 200, 400, 200)
-            ctx.fillRect(width - 400, height - 200, 400, 100)
-            
-            for (let i = 0; i < this.loadOut.length; i++) {
-                if (this.loadOut[i] == "tomato") ctx.fillStyle = "red"
-                if (this.loadOut[i] == "olive") ctx.fillStyle = "green"
-                if (this.loadOut[i] == "pickle") ctx.fillStyle = "lightgreen"
-                if (this.loadOut[i] == "sausage") ctx.fillStyle = "brown"
-    
-                ctx.fillRect(width - 400 + i * 100, height - 200, 100, 100)
-            }
-        }
+        currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player),
     }
-    inventory.initialize()
+    updateHUD()
 });
 
 socket.on("map", (mapInfo) => {
@@ -352,7 +277,7 @@ socket.on("respawn", (data) => {
     player.lastPosition = data.position
     player.lastState = data.state
     player.position = data.position
-    players.health = data.health
+    player.health = data.health
     player.state = data.state
 })
 
@@ -376,15 +301,32 @@ const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp
 
 var otherWeapons = []
 
-{/*
-    let groundPoint1 = new Point(50, -.01, 50, 0, 1, 0, 1, 1, 1, 0.0, 0.0)
-    let groundPoint2 = new Point(-50, -.01, 50, 0, 1, 0, 1, 1, 1, 1.0, 0.0)
-    let groundPoint3 = new Point(-50, -.01, -50, 0, 1, 0, 1, 1, 1, 1.0, 1.0)
-    let groundPoint4 = new Point(-50, -.01, -50, 0, 1, 0, 1, 1, 1, 1.0, 1.0)
-    let groundPoint5 = new Point(50, -.01, -50, 0, 1, 0, 1, 1, 1, 0.0, 1.0)
-    let groundPoint6 = new Point(50, -.01, 50, 0, 1, 0, 1, 1, 1, 0.0, 0.0)
+var updateHUD = () => {
+    let width = effectsCanvas.width
+    let height = effectsCanvas.height
+    ctx.clearRect(width - 510, height - 210, 420, 220)
+    ctx.fillStyle = "white"
+    ctx.fillRect(width - 510, height - 210, 420, 120)
     
-*/
+    for (let i = 0; i < inventory.loadOut.length; i++) {
+        if (inventory.loadOut[i] == "tomato") ctx.fillStyle = "red"
+        if (inventory.loadOut[i] == "olive") ctx.fillStyle = "green"
+        if (inventory.loadOut[i] == "pickle") ctx.fillStyle = "lightgreen"
+        if (inventory.loadOut[i] == "sausage") ctx.fillStyle = "brown"
+        if (inventory.loadOut[i] == "anchovy") ctx.fillStyle = "blue"
+
+        ctx.fillRect(width - 500 + i * 100, height - 200, 100, 100)
+    }
+
+    ctx.fillStyle = "yellow"
+    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - 500 - i + inventory.currentSelection * 100, height - 200 - i, 100 + i * 2, 100 + i * 2)
+}
+
+var changeWeaponSelection = (selection) => {
+    inventory.currentSelection = selection
+    inventory.currentWeapon.remove()
+    inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[selection], [platforms, otherPlayers, [ground]], player)
+    updateHUD()
 }
 
 // 2D EFFECTS //
@@ -398,66 +340,26 @@ var chOffset = 10
 
 
 
-var inventory /*= {
-    loadOut: ["anchovy", "olive", "pickle", "sausage"],
-    weaponModels: [],
-    currentSelection: 0,
-    currentWeapon: null,
-    
-
-
-    initialize: function() {
-        for (let i = 0; i < this.loadOut.length; i++) {
-            //this.weaponModels.push(new Weapon(weaponGeometry, this.loadOut[i]))
-        }
-
-        //this.currentWeapon = this.weaponModels[this.currentSelection]
-        this.currentWeapon = new Weapon(weaponGeometry, this.loadOut[0], [platforms, otherPlayers, [ground]], undefined)
-    },
-
-    updateHUD: function() {
-        let width = effectsCanvas.width
-        let height = effectsCanvas.height
-        ctx.clearRect(width - 400, height - 200, 400, 200)
-        ctx.fillRect(width - 400, height - 200, 400, 100)
-        
-        for (let i = 0; i < this.loadOut.length; i++) {
-            if (this.loadOut[i] == "tomato") ctx.fillStyle = "red"
-            if (this.loadOut[i] == "olive") ctx.fillStyle = "green"
-            if (this.loadOut[i] == "pickle") ctx.fillStyle = "lightgreen"
-            if (this.loadOut[i] == "sausage") ctx.fillStyle = "brown"
-
-            ctx.fillRect(width - 400 + i * 100, height - 200, 100, 100)
-        }
-    }
-}*/
-
-//inventory.initialize()
-//inventory.updateHUD()
+var inventory
 
 
 // TESTING //
 
-/*
-console.log(playerGeometry.idle.cheese)
 
-//let testPositions = obj.parseWavefront(fetchObj("pinetree.obj")).positions
-let testPositions = platformGeometry.crate.positions
-let duplicates = []
-for (let i = 0; i < testPositions.length; i++) {
-    duplicates.push(0)
-    for (let j = 0; j < testPositions.length; j++) {
-        let isDuplicate = true
-        for (let k = 0; k < testPositions[i].length; k++) if (i == j || testPositions[i][k] != testPositions[j][k]) isDuplicate = false
-        if (isDuplicate) duplicates[i] = testPositions[i]
-    }
-    console.log(duplicates[i])
-}
-console.log(duplicates)
-*/
+var testMatrix = mat4.create()
+mat4.translate(testMatrix, testMatrix, [.5, .6, .7])
 
-console.log(weaponGeometry.tomato.indices.length)
+var testAngle = Math.PI
 
+var matrix = [
+    1, 0, 0,
+    0, Math.cos(testAngle), -Math.sin(testAngle),
+    0, Math.sin(testAngle), Math.cos(testAngle),
+]
+
+console.log(matrix)
+
+console.log(testMatrix)
 
 
 
@@ -485,7 +387,7 @@ function update(now) {
 
 	player.position.yaw = lookAngleY
 	player.position.lean = lookAngleX
-	player.updateWorldPosition() // this must go last
+	player.updateWorldPosition(lookAngleY, lookAngleX) // this must go last
 
 
     // update other player positions
@@ -553,20 +455,12 @@ function update(now) {
 
 
 
-        otherPlayers[i].updateWorldPosition();
+        otherPlayers[i].updateWorldPosition(lookAngleY, lookAngleX);
     }
 
 
-    let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((currentCooldown - cooldownTimer) / currentCooldown - 1)) + 1) / 2
-    //let distanceFromPlayer = 2
 
     if (inventory.currentWeapon != null) {
-        inventory.currentWeapon.models.main.scale = inventory.currentWeapon.scale * distanceFromPlayer / 2
-    
-        inventory.currentWeapon.position.x = player.position.x + Math.cos(player.position.yaw) * 2//distanceFromPlayer
-        inventory.currentWeapon.position.y = player.position.y + 1.5
-        inventory.currentWeapon.position.z = player.position.z + Math.sin(player.position.yaw) * 2//distanceFromPlayer
-        inventory.currentWeapon.position.yaw = Date.now() / 1000 + player.position.yaw
         inventory.currentWeapon.calculatePosition(deltaTime, socket) // weapon collision updates need to be sent to the server in calculatePosition method
 
         inventory.currentWeapon.updateWorldPosition()
@@ -591,16 +485,39 @@ function fixedUpdate() {
 	// -- Movement -- //
 
 	let speed = .0075;
-    if (player.movementState == "walking") speed = .0075
-    if (player.movementState == "crouching") speed = .0025
-    if (player.movementState == "sprinting") speed = .015
+    if (player.movementState == "walking") {
+        speed = .0075
+        webgl.fov -= deltaTime * .0025
+        if (webgl.fov < Math.PI / 3) webgl.fov = Math.PI / 3
+    }
+    if (player.movementState == "crouching") {
+        speed = .0025
+        webgl.fov -= deltaTime * .0025
+        if (webgl.fov < Math.PI / 3) webgl.fov = Math.PI / 3
+    }
+    if (player.movementState == "sprinting") {
+        speed = .015
+        webgl.fov += deltaTime * .0025
+        if (webgl.fov > Math.PI / 5 * 2) webgl.fov = Math.PI / 5 * 2
+    }
+    if (player.movementState == "sliding") {
+        speed = .01
+        webgl.fov += deltaTime * .0025
+        if (webgl.fov > Math.PI / 5 * 2) webgl.fov = Math.PI / 5 * 2
+    }
 	let walkAnimationSpeed = 2.25 * deltaTime * speed
 
-	if (w) {
-		player.position.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-		player.position.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+    let movementVector = {
+        x: 0,
+        y: 0,
+        z: 0
+    }
 
-        player.state.walkCycle += walkAnimationSpeed
+	if (w) {
+		movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+		movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+
+        if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
 /*
         if (player.animation.finished) {
             if (player.onGround) {
@@ -616,12 +533,12 @@ function fixedUpdate() {
         }*/
 	}
 	if (a) {
-		player.position.x -= speed * Math.cos(lookAngleY) * deltaTime
-		player.position.z -= speed * Math.sin(lookAngleY) * deltaTime
+		movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
+		movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
 	}
 	if (s) {
-		player.position.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-		player.position.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+		movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+		movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         player.state.walkCycle -= walkAnimationSpeed
         /*
@@ -639,10 +556,10 @@ function fixedUpdate() {
         }*/
 	}
 	if (d) {
-		player.position.x += speed * Math.cos(lookAngleY) * deltaTime
-		player.position.z += speed * Math.sin(lookAngleY) * deltaTime
+		movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
+		movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
 	}
-    if (!w && !s) {
+    if ((!w && !s) || player.movementState == "sliding") {
         let r = player.state.walkCycle % Math.PI
         if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
         else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
@@ -653,23 +570,33 @@ function fixedUpdate() {
         }*/
     }
 
+    if (player.movementState == "sliding") {
+        player.slideCountdown -= deltaTime
+        if (player.slideCountdown != null && player.slideCountdown <= 0) {
+            player.movementState = "crouching"
+            player.slideCountdown = 1000
+        }
+    }
 	if (shift && player.movementState == "walking") {
         player.movementState = "crouching"
+        player.state.crouchValue += .015 * deltaTime
+        if (player.state.crouchValue > 1) player.state.crouchValue = 1
     }
-    else if (shift && player.movementState == "crouching") {
-        player.state.crouchValue += .01 * deltaTime
+    else if (shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
+        player.state.crouchValue += .015 * deltaTime
         if (player.state.crouchValue > 1) player.state.crouchValue = 1
     }
     else if (!shift && player.movementState != "crouching") {
-        player.state.crouchValue -= .01 * deltaTime
+        player.state.crouchValue -= .015 * deltaTime
         if (player.state.crouchValue < 0) player.state.crouchValue = 0
     }
 	else if (shift && player.movementState == "sprinting") {
         player.movementState = "sliding"
-        player.slideCountdown = 200
+        player.slideCountdown = 1000
     }
-	else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) player.movementState = "walking"
-    else if (player.movementState == "sliding") player.slideCountdown -= deltaTime
+	else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
+        player.movementState = "walking"
+    }
 
 	if (space) {
 		if (player.onGround) {
@@ -680,17 +607,25 @@ function fixedUpdate() {
 	}
 
     if (leftClicking) {
-        if (!inventory.currentWeapon.shooted && cooldownTimer <= 0) {
-              currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
-              cooldownTimer = currentCooldown
+        if (!inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
+              player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
+              player.cooldownTimer = player.currentCooldown
               console.log(inventory.currentWeapon)
               otherWeapons.push(inventory.currentWeapon)
-              inventory.currentWeapon = new Weapon(weaponGeometry, "tomato", [platforms, otherPlayers, [ground]], player)
+              inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[inventory.currentSelection], [platforms, otherPlayers, [ground]], player)
               //console.log()
               player.weapons.push(inventory.currentWeapon)
         }
     }
 
+
+    // normalize movement vector //
+    let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2) + Math.pow(movementVector.z, 2))
+    if (hypotenuse > 0) {
+        player.position.x += movementVector.x / hypotenuse * speed * deltaTime
+        player.position.y += movementVector.y / hypotenuse * speed * deltaTime
+        player.position.z += movementVector.z / hypotenuse * speed * deltaTime
+    }
 
 
     player.calculatePosition(deltaTime)
@@ -710,7 +645,6 @@ function fixedUpdate() {
 
     for (let i = otherWeapons.length - 1; i >= 0; i--) {
         if (otherWeapons[i].shooted) {
-            otherWeapons[i].position.yaw += deltaTime / 1000
             otherWeapons[i].calculatePosition(deltaTime, socket)
 
             if (Math.abs(otherWeapons[i].position.x) > 50 || Math.abs(otherWeapons[i].position.z) > 50) {
@@ -726,8 +660,8 @@ function fixedUpdate() {
 
 
     // combat updates //
-    cooldownTimer -= deltaTime / 1000
-    if (cooldownTimer < 0) cooldownTimer = 0
+    player.cooldownTimer -= deltaTime / 1000
+    if (player.cooldownTimer < 0) player.cooldownTimer = 0
 
 }
 
@@ -738,23 +672,42 @@ function fixedUpdate() {
 document.addEventListener('keydown', function(event) {
 event.preventDefault();
 
-if (event.code == 37) left = true
-if (event.code == 39) right = true
-if (event.code == 38) up = true
-if (event.code == 40) down = true
+if (event.code == "Digit1") {
+    changeWeaponSelection(0)
+}
+if (event.code == "Digit2") {
+    changeWeaponSelection(1)
+}
+if (event.code == "Digit3") {
+    changeWeaponSelection(2)
+}
+if (event.code == "Digit4") {
+    changeWeaponSelection(3)
+}
+
+if (event.code == "ArrowLeft") {
+    left = true
+    if (inventory.currentSelection - 1 >= 0) changeWeaponSelection(inventory.currentSelection - 1)
+}
+if (event.code == "ArrowRight") {
+    right = true
+    if (inventory.currentSelection + 1 < inventory.loadOut.length) changeWeaponSelection(inventory.currentSelection + 1)
+}
+if (event.code == "ArrowUp") up = true
+if (event.code == "ArrowDown") down = true
 
 if (event.code == "KeyW") {
     w = true
-    if (Date.now() - lastWRelease < 150) {
+    if (Date.now() - lastWPress < 250) {
         player.movementState = "sprinting"
     }
+    if (!event.repeat) lastWPress = Date.now()
 }
 if (event.code == "KeyS") s = true
 if (event.code == "KeyA") a = true
 if (event.code == "KeyD") d = true
 
 if (event.code == "ShiftLeft") {
-    inventory.currentWeapon.remove()
 
 	shift = true
 }
@@ -772,7 +725,6 @@ if (event.code == 40) down = false
 if (event.code == "KeyW") {
     w = false
     player.movementState = "walking"
-    lastWRelease = Date.now()
 }
 if (event.code == "KeyS") s = false
 if (event.code == "KeyA") a = false

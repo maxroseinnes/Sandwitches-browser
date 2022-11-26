@@ -64,28 +64,28 @@ var maps = {
       },
       {
         type: "pinetree",
-        scale: 2,
+        scale: 4,
         x: 0,
         y: 0,
         z: 0
       },
       {
         type: "crate",
-        scale: 1.5,
+        scale: 1.5 * 1.5,
         x: -20,
         y: 0,
         z: -7
       },
       {
         type: "crate",
-        scale: 1.75,
+        scale: 1.75 * 1.75,
         x: -23,
         y: 0,
         z: -15
       },
       {
         type: "crate",
-        scale: 2,
+        scale: 4,
         x: -33,
         y: 0,
         z: -10
