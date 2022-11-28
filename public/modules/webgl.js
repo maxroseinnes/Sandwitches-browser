@@ -677,6 +677,63 @@ class PhysicalObject {
 
   }
 
+  smoothPosition(currentTickStage) {
+    this.position = {
+      x: this.serverPosition.x + (this.serverPosition.x - this.lastPosition.x) * currentTickStage,
+      y: this.serverPosition.y + (this.serverPosition.y - this.lastPosition.y) * currentTickStage,
+      z: this.serverPosition.z + (this.serverPosition.z - this.lastPosition.z) * currentTickStage,
+      yaw: this.serverPosition.yaw + (this.serverPosition.yaw - this.lastPosition.yaw) * currentTickStage,
+      lean: this.serverPosition.lean + (this.serverPosition.lean - this.lastPosition.lean) * currentTickStage
+    }
+
+    this.state = {
+      walkCycle: this.serverState.walkCycle + (this.serverState.walkCycle - this.lastState.walkCycle) * currentTickStage,
+      crouchValue: this.serverState.crouchValue + (this.serverState.crouchValue - this.lastState.crouchValue) * currentTickStage,
+      slideValue: this.serverState.slideValue + (this.serverState.slideValue - this.lastState.slideValue) * currentTickStage
+    }
+    
+    this.pastPositions.splice(0, 0, this.position)
+    this.pastPositions.splice(100)
+
+    this.pastStates.splice(0, 0, this.state)
+    this.pastStates.splice(100)
+
+    let smoothing = 5
+    if (smoothing > this.pastPositions.length) smoothing = this.pastPositions.length
+    if (smoothing == 0) return
+
+    let smoothedPosition = {
+      x: 0,
+      y: 0,
+      z: 0,
+      yaw: 0,
+      lean: 0
+    }
+    let smoothedState = {
+      walkCycle: 0,
+      crouchValue: 0,
+      slideValue: 0
+    }
+    for (let j = 0; j < smoothing; j++) {
+      smoothedPosition.x += this.pastPositions[j].x / smoothing,
+      smoothedPosition.y += this.pastPositions[j].y / smoothing,
+      smoothedPosition.z += this.pastPositions[j].z / smoothing,
+      smoothedPosition.yaw += this.pastPositions[j].yaw / smoothing,
+      smoothedPosition.lean += this.pastPositions[j].lean / smoothing
+
+      smoothedState.walkCycle += this.pastStates[j].walkCycle / smoothing
+      smoothedState.crouchValue += this.pastStates[j].crouchValue / smoothing
+      smoothedState.slideValue += this.pastStates[j].slideValue / smoothing
+    }
+
+    this.position = smoothedPosition
+    this.state = smoothedState
+
+  }
+
+  clearSmoothing() {
+    this.pastPositions.splice(1)
+  }
 
   calculateSlopes() {
     // calculate 6 slopes
