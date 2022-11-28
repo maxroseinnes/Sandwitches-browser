@@ -952,6 +952,18 @@ class Particle extends PhysicalObject {
 
 
 class Player extends PhysicalObject {
+  static walkingSpeed = .0075
+  static crouchingSpeed = .0025
+  static sprintingSpeed = .015
+  static slidingSpeed = .01
+  static crouchingFOV = Math.PI * 0.33333
+  static walkingFOV = Math.PI * 0.33333
+  static sprintingFOV = Math.PI * 0.4
+  static slidingFOV = Math.PI * 0.4
+  static fovShiftSpeed = .0025
+  static gravity = .00003
+  static jumpForce = 0.05
+
   constructor(geometries, x, y, z, yaw, lean, health, name, collidableObjects) {
     super(x, y, z, yaw, lean, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
 
@@ -987,7 +999,7 @@ class Player extends PhysicalObject {
 
     this.health = health
 
-    this.gravity = 0
+    this.velocity = {x: 0, y: 0, z: 0}
     this.onGround = true
     this.movementState = "walking"
 
@@ -1020,9 +1032,10 @@ class Player extends PhysicalObject {
 
   calculatePosition(deltaTime) {
 
-    this.gravity -= .00003 * deltaTime // subtract by gravitational constant (units/frames^2)
+    this.velocity.y -= Player.gravity * deltaTime // subtract by gravitational constant (units/frames^2)
 
-    this.position.y += this.gravity * deltaTime
+
+    this.position.y += this.velocity.y * deltaTime
 
 
     this.onGround = false
@@ -1035,12 +1048,12 @@ class Player extends PhysicalObject {
         let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
         if (collision.py.intersects) {
           this.position.y = collision.py.y
-          this.gravity = 0
+          this.velocity.y = 0
           this.onGround = true
         }
         if (collision.my.intersects) {
           this.position.y = collision.my.y
-          this.gravity = 0
+          this.velocity.y = 0
         }
         if (collision.mx.intersects) {
           this.position.x = collision.mx.x

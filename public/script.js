@@ -484,26 +484,26 @@ function fixedUpdate() {
 
 	// -- Movement -- //
 
-	let speed = .0075;
+	let speed = 0;
     if (player.movementState == "walking") {
-        speed = .0075
-        webgl.fov -= deltaTime * .0025
-        if (webgl.fov < Math.PI / 3) webgl.fov = Math.PI / 3
+        speed = Player.walkingSpeed
+        webgl.fov -= deltaTime * Player.fovShiftSpeed
+        if (webgl.fov < Player.walkingFOV) webgl.fov = Player.walkingFOV
     }
     if (player.movementState == "crouching") {
-        speed = .0025
-        webgl.fov -= deltaTime * .0025
-        if (webgl.fov < Math.PI / 3) webgl.fov = Math.PI / 3
+        speed = Player.crouchingSpeed
+        webgl.fov -= deltaTime * Player.fovShiftSpeed
+        if (webgl.fov < Player.crouchingFOV) webgl.fov = Player.walkingFOV
     }
     if (player.movementState == "sprinting") {
-        speed = .015
-        webgl.fov += deltaTime * .0025
-        if (webgl.fov > Math.PI / 5 * 2) webgl.fov = Math.PI / 5 * 2
+        speed = Player.sprintingSpeed
+        webgl.fov += deltaTime * Player.fovShiftSpeed
+        if (webgl.fov > Player.sprintingFOV) webgl.fov = Player.sprintingFOV
     }
     if (player.movementState == "sliding") {
-        speed = .01
-        webgl.fov += deltaTime * .0025
-        if (webgl.fov > Math.PI / 5 * 2) webgl.fov = Math.PI / 5 * 2
+        speed = Player.slidingSpeed
+        webgl.fov += deltaTime * Player.fovShiftSpeed
+        if (webgl.fov > Player.slidingFOV) webgl.fov = Player.slidingFOV
     }
 	let walkAnimationSpeed = 2.25 * deltaTime * speed
 
@@ -599,11 +599,11 @@ function fixedUpdate() {
     }
 
 	if (space) {
-		if (player.onGround) {
-            player.gravity = .015
+		//if (player.onGround) {
+            player.velocity.y = Player.jumpForce
             jumpNoise.currentTime = 0.025
             jumpNoise.play()
-        }
+        //}
 	}
 
     if (leftClicking) {
@@ -622,9 +622,10 @@ function fixedUpdate() {
     // normalize movement vector //
     let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2) + Math.pow(movementVector.z, 2))
     if (hypotenuse > 0) {
-        player.position.x += movementVector.x / hypotenuse * speed * deltaTime
-        player.position.y += movementVector.y / hypotenuse * speed * deltaTime
-        player.position.z += movementVector.z / hypotenuse * speed * deltaTime
+        player.velocity.x = movementVector.x / hypotenuse * speed * deltaTime
+        player.velocity.z = movementVector.z / hypotenuse * speed * deltaTime
+        player.position.x += player.velocity.x
+        player.position.z += player.velocity.z
     }
 
 
