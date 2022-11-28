@@ -124,6 +124,15 @@ var platformGeometry = {
     pinetree: obj.parseWavefront(fetchObj("platforms/pinetree.obj"), false)
 }
 
+
+var mapGeometry = obj.parseWavefront(fetchObj("test_map.obj"), true)
+console.log(mapGeometry)
+
+for (let name in mapGeometry) {
+    platforms.push(new Platform(mapGeometry, name, 0, 0, -30, 1))
+}
+
+
 var ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
 
 var camera = new PhysicalObject(0, 0, 0, 0, 0, {mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05}, [platforms, [ground]])
@@ -279,6 +288,8 @@ socket.on("respawn", (data) => {
     player.position = data.position
     player.health = data.health
     player.state = data.state
+    player.gravity = 0
+    player.position.y = 100
 })
 
 socket.on("tooManyPlayers", () => {
