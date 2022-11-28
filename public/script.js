@@ -400,58 +400,7 @@ function update(now) {
 
     for (var i = 0; i < otherPlayers.length; i++) {
 
-        otherPlayers[i].position = {
-            x: otherPlayers[i].serverPosition.x + (otherPlayers[i].serverPosition.x - otherPlayers[i].lastPosition.x) * currentTickStage,
-            y: otherPlayers[i].serverPosition.y + (otherPlayers[i].serverPosition.y - otherPlayers[i].lastPosition.y) * currentTickStage,
-            z: otherPlayers[i].serverPosition.z + (otherPlayers[i].serverPosition.z - otherPlayers[i].lastPosition.z) * currentTickStage,
-            yaw: otherPlayers[i].serverPosition.yaw + (otherPlayers[i].serverPosition.yaw - otherPlayers[i].lastPosition.yaw) * currentTickStage,
-            lean: otherPlayers[i].serverPosition.lean + (otherPlayers[i].serverPosition.lean - otherPlayers[i].lastPosition.lean) * currentTickStage
-        }
-
-        otherPlayers[i].state = {
-            walkCycle: otherPlayers[i].serverState.walkCycle + (otherPlayers[i].serverState.walkCycle - otherPlayers[i].lastState.walkCycle) * currentTickStage,
-            crouchValue: otherPlayers[i].serverState.crouchValue + (otherPlayers[i].serverState.crouchValue - otherPlayers[i].lastState.crouchValue) * currentTickStage,
-            slideValue: otherPlayers[i].serverState.slideValue + (otherPlayers[i].serverState.slideValue - otherPlayers[i].lastState.slideValue) * currentTickStage
-        }
-        
-        otherPlayers[i].pastPositions.splice(0, 0, otherPlayers[i].position)
-        otherPlayers[i].pastPositions.splice(100)
-
-        otherPlayers[i].pastStates.splice(0, 0, otherPlayers[i].state)
-        otherPlayers[i].pastStates.splice(100)
-
-        let smoothing = 5
-        if (smoothing > otherPlayers[i].pastPositions.length) smoothing = otherPlayers[i].pastPositions.length
-
-        //console.log(smoothing)
-        let smoothedPosition = {
-            x: 0,
-            y: 0,
-            z: 0,
-            yaw: 0,
-            lean: 0
-        }
-        let smoothedState = {
-            walkCycle: 0,
-            crouchValue: 0,
-            slideValue: 0
-        }
-        for (let j = 0; j < smoothing; j++) {
-            smoothedPosition.x += otherPlayers[i].pastPositions[j].x / smoothing,
-            smoothedPosition.y += otherPlayers[i].pastPositions[j].y / smoothing,
-            smoothedPosition.z += otherPlayers[i].pastPositions[j].z / smoothing,
-            smoothedPosition.yaw += otherPlayers[i].pastPositions[j].yaw / smoothing,
-            smoothedPosition.lean += otherPlayers[i].pastPositions[j].lean / smoothing
-
-            smoothedState.walkCycle += otherPlayers[i].pastStates[j].walkCycle / smoothing
-            smoothedState.crouchValue += otherPlayers[i].pastStates[j].crouchValue / smoothing
-            smoothedState.slideValue += otherPlayers[i].pastStates[j].slideValue / smoothing
-        }
-
-        if (smoothing > 0) {
-            otherPlayers[i].position = smoothedPosition
-            otherPlayers[i].state = smoothedState
-        }
+        otherPlayers[i].smoothPosition(currentTickStage)
 
 
 
