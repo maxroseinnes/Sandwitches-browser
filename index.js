@@ -19,7 +19,7 @@ const availableNames = [
   "Alex", 
   "Emma", 
   "Jeff", 
-  "Olive"/*, 
+  "Olive", 
   "James", 
   "Mary", 
   "Robert",
@@ -46,7 +46,8 @@ const availableNames = [
   "Nancy",
   "Matthew",
   "Betty",
-  "Anthony"*/
+  "Anthony",
+  "Silas"
 ];
 
 
