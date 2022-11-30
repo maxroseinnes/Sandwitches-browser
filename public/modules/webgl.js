@@ -615,6 +615,10 @@ class Model {
     return false
   }
 
+  hypotenuse(a, b, c) {
+    return Math.sqrt(Math.pow(a, 2) + Math.pow(b, 2) + Math.pow(c, 2))
+  }
+
   collision(lastPosition, position) {
 
     let movementPluckerCoords = this.pluckerCoords(lastPosition, position)
@@ -653,8 +657,8 @@ class Model {
           this.sideValue(movementPluckerCoords, sidePluckerCoords[2])
         ]
         
-        let epsilon = .000001
-        let nepsilon = -.000001
+        let epsilon = .0001
+        let nepsilon = -.0001
   
         if ((sideValues[0] >= nepsilon && sideValues[1] >= nepsilon && sideValues[2] >= nepsilon) || (sideValues[0] <= epsilon && sideValues[1] <= epsilon && sideValues[2] <= epsilon)) {
           let s1 = this.sideValue(sidePluckerCoords[1], this.pluckerCoords(lastPosition, points[0]))
@@ -702,10 +706,49 @@ class Model {
   
   
             pointOfIntersection = {
-              x: this.lerp(lastPosition.x, position.x, t) - rayVector[0] * .1,
-              y: this.lerp(lastPosition.y, position.y, t) - rayVector[1] * .1,
-              z: this.lerp(lastPosition.z, position.z, t) - rayVector[2] * .1
+              x: this.lerp(lastPosition.x, position.x, t),
+              y: this.lerp(lastPosition.y, position.y, t),
+              z: this.lerp(lastPosition.z, position.z, t)
             }
+
+            let normal = vec3.create()
+            let movedPoint1 = vec3.create()
+            let movedPoint2 = vec3.create()
+
+            vec3.sub(movedPoint1, vertices[1], vertices[0])
+            vec3.sub(movedPoint2, vertices[2], vertices[0])
+
+            vec3.cross(normal, movedPoint1, movedPoint2)
+
+            vec3.normalize(normal, normal)
+
+            let rayX = rayVector[0]
+            let rayY = rayVector[1]
+            let rayZ = rayVector[2]
+
+            let dot = -vec3.dot(rayVector, normal)
+
+            vec3.add(rayVector, rayVector, normal)
+
+            //let vectorPastFace = vec3.fromValues(position.x - pointOfIntersection.x, position.y - pointOfIntersection.y, position.z - pointOfIntersection.z)
+
+
+            // if they share a value fully, scale by none
+            // if they don't share any values, don't scale
+
+
+
+            let movementScalar = this.hypotenuse(position.x - pointOfIntersection.x, position.y - pointOfIntersection.y, position.z - pointOfIntersection.z) * dot
+
+            vec3.scale(rayVector, rayVector, movementScalar)
+
+
+            pointOfIntersection.x += rayVector[0]
+            pointOfIntersection.y += rayVector[1]
+            pointOfIntersection.z += rayVector[2]
+
+
+
           }
         }
 
@@ -1594,96 +1637,10 @@ class Ground {
 
   collision(lastPosition, position, movement, dimensions) {
 
-    let movementPluckerCoords = this.pluckerCoords(lastPosition, position)
-    let intersects = false
-    let yIntersection = 100
-    let pointOfIntersection = {x: 0, y: 0, z: 0}
-
-    if (false) if (lastPosition.y != position.y) for (let i = 0; i < this.model.pointIndices.length; i++) {
-      let points = [
-        {x: webgl.points[this.model.pointIndices[i][0]*3+0], y: webgl.points[this.model.pointIndices[i][0]*3+1], z: webgl.points[this.model.pointIndices[i][0]*3+2]},
-        {x: webgl.points[this.model.pointIndices[i][1]*3+0], y: webgl.points[this.model.pointIndices[i][1]*3+1], z: webgl.points[this.model.pointIndices[i][1]*3+2]},
-        {x: webgl.points[this.model.pointIndices[i][2]*3+0], y: webgl.points[this.model.pointIndices[i][2]*3+1], z: webgl.points[this.model.pointIndices[i][2]*3+2]}
-      ]
-
-      let sidePluckerCoords = [
-        this.pluckerCoords(points[0], points[1]),
-        this.pluckerCoords(points[1], points[2]),
-        this.pluckerCoords(points[2], points[0])
-      ]
-
-      let sideValues = [
-        this.sideValue(movementPluckerCoords, sidePluckerCoords[0]),
-        this.sideValue(movementPluckerCoords, sidePluckerCoords[1]),
-        this.sideValue(movementPluckerCoords, sidePluckerCoords[2])
-      ]
-
-      let epsilon = .001
-      let nepsilon = -.001
-
-      if ((sideValues[0] >= 0 && sideValues[1] >= 0 && sideValues[2] >= 0) || (sideValues[0] <= 0 && sideValues[1] <= 0 && sideValues[2] <= 0)) {
-        let s1 = this.sideValue(sidePluckerCoords[1], this.pluckerCoords(lastPosition, points[0]))
-        let s2 = this.sideValue(sidePluckerCoords[1], this.pluckerCoords(position, points[0]))
-
-        if (s1 * s2 <= 0) {
-          intersects = true
-
-          let rayOrigin = vec3.fromValues(lastPosition.x, lastPosition.y, lastPosition.z)
-          let rayVector = vec3.fromValues(position.x - lastPosition.x, position.y - lastPosition.y, position.z - lastPosition.z)
-          vec3.normalize(rayVector, rayVector)
-
-          let vertices = []
-          for (let j = 0; j < 3; j++) vertices.push(vec3.fromValues(points[j].x, points[j].y, points[j].z))
-
-          let edge1 = vec3.create()
-          let edge2 = vec3.create()
-
-          let h = vec3.create()
-          let s = vec3.create()
-          let q = vec3.create()
-
-          let a, f, u, v
-
-          vec3.sub(edge1, vertices[1], vertices[0])
-          vec3.sub(edge2, vertices[2], vertices[0])
-
-          vec3.cross(h, rayVector, edge2)
-          a = vec3.dot(edge1, h)
-          
-          f = 1.0 / a
-
-          vec3.sub(s, rayOrigin, vertices[0])
-
-          u = f * vec3.dot(s, h)
-
-          vec3.cross(q, s, edge1)
-          v = f * vec3.dot(rayVector, q)
-
-          let t = f * vec3.dot(edge2, q)
-
-          let intersectionPoint = vec3.fromValues(0.0, 0.0, 0.0)
-          vec3.scaleAndAdd(intersectionPoint, rayVector, rayOrigin, t)
-
-
-
-
-
-
-          pointOfIntersection = {
-            x: this.lerp(lastPosition.x, position.x, t),
-            y: this.lerp(lastPosition.y, position.y, t) - rayVector[1] / Math.abs(rayVector[1]) * epsilon,
-            z: this.lerp(lastPosition.z, position.z, t)
-          }
-        }
-      }
-
-
-
-    }
 
 
     
-    /*
+    
     let xIndex = parseInt((position.x - this.xMin) / this.xWidth, 10)
     let zIndex = parseInt((position.z - this.zMin) / this.xWidth, 10)
 
@@ -1703,7 +1660,7 @@ class Ground {
       let yPluX = this.lerp(this.heightMap[xIndex+1][zIndex], this.heightMap[xIndex+1][zIndex+1], zPositionInSquare)
 
       yPosition = this.lerp(yMinX, yPluX, xPositionInSquare)
-    }*/
+    }
 
 
 
@@ -1733,10 +1690,10 @@ class Ground {
         x: 0
       },
       py: {
-        intersects: intersects,//(position.y < yPosition - dimensions.my),
-        z: pointOfIntersection.z,
-        x: pointOfIntersection.x,
-        y: pointOfIntersection.y//yPosition - dimensions.my
+        intersects: (position.y < yPosition - dimensions.my),
+        z: position.z,
+        x: position.x,
+        y: yPosition - dimensions.my
       },
       pz: {
         intersects: false,
