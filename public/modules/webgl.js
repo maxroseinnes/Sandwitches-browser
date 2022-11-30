@@ -593,6 +593,141 @@ class Model {
     return a + (b - a) * x
   }
 
+  pluckerCoords(p, q) {
+    return [
+      p.x * q.y - q.x * p.y,
+      p.x * q.z - q.x * p.z,
+      p.x - q.x,
+      p.y * q.z - q.y * p.z,
+      p.z - q.z,
+      q.y - p.y
+    ]
+  }
+
+  sideValue(a, b) {
+    return a[0]*b[4] + a[1]*b[5] + a[2]*b[3] + a[3]*b[2] + a[4]*b[0] + a[5]*b[1]
+  }
+
+  inRange(a, b, x, tolerance) {
+    tolerance ||= 0
+    if (a < b) if (a - tolerance <= x && x <= b + tolerance) return true
+    else if (b - tolerance <= x && x <= a + tolerance) return true
+    return false
+  }
+
+  collision(lastPosition, position) {
+
+    let movementPluckerCoords = this.pluckerCoords(lastPosition, position)
+    let intersects = false
+    let yIntersection = 100
+    let pointOfIntersection = {x: 0, y: 0, z: 0}
+
+    if (lastPosition.y != position.y) for (let i = 0; i < this.pointIndices.length; i++) {
+      let points = [
+        {x: webgl.points[this.pointIndices[i][0]*3+0], y: webgl.points[this.pointIndices[i][0]*3+1], z: webgl.points[this.pointIndices[i][0]*3+2]},
+        {x: webgl.points[this.pointIndices[i][1]*3+0], y: webgl.points[this.pointIndices[i][1]*3+1], z: webgl.points[this.pointIndices[i][1]*3+2]},
+        {x: webgl.points[this.pointIndices[i][2]*3+0], y: webgl.points[this.pointIndices[i][2]*3+1], z: webgl.points[this.pointIndices[i][2]*3+2]}
+      ]
+
+      let applicable = true
+      if (points[0].x == points[1].x && points[0].y == points[1].y && points[0].z == points[1].z) applicable = false
+      if (points[1].x == points[2].x && points[1].y == points[2].y && points[1].z == points[2].z) applicable = false
+      if (points[2].x == points[0].x && points[2].y == points[0].y && points[2].z == points[0].z) applicable = false
+
+      //if (
+      //  !this.inRange(lastPosition.x, position.x, points[0].x, 5) || !this.inRange(lastPosition.y, position.y, points[0].y, 5) || this.inRange(lastPosition.z, position.z, points[0].z, 5) || 
+      //  !this.inRange(lastPosition.x, position.x, points[1].x, 5) || !this.inRange(lastPosition.y, position.y, points[1].y, 5) || this.inRange(lastPosition.z, position.z, points[1].z, 5) || 
+      //  !this.inRange(lastPosition.x, position.x, points[2].x, 5) || !this.inRange(lastPosition.y, position.y, points[2].y, 5) || this.inRange(lastPosition.z, position.z, points[2].z, 5)
+      //) applicable = false
+
+      if (applicable) {
+        let sidePluckerCoords = [
+          this.pluckerCoords(points[0], points[1]),
+          this.pluckerCoords(points[1], points[2]),
+          this.pluckerCoords(points[2], points[0])
+        ]
+        
+        let sideValues = [
+          this.sideValue(movementPluckerCoords, sidePluckerCoords[0]),
+          this.sideValue(movementPluckerCoords, sidePluckerCoords[1]),
+          this.sideValue(movementPluckerCoords, sidePluckerCoords[2])
+        ]
+        
+        let epsilon = .000001
+        let nepsilon = -.000001
+  
+        if ((sideValues[0] >= nepsilon && sideValues[1] >= nepsilon && sideValues[2] >= nepsilon) || (sideValues[0] <= epsilon && sideValues[1] <= epsilon && sideValues[2] <= epsilon)) {
+          let s1 = this.sideValue(sidePluckerCoords[1], this.pluckerCoords(lastPosition, points[0]))
+          let s2 = this.sideValue(sidePluckerCoords[1], this.pluckerCoords(position, points[0]))
+  
+          if (s1 * s2 <= 0) {
+            intersects = true
+  
+            let rayOrigin = vec3.fromValues(lastPosition.x, lastPosition.y, lastPosition.z)
+            let rayVector = vec3.fromValues(position.x - lastPosition.x, position.y - lastPosition.y, position.z - lastPosition.z)
+            vec3.normalize(rayVector, rayVector)
+            
+            let vertices = []
+            for (let j = 0; j < 3; j++) vertices.push(vec3.fromValues(points[j].x, points[j].y, points[j].z))
+            
+            let edge1 = vec3.create()
+            let edge2 = vec3.create()
+  
+            let h = vec3.create()
+            let s = vec3.create()
+            let q = vec3.create()
+  
+            let a, f, u, v
+  
+            vec3.sub(edge1, vertices[1], vertices[0])
+            vec3.sub(edge2, vertices[2], vertices[0])
+  
+            vec3.cross(h, rayVector, edge2)
+            a = vec3.dot(edge1, h)
+            
+            f = 1.0 / a
+  
+            vec3.sub(s, rayOrigin, vertices[0])
+  
+            u = f * vec3.dot(s, h)
+  
+            vec3.cross(q, s, edge1)
+            v = f * vec3.dot(rayVector, q)
+  
+            let t = f * vec3.dot(edge2, q)
+  
+            let intersectionPoint = vec3.fromValues(0.0, 0.0, 0.0)
+            vec3.scaleAndAdd(intersectionPoint, rayVector, rayOrigin, t)
+  
+  
+  
+            pointOfIntersection = {
+              x: this.lerp(lastPosition.x, position.x, t) - rayVector[0] * .1,
+              y: this.lerp(lastPosition.y, position.y, t) - rayVector[1] * .1,
+              z: this.lerp(lastPosition.z, position.z, t) - rayVector[2] * .1
+            }
+          }
+        }
+
+      }
+
+
+
+    }
+
+
+  
+    return {
+      intersects: intersects,
+      pointX: pointOfIntersection.x,
+      pointY: pointOfIntersection.y,
+      pointZ: pointOfIntersection.z
+    }
+
+
+
+  }
+
   delete() {
     let allModelsLocation = Model.allModels.indexOf(this)
 
@@ -1032,7 +1167,21 @@ class Player extends PhysicalObject {
     let movement = this.calculateSlopes()
     for (let i = 0; i < this.collidableObjects.length; i++) {
       for (let j = 0; j < this.collidableObjects[i].length; j++) {
-        let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
+        for (let k in this.collidableObjects[i][j].models) {
+          
+          let model = this.collidableObjects[i][j].models[k]
+          let collision = model.collision(this.lastPosition, this.position)
+
+          if (collision.intersects) {
+            this.position.x = collision.pointX
+            this.position.y = collision.pointY
+            this.position.z = collision.pointZ
+
+            this.gravity = 0
+            this.onGround = true
+          }
+        }
+        /*let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
         if (collision.py.intersects) {
           this.position.x = collision.py.x
           this.position.y = collision.py.y
@@ -1059,7 +1208,7 @@ class Player extends PhysicalObject {
         if (collision.pz.intersects) {
           this.position.z = collision.pz.z
           if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
-        }
+        }*/
       }
     }
 
@@ -1341,6 +1490,7 @@ class Platform extends PhysicalObject {
       }
     }
 
+    this.type = type
     this.texture = "jerry"
 
     if (type == "basic") {
@@ -1374,7 +1524,7 @@ class Ground {
   constructor(geometryInfo) {
     console.log(geometryInfo)
 
-    this.model = new Model(geometryInfo, 1, "jerry")
+    this.models = {main: new Model(geometryInfo, 1, "jerry")}
 
     let xValues = []
     let positions = geometryInfo.positions
@@ -1449,7 +1599,7 @@ class Ground {
     let yIntersection = 100
     let pointOfIntersection = {x: 0, y: 0, z: 0}
 
-    if (lastPosition.y != position.y) for (let i = 0; i < this.model.pointIndices.length; i++) {
+    if (false) if (lastPosition.y != position.y) for (let i = 0; i < this.model.pointIndices.length; i++) {
       let points = [
         {x: webgl.points[this.model.pointIndices[i][0]*3+0], y: webgl.points[this.model.pointIndices[i][0]*3+1], z: webgl.points[this.model.pointIndices[i][0]*3+2]},
         {x: webgl.points[this.model.pointIndices[i][1]*3+0], y: webgl.points[this.model.pointIndices[i][1]*3+1], z: webgl.points[this.model.pointIndices[i][1]*3+2]},
@@ -1468,6 +1618,8 @@ class Ground {
         this.sideValue(movementPluckerCoords, sidePluckerCoords[2])
       ]
 
+      let epsilon = .001
+      let nepsilon = -.001
 
       if ((sideValues[0] >= 0 && sideValues[1] >= 0 && sideValues[2] >= 0) || (sideValues[0] <= 0 && sideValues[1] <= 0 && sideValues[2] <= 0)) {
         let s1 = this.sideValue(sidePluckerCoords[1], this.pluckerCoords(lastPosition, points[0]))
@@ -1512,14 +1664,14 @@ class Ground {
           let intersectionPoint = vec3.fromValues(0.0, 0.0, 0.0)
           vec3.scaleAndAdd(intersectionPoint, rayVector, rayOrigin, t)
 
-          // get the two triangle points that have a 
+
 
 
 
 
           pointOfIntersection = {
             x: this.lerp(lastPosition.x, position.x, t),
-            y: this.lerp(lastPosition.y, position.y, t) - rayVector[1] / Math.abs(rayVector[1]) * .01,
+            y: this.lerp(lastPosition.y, position.y, t) - rayVector[1] / Math.abs(rayVector[1]) * epsilon,
             z: this.lerp(lastPosition.z, position.z, t)
           }
         }
