@@ -70,7 +70,15 @@ var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
 var socket = io();
-var otherPlayers = [];
+var otherPlayers = {};
+
+function convertOtherPlayersToArray() {
+    var array = []
+    for (var id in otherPlayers) {
+        array.push(otherPlayers[id])
+    }
+    return array
+}
 
 // Local global variables //
 var platforms = [];
@@ -126,7 +134,7 @@ var platformGeometry = {
 
 var ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
 
-var camera = new PhysicalObject(0, 0, 0, 0, 0, {mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05}, [platforms, [ground]])
+var camera = new PhysicalObject(0, 0, 0, 0, 0, { mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05 }, [platforms, [ground]])
 
 var player
 
@@ -144,7 +152,7 @@ function tick() {
         player.lastPosition.z = respawnPositionZ*/
         socket.emit("death", { type: "void", name: player.name });
     }
-    socket.emit("playerUpdate", { position: player.position, name: player.name, state: player.state } );
+    socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state });
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
@@ -178,11 +186,12 @@ socket.on("startTicking", (TPS) => {
 })
 
 socket.on("assignPlayer", (playerInfo) => {
-    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.name, [platforms, [ground]]);
+    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, [ground]]);
+
     inventory = {
         loadOut: ["anchovy", "olive", "pickle", "sausage"],
         currentSelection: 0,
-        currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player),
+        currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, convertOtherPlayersToArray(), [ground]], player),
     }
     updateHUD()
 });
@@ -194,77 +203,67 @@ socket.on("map", (mapInfo) => {
             mapInfo.platforms[i].x,
             mapInfo.platforms[i].y,
             mapInfo.platforms[i].z,
-            mapInfo.platforms[i].scale    
+            mapInfo.platforms[i].scale
         ))
     }
     platforms.push(
-        new Platform(platformGeometry, "basic", 10, 1,    16,  1),
-        new Platform(platformGeometry, "basic", 10, 1,    10,  1),
-        new Platform(platformGeometry, "basic", 15, 3.5,  5,   1),
-        new Platform(platformGeometry, "basic", 19, 6,    -5,  1),
-        new Platform(platformGeometry, "basic", 26, 8.5,  -9,  1),
-        new Platform(platformGeometry, "basic", 25, 10,   -15, 1),
+        new Platform(platformGeometry, "basic", 10, 1, 16, 1),
+        new Platform(platformGeometry, "basic", 10, 1, 10, 1),
+        new Platform(platformGeometry, "basic", 15, 3.5, 5, 1),
+        new Platform(platformGeometry, "basic", 19, 6, -5, 1),
+        new Platform(platformGeometry, "basic", 26, 8.5, -9, 1),
+        new Platform(platformGeometry, "basic", 25, 10, -15, 1),
         new Platform(platformGeometry, "basic", 19, 11.5, -10, 1),
-        new Platform(platformGeometry, "basic", 13, 13.5, -2,  1),
-        new Platform(platformGeometry, "basic", 10, 16,   5,   1),
-        new Platform(platformGeometry, "basic", 5,  18.5, 10,  1),
-        new Platform(platformGeometry, "basic", 2,  21,   8,   1),
-        new Platform(platformGeometry, "basic", -5, 23.5, 5,   1)
+        new Platform(platformGeometry, "basic", 13, 13.5, -2, 1),
+        new Platform(platformGeometry, "basic", 10, 16, 5, 1),
+        new Platform(platformGeometry, "basic", 5, 18.5, 10, 1),
+        new Platform(platformGeometry, "basic", 2, 21, 8, 1),
+        new Platform(platformGeometry, "basic", -5, 23.5, 5, 1)
     )
 
 })
 
 // receive necessary info about the other connected players upon joining
 socket.on("otherPlayers", (otherPlayersInfo) => {
-    for (var i = 0; i < otherPlayersInfo.length; i++) {
-        otherPlayers.push(new Player(
-            playerGeometry, 
-            otherPlayersInfo[i].position.x, 
-            otherPlayersInfo[i].position.y, 
-            otherPlayersInfo[i].position.z, 
-            otherPlayersInfo[i].position.yaw, 
-            otherPlayersInfo[i].position.lean, 
-            otherPlayersInfo[i].health, 
-            otherPlayersInfo[i].name))
+    for (var id in otherPlayersInfo) {
+        otherPlayers[id] = new Player(
+            playerGeometry,
+            otherPlayersInfo[id].position.x,
+            otherPlayersInfo[id].position.y,
+            otherPlayersInfo[id].position.z,
+            otherPlayersInfo[id].position.yaw,
+            otherPlayersInfo[id].position.lean,
+            otherPlayersInfo[id].health,
+            id,
+            otherPlayersInfo[id].name)
     }
 })
 
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
-    otherPlayers.push(new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.name));
+    otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
 })
 
-socket.on("playerLeave", (name) => {
-
-    console.log(name + " left")
-    for (var i = 0; i < otherPlayers.length; i++) {
-        if (otherPlayers[i].name == name) {
-            otherPlayers[i].remove();
-            otherPlayers.splice(i, 1);
-        }
-    }
+socket.on("playerLeave", (id) => {
+    console.log(otherPlayers[id].name + " left")
+    otherPlayers[id].remove()
+    otherPlayers[id] = null
 })
 
 socket.on("playerUpdate", (playersData) => {
-    for (var i = 0; i < playersData.length; i++) {
-        if (playersData[i].name != player.name) {
-            for (var j = 0; j < otherPlayers.length; j++) {
-                if (playersData[i].name == otherPlayers[j].name) {
-                    if (!playersData[i].respawnedThisTick) {
-                        otherPlayers[j].lastPosition = otherPlayers[j].serverPosition
-                        otherPlayers[j].lastState = otherPlayers[j].serverState
-                    } else {
-                        // if current player just respawned, set "last" variables to be equivalent to current
-                        otherPlayers[j].lastPosition = playersData[j].position
-                        otherPlayers[j].lastState = playersData[i].state
-                    }
-                    otherPlayers[j].serverPosition = playersData[i].position
-                    otherPlayers[j].serverState = playersData[i].state
-                    //otherPlayers[j].updateWorldPosition(); ** Moved this to update loop **
-                    break;
-                }
-            }
+    for (var id in playersData) {
+        if (otherPlayers[id] == null) continue
+        if (!playersData[id].respawnedThisTick) {
+            otherPlayers[id].lastPosition = otherPlayers[id].serverPosition
+            otherPlayers[id].lastState = otherPlayers[id].serverState
+        } else {
+            // if current player just respawned, set "last" variables to be equivalent to current
+            otherPlayers[id].lastPosition = playersData[id].position
+            otherPlayers[id].lastState = playersData[id].state
         }
+        otherPlayers[id].serverPosition = playersData[id].position
+        otherPlayers[id].serverState = playersData[id].state
+        break;
     }
 })
 
@@ -307,7 +306,7 @@ var updateHUD = () => {
     ctx.clearRect(width - 510, height - 210, 420, 220)
     ctx.fillStyle = "white"
     ctx.fillRect(width - 510, height - 210, 420, 120)
-    
+
     for (let i = 0; i < inventory.loadOut.length; i++) {
         if (inventory.loadOut[i] == "tomato") ctx.fillStyle = "red"
         if (inventory.loadOut[i] == "olive") ctx.fillStyle = "green"
@@ -325,7 +324,8 @@ var updateHUD = () => {
 var changeWeaponSelection = (selection) => {
     inventory.currentSelection = selection
     inventory.currentWeapon.remove()
-    inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[selection], [platforms, otherPlayers, [ground]], player)
+
+    inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[selection], [platforms, convertOtherPlayersToArray(), [ground]], player)
     updateHUD()
 }
 
@@ -373,21 +373,21 @@ function update(now) {
 
 
 
-	lastFramerates.splice(0, 0, 1000 / deltaTime)
-	lastFramerates.splice(20)
-	let rollingFramerate = 0
-	for (let i = 0; i < lastFramerates.length; i++) rollingFramerate += lastFramerates[i] / lastFramerates.length
-	info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9 + "<br>client TPS: " + Math.round(1000/averageClientTPS * 100) / 100
+    lastFramerates.splice(0, 0, 1000 / deltaTime)
+    lastFramerates.splice(20)
+    let rollingFramerate = 0
+    for (let i = 0; i < lastFramerates.length; i++) rollingFramerate += lastFramerates[i] / lastFramerates.length
+    info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9 + "<br>client TPS: " + Math.round(1000 / averageClientTPS * 100) / 100
 
 
 
 
-	player.updateAnimation()
+    player.updateAnimation()
 
 
-	player.position.yaw = lookAngleY
-	player.position.lean = lookAngleX
-	player.updateWorldPosition(lookAngleY, lookAngleX) // this must go last
+    player.position.yaw = lookAngleY
+    player.position.lean = lookAngleX
+    player.updateWorldPosition(lookAngleY, lookAngleX) // this must go last
 
 
     // update other player positions
@@ -395,16 +395,16 @@ function update(now) {
     let timeSinceLastTick = Date.now() - currentTickTime
     averageClientTPS = 0
     lastTickTimes.splice(10)
-    for (let i = 0; i < lastTickTimes.length - 1; i++) averageClientTPS += (lastTickTimes[i] - lastTickTimes[i+1]) / (lastTickTimes.length - 1)
+    for (let i = 0; i < lastTickTimes.length - 1; i++) averageClientTPS += (lastTickTimes[i] - lastTickTimes[i + 1]) / (lastTickTimes.length - 1)
     let currentTickStage = timeSinceLastTick / averageClientTPS / 1.15
 
-    for (var i = 0; i < otherPlayers.length; i++) {
+    for (var id in otherPlayers) {
+        if (otherPlayers[id] == null) continue
+        otherPlayers[id].smoothPosition(currentTickStage)
 
-        otherPlayers[i].smoothPosition(currentTickStage)
 
 
-
-        otherPlayers[i].updateWorldPosition(lookAngleY, lookAngleX);
+        otherPlayers[id].updateWorldPosition(lookAngleY, lookAngleX);
     }
 
 
@@ -431,9 +431,9 @@ function fixedUpdate() {
     if (deltaTime < 8 || isNaN(deltaTime)) deltaTime = 10;
     fixedUpdateThen = Date.now()
 
-	// -- Movement -- //
+    // -- Movement -- //
 
-	let speed = 0;
+    let speed = 0;
     if (player.movementState == "walking") {
         speed = Player.walkingSpeed
         webgl.fov -= deltaTime * Player.fovShiftSpeed
@@ -454,7 +454,7 @@ function fixedUpdate() {
         webgl.fov += deltaTime * Player.fovShiftSpeed
         if (webgl.fov > Player.slidingFOV) webgl.fov = Player.slidingFOV
     }
-	let walkAnimationSpeed = 2.25 * deltaTime * speed
+    let walkAnimationSpeed = 2.25 * deltaTime * speed
 
     let movementVector = {
         x: 0,
@@ -462,32 +462,32 @@ function fixedUpdate() {
         z: 0
     }
 
-	if (w) {
-		movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-		movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+    if (w) {
+        movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+        movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
-/*
-        if (player.animation.finished) {
-            if (player.onGround) {
-                stepNoise.currentTime = 0.25
-                stepNoise.volume = .05
-                stepNoise.playbackRate = 1
-                stepNoise.play()
-            }
-            if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
-            else if (player.animation.currentMeshName == "stepRightFoot") player.startAnimation("stepRightFoot", "walkLeftFoot", walkAnimationSpeed, true)
-            else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
-
-        }*/
-	}
-	if (a) {
-		movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
-		movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
-	}
-	if (s) {
-		movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-		movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+        /*
+                if (player.animation.finished) {
+                    if (player.onGround) {
+                        stepNoise.currentTime = 0.25
+                        stepNoise.volume = .05
+                        stepNoise.playbackRate = 1
+                        stepNoise.play()
+                    }
+                    if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
+                    else if (player.animation.currentMeshName == "stepRightFoot") player.startAnimation("stepRightFoot", "walkLeftFoot", walkAnimationSpeed, true)
+                    else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
+        
+                }*/
+    }
+    if (a) {
+        movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
+        movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
+    }
+    if (s) {
+        movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+        movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         player.state.walkCycle -= walkAnimationSpeed
         /*
@@ -503,16 +503,16 @@ function fixedUpdate() {
             else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
             
         }*/
-	}
-	if (d) {
-		movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
-		movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
-	}
+    }
+    if (d) {
+        movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
+        movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
+    }
     if ((!w && !s) || player.movementState == "sliding") {
         let r = player.state.walkCycle % Math.PI
         if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
         else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
-        
+
 
         /*if (player.animation.finished) {
             if (player.animation.currentMeshName != "idle") player.startAnimation(player.animation.currentMeshName, "idle", .1, true)
@@ -526,7 +526,7 @@ function fixedUpdate() {
             player.slideCountdown = 1000
         }
     }
-	if (shift && player.movementState == "walking") {
+    if (shift && player.movementState == "walking") {
         player.movementState = "crouching"
         player.state.crouchValue += .015 * deltaTime
         if (player.state.crouchValue > 1) player.state.crouchValue = 1
@@ -539,31 +539,32 @@ function fixedUpdate() {
         player.state.crouchValue -= .015 * deltaTime
         if (player.state.crouchValue < 0) player.state.crouchValue = 0
     }
-	else if (shift && player.movementState == "sprinting") {
+    else if (shift && player.movementState == "sprinting") {
         player.movementState = "sliding"
         player.slideCountdown = 1000
     }
-	else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
+    else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
         player.movementState = "walking"
     }
 
-	if (space) {
-		//if (player.onGround) {
-            player.velocity.y = Player.jumpForce
-            jumpNoise.currentTime = 0.025
-            jumpNoise.play()
+    if (space) {
+        //if (player.onGround) {
+        player.velocity.y = Player.jumpForce
+        jumpNoise.currentTime = 0.025
+        jumpNoise.play()
         //}
-	}
+    }
 
     if (leftClicking) {
         if (!inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
-              player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
-              player.cooldownTimer = player.currentCooldown
-              console.log(inventory.currentWeapon)
-              otherWeapons.push(inventory.currentWeapon)
-              inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[inventory.currentSelection], [platforms, otherPlayers, [ground]], player)
-              //console.log()
-              player.weapons.push(inventory.currentWeapon)
+            player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
+            player.cooldownTimer = player.currentCooldown
+            otherWeapons.push(inventory.currentWeapon)
+
+
+            inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[inventory.currentSelection], [platforms, convertOtherPlayersToArray(), [ground]], player)
+            //console.log()
+            player.weapons.push(inventory.currentWeapon)
         }
     }
 
@@ -585,7 +586,7 @@ function fixedUpdate() {
         splatNoise.playbackRate = 1.5
         splatNoise.play()
     }
-    
+
 
     player.lastPosition = { x: player.position.x, y: player.position.y, z: player.position.z }
     player.lastOnGround = player.onGround
@@ -606,7 +607,7 @@ function fixedUpdate() {
 
 
 
-	// ingredient jiggle //
+    // ingredient jiggle //
 
 
     // combat updates //
@@ -619,69 +620,69 @@ function fixedUpdate() {
 
 // -- key pressing -- //
 
-document.addEventListener('keydown', function(event) {
-event.preventDefault();
+document.addEventListener('keydown', function (event) {
+    event.preventDefault();
 
-if (event.code == "Digit1") {
-    changeWeaponSelection(0)
-}
-if (event.code == "Digit2") {
-    changeWeaponSelection(1)
-}
-if (event.code == "Digit3") {
-    changeWeaponSelection(2)
-}
-if (event.code == "Digit4") {
-    changeWeaponSelection(3)
-}
-
-if (event.code == "ArrowLeft") {
-    left = true
-    if (inventory.currentSelection - 1 >= 0) changeWeaponSelection(inventory.currentSelection - 1)
-}
-if (event.code == "ArrowRight") {
-    right = true
-    if (inventory.currentSelection + 1 < inventory.loadOut.length) changeWeaponSelection(inventory.currentSelection + 1)
-}
-if (event.code == "ArrowUp") up = true
-if (event.code == "ArrowDown") down = true
-
-if (event.code == "KeyW") {
-    w = true
-    if (Date.now() - lastWPress < 250) {
-        player.movementState = "sprinting"
+    if (event.code == "Digit1") {
+        changeWeaponSelection(0)
     }
-    if (!event.repeat) lastWPress = Date.now()
-}
-if (event.code == "KeyS") s = true
-if (event.code == "KeyA") a = true
-if (event.code == "KeyD") d = true
+    if (event.code == "Digit2") {
+        changeWeaponSelection(1)
+    }
+    if (event.code == "Digit3") {
+        changeWeaponSelection(2)
+    }
+    if (event.code == "Digit4") {
+        changeWeaponSelection(3)
+    }
 
-if (event.code == "ShiftLeft") {
+    if (event.code == "ArrowLeft") {
+        left = true
+        if (inventory.currentSelection - 1 >= 0) changeWeaponSelection(inventory.currentSelection - 1)
+    }
+    if (event.code == "ArrowRight") {
+        right = true
+        if (inventory.currentSelection + 1 < inventory.loadOut.length) changeWeaponSelection(inventory.currentSelection + 1)
+    }
+    if (event.code == "ArrowUp") up = true
+    if (event.code == "ArrowDown") down = true
 
-	shift = true
-}
-if (event.code == "Space") space = true
+    if (event.code == "KeyW") {
+        w = true
+        if (Date.now() - lastWPress < 250) {
+            player.movementState = "sprinting"
+        }
+        if (!event.repeat) lastWPress = Date.now()
+    }
+    if (event.code == "KeyS") s = true
+    if (event.code == "KeyA") a = true
+    if (event.code == "KeyD") d = true
+
+    if (event.code == "ShiftLeft") {
+
+        shift = true
+    }
+    if (event.code == "Space") space = true
 });
 
-document.addEventListener('keyup', function(event) {
-event.preventDefault();
+document.addEventListener('keyup', function (event) {
+    event.preventDefault();
 
-if (event.code == 37) left = false
-if (event.code == 39) right = false
-if (event.code == 38) up = false
-if (event.code == 40) down = false
+    if (event.code == 37) left = false
+    if (event.code == 39) right = false
+    if (event.code == 38) up = false
+    if (event.code == 40) down = false
 
-if (event.code == "KeyW") {
-    w = false
-    player.movementState = "walking"
-}
-if (event.code == "KeyS") s = false
-if (event.code == "KeyA") a = false
-if (event.code == "KeyD") d = false
+    if (event.code == "KeyW") {
+        w = false
+        player.movementState = "walking"
+    }
+    if (event.code == "KeyS") s = false
+    if (event.code == "KeyA") a = false
+    if (event.code == "KeyD") d = false
 
-if (event.code == "ShiftLeft") shift = false
-if (event.code == "Space") space = false
+    if (event.code == "ShiftLeft") shift = false
+    if (event.code == "Space") space = false
 });
 
 // -- mouse -- //
@@ -690,24 +691,24 @@ if (event.code == "Space") space = false
 var lastPointerLockExited = Date.now()
 document.addEventListener("pointerlockchange", function () {
     lastPointerLockExited = Date.now()
-	if (document.pointerLockElement === canvas) {
-		pointerLocked = true
-		if (!running) {
-			running = true
-			update()
-	        fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
-		}
-	} else {
-	    console.log("stopped")
+    if (document.pointerLockElement === canvas) {
+        pointerLocked = true
+        if (!running) {
+            running = true
+            update()
+            fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
+        }
+    } else {
+        console.log("stopped")
 
-		pointerLocked = false
-		running = false
+        pointerLocked = false
+        running = false
 
-	    fixedUpdateThen = Date.now();
-	    clearInterval(fixedUpdateInterval)
+        fixedUpdateThen = Date.now();
+        clearInterval(fixedUpdateInterval)
 
-	    menu.style.display = ""
-	}
+        menu.style.display = ""
+    }
 }, false)
 
 
@@ -715,16 +716,16 @@ document.addEventListener("pointerlockchange", function () {
 
 
 document.addEventListener("mousemove", function (event) {
-	if (pointerLocked) {
-		let sensitivity = .1
-		sensitivity = Math.PI / 512;
-		lookAngleX += sensitivity * event.movementY
-		lookAngleY += sensitivity * event.movementX
+    if (pointerLocked) {
+        let sensitivity = .1
+        sensitivity = Math.PI / 512;
+        lookAngleX += sensitivity * event.movementY
+        lookAngleY += sensitivity * event.movementX
 
-		if (lookAngleX < -Math.PI / 2) lookAngleX = -Math.PI / 2
-		if (lookAngleX > Math.PI / 2) lookAngleX = Math.PI / 2
+        if (lookAngleX < -Math.PI / 2) lookAngleX = -Math.PI / 2
+        if (lookAngleX > Math.PI / 2) lookAngleX = Math.PI / 2
 
-	}
+    }
 
 }, false)
 
@@ -732,24 +733,24 @@ document.addEventListener("mousemove", function (event) {
 // -- menu -- //
 startButton.onclick = () => {
     if ((Date.now() - lastPointerLockExited) < 1500) return
-    
-	console.log("starting")
+
+    console.log("starting")
 
     backgroundNoises.play()
-	menu.style.display = "none"
+    menu.style.display = "none"
 
-    
-	canvas.requestPointerLock()
+
+    canvas.requestPointerLock()
 }
 
 
-document.addEventListener("mousedown", function(event) {
+document.addEventListener("mousedown", function (event) {
     if (running && event.which == 1) leftClicking = true
     if (running && event.which == 2) rightClicking = true
 
 })
 
-document.addEventListener("mouseup", function(event) {
+document.addEventListener("mouseup", function (event) {
     if (running && event.which == 1) leftClicking = false
     if (running && event.which == 2) rightClicking = false
 })

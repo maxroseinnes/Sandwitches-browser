@@ -11,6 +11,9 @@ const port = 3000;
 
 const DEFAULT_PLAYER_HEALTH = 100 
 
+
+
+
 const availableNames = [
   "Steve", 
   "Alex", 
@@ -105,71 +108,65 @@ var maps = {
 
 
 var players = {};
+var nextId = 0
 
 const TPS = 20;
 
 app.use(express.static("public"));
 
-function respawnPlayer(name) {
-  players[name].position.x = Math.random() * 10 - 5;
-  players[name].position.y = 0;
-  players[name].position.z = Math.random() * 10 - 5;
-  players[name].position.yaw = 0
-  players[name].position.pitch = 0
-  players[name].health = DEFAULT_PLAYER_HEALTH
-  players[name].respawnedThisTick = true
-  players[name].socket.emit("respawn", {
+function respawnPlayer(id) {
+  players[id].position.x = Math.random() * 10 - 5;
+  players[id].position.y = 0;
+  players[id].position.z = Math.random() * 10 - 5;
+  players[id].position.yaw = 0
+  players[id].position.pitch = 0
+  players[id].health = DEFAULT_PLAYER_HEALTH
+  players[id].socket.emit("respawn", {
     position: {
-      x: players[name].position.x, 
-      y: players[name].position.y, 
-      z: players[name].position.z, 
-      yaw: players[name].position.yaw, 
-      lean: players[name].position.lean
+      x: players[id].position.x, 
+      y: players[id].position.y, 
+      z: players[id].position.z, 
+      yaw: players[id].position.yaw, 
+      lean: players[id].position.lean
     },
-    state: players[name].state,
+    state: players[id].state,
     health: DEFAULT_PLAYER_HEALTH,
   })
 }
 
 // Generate JSON containing data to be sent over the network for a specified player
-function genPlayerPacket(name) {
+function genPlayerPacket(id) {
   var data = {}
   data.position = {
-    x: players[name].position.x,
-    y: players[name].position.y,
-    z: players[name].position.z,
-    yaw: players[name].position.yaw,
-    lean: players[name].position.lean,
+    x: players[id].position.x,
+    y: players[id].position.y,
+    z: players[id].position.z,
+    yaw: players[id].position.yaw,
+    lean: players[id].position.lean,
   }
-  data.respawnedThisTick = players[name].respawnedThisTick
-  data.state = players[name].state
-  data.health = players[name].health
-  data.name = name
+  data.state = players[id].state
+  data.health = players[id].health
 
   return data
 }
 
 // Broadcast to all connected players except for a specified one
 function broadcast(eventName, msg, except) {
-  for (var name in players) {
-    if (name != except) players[name].socket.emit(eventName, msg)
+  for (var id in players) {
+    if (id != except) players[id].socket.emit(eventName, msg)
   }
 }
 
 var timeOfLastTick;
 function tick() {
-  // Compile player data into an array (will refactor to be a big JSON later which will hopefully optimized the client a bit)
-  var playersData = []
-  for (var name in players) {
-    if (players[name] != null) playersData.push(genPlayerPacket(name))
+  // Compile player data into an array
+  var playersData = {}
+  for (var id in players) {
+    if (players[id] != null) playersData[id] = genPlayerPacket(id)
   }
 
   // Send array to each connected player
   broadcast("playerUpdate", playersData, null)
-
-  for (var name in players) {
-    players[name].respawnedThisTick = false
-  }
 
   if (timeOfLastTick != undefined) {
     //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
@@ -196,9 +193,9 @@ socketServer.on("connection", (socket) => {
   
   socket.emit("map", maps.lobby);
 
-  var otherPlayersInfo = [];
-  for (var name in players) {
-    if (players[name] != null) otherPlayersInfo.push({ name: name, position: players[name].position, state: players[name].state });
+  var otherPlayersInfo = {};
+  for (var id in players) {
+    if (players[id] != null) otherPlayersInfo[id] = { name: players[id].name, position: players[id].position, state: players[id].state };
   }
   socket.emit("otherPlayers", otherPlayersInfo);
 
@@ -206,33 +203,43 @@ socketServer.on("connection", (socket) => {
   var name = availableNames[nameIndex]
   availableNames.splice(nameIndex, 1);
 
-  if (name != null) { 
-    var newPlayer = { 
-      position: { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5, yaw: 0, lean: 0 }, 
-      health: DEFAULT_PLAYER_HEALTH,
-      respawnedThisTick: false,
-      state: { walkCycle: 0, crouchValue: 0, slideValue: 0 }, 
-      socket: socket};
-    players[name] = newPlayer;
-    console.log(name + " joined! 😃😃😃😃😃😃😃")
-    socket.emit("assignPlayer", { 
-      name: name, 
-      position: newPlayer.position, 
-      health: newPlayer.health, 
-      state: newPlayer.state});
-    socket.broadcast.emit("newPlayer", { 
-      name: name, 
-      position: newPlayer.position, 
-      health: newPlayer.health, 
-      state: newPlayer.state});
-  } else {
-    socket.emit("tooManyPlayers");
+  // temp variables about new player
+  var id = nextId
+  var position = { x: 10 * Math.random() - 5, y: 0, z: 10 * Math.random() - 5, yaw: 0, lean: 0 }
+  state = { walkCycle: 0, crouchValue: 0, slideValue: 0 }
+
+  players[nextId] = {
+    name: name,
+    position: position, 
+    health: DEFAULT_PLAYER_HEALTH,
+    state: state,
+    socket: socket
   }
+  nextId++
+
+  // Send the needed info for the new client to generate their player
+  socket.emit("assignPlayer", {
+    id: id,
+    name: name,
+    position: position, 
+    health: DEFAULT_PLAYER_HEALTH, 
+    state: state
+  });
+
+
+  // Send everyone else the new player info
+  socket.broadcast.emit("newPlayer", { 
+    id: id,
+    name: name, 
+    position: position, 
+    health: DEFAULT_PLAYER_HEALTH, 
+    state: state
+  });
 
   socket.on("playerUpdate", (data) => {
-    if (players[data.name] != null) {
-      players[data.name].position = data.position;
-      players[data.name].state = data.state;
+    if (players[data.id] != null) {
+      players[data.id].position = data.position;
+      players[data.id].state = data.state;
     }
   })
 
@@ -242,14 +249,14 @@ socketServer.on("connection", (socket) => {
       players[hitInfo.target].health = newHealth
       console.log(newHealth)
     } else {
-      var deathMessage = hitInfo.target + " was killed by " + hitInfo.from
+      var deathMessage = players[hitInfo.target].name + " was killed by " + players[hitInfo.from].name
       socket.broadcast.emit("chatMessage", deathMessage)
       respawnPlayer(hitInfo.target)
     }
   })
 
   socket.on("death", (deathInfo) => {
-    respawnPlayer(deathInfo.name)
+    respawnPlayer(deathInfo.id)
 
     var deathMessage;
     if (deathInfo.type == "void") {
@@ -262,14 +269,14 @@ socketServer.on("connection", (socket) => {
   })
 
   socket.on("disconnect", () => {
-    for (var name in players) {
+    for (var id in players) {
       // maybe using object takes a little too long to fully delete the name value pair?
       // adding if (players[name] != null) fixes problem
-      if (players[name] != null && socket == players[name].socket) {
-        socket.broadcast.emit("playerLeave", name);
-        console.log(name + " left. 😭😭😭😭😭😭😭");
-        availableNames.push(name);
-        delete players[name];
+      if (players[id] != null && socket == players[id].socket) {
+        socket.broadcast.emit("playerLeave", id);
+        console.log(players[id].name + " left. 😭😭😭😭😭😭😭");
+        availableNames.push(players[id].name);
+        delete players[id];
       }
     }
 

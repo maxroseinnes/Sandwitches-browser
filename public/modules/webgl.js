@@ -1021,7 +1021,7 @@ class Player extends PhysicalObject {
   static gravity = .00003
   static jumpForce = 0.05
 
-  constructor(geometries, x, y, z, yaw, lean, health, name, collidableObjects) {
+  constructor(geometries, x, y, z, yaw, lean, health, id, name, collidableObjects) {
     super(x, y, z, yaw, lean, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
 
     this.gamerTag = new GamerTag(name)
@@ -1052,6 +1052,7 @@ class Player extends PhysicalObject {
       stage: 1
     }
 
+    this.id = id
     this.name = name
 
     this.health = health
@@ -1170,6 +1171,9 @@ class Player extends PhysicalObject {
 
   remove() {
     super.remove()
+    for (var weapon in this.weapons) {
+      weapon.remove()
+    }
     this.gamerTag.model.delete()
   }
 
@@ -1319,6 +1323,7 @@ class Weapon extends PhysicalObject {
 
     for (let i = 0; i < this.collidableObjects.length; i++) {
       for (let j = 0; j < this.collidableObjects[i].length; j++) {
+        if (this.collidableObjects[i][j] == null) continue
         let movement = this.calculateSlopes()
         let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
 
@@ -1330,14 +1335,14 @@ class Weapon extends PhysicalObject {
             this.position.z = collision[side].z
 
             if (this.collidableObjects[i][j] instanceof Player) {
-
-              console.log("hit " + this.collidableObjects[i][j].name)
               socket.emit("playerHit", {
-                from: this.owner.name,
-                target: this.collidableObjects[i][j].name,
+                from: this.owner.id,
+                target: this.collidableObjects[i][j].id,
                 damage: this.damage
               })
             }
+
+            this.remove()
           }
         }
 
