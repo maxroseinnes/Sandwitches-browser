@@ -189,7 +189,7 @@ socket.on("assignPlayer", (playerInfo) => {
     player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, [ground]]);
 
     inventory = {
-        loadOut: ["anchovy", "olive", "pickle", "sausage"],
+        loadOut: ["anchovy", "olive", "pickle", "sausage", "tomato"],
         currentSelection: 0,
         currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, convertOtherPlayersToArray(), [ground]], player),
     }
@@ -303,9 +303,10 @@ var otherWeapons = []
 var updateHUD = () => {
     let width = effectsCanvas.width
     let height = effectsCanvas.height
-    ctx.clearRect(width - 510, height - 210, 420, 220)
+    let slotSize = 75
+    ctx.clearRect(width - (inventory.loadOut.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (inventory.loadOut.length) * slotSize + 20, slotSize * 2 + 20)
     ctx.fillStyle = "white"
-    ctx.fillRect(width - 510, height - 210, 420, 120)
+    ctx.fillRect(width - (inventory.loadOut.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (inventory.loadOut.length) * slotSize + 20, slotSize + 20)
 
     for (let i = 0; i < inventory.loadOut.length; i++) {
         if (inventory.loadOut[i] == "tomato") ctx.fillStyle = "red"
@@ -314,11 +315,11 @@ var updateHUD = () => {
         if (inventory.loadOut[i] == "sausage") ctx.fillStyle = "brown"
         if (inventory.loadOut[i] == "anchovy") ctx.fillStyle = "blue"
 
-        ctx.fillRect(width - 500 + i * 100, height - 200, 100, 100)
+        ctx.fillRect(width - (inventory.loadOut.length + 1) * slotSize + i * slotSize, height - slotSize * 2, slotSize, slotSize)
     }
 
     ctx.fillStyle = "yellow"
-    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - 500 - i + inventory.currentSelection * 100, height - 200 - i, 100 + i * 2, 100 + i * 2)
+    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - (inventory.loadOut.length + 1) * slotSize - i + inventory.currentSelection * slotSize, height - slotSize * 2 - i, slotSize + i * 2, slotSize + i * 2)
 }
 
 var changeWeaponSelection = (selection) => {
@@ -634,6 +635,9 @@ document.addEventListener('keydown', function (event) {
     }
     if (event.code == "Digit4") {
         changeWeaponSelection(3)
+    }
+    if (event.code == "Digit5") {
+        changeWeaponSelection(4)
     }
 
     if (event.code == "ArrowLeft") {
