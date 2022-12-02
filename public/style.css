@@ -67,6 +67,27 @@ button:hover {
     left: calc(50% - 50px);
 }
 
+#settings {
+    
+    position: absolute;
+    top: calc(50% - 400px);
+    left: calc(50% - 250px);
+
+    padding: 20px;
+
+    
+
+    width: 500px;
+    height: 250px;
+
+    background-color: beige;
+
+    border-radius: 20px;
+    border-style: solid;
+
+    display: none;
+}
+
 
 #nameField {
     position: absolute;
