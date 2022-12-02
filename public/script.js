@@ -757,6 +757,11 @@ startButton.onclick = () => {
     canvas.requestPointerLock()
 }
 
+var settingsDiv = document.getElementById("settings")
+document.getElementById("settingsButton").onclick = () => {
+
+}
+
 
 document.addEventListener("mousedown", function (event) {
     if (running && event.which == 1) leftClicking = true
