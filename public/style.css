@@ -20,6 +20,16 @@ body {
 }
 
 button {
+    position: absolute;
+
+    width: 100px;
+    height: 50px;
+
+    border-radius: 30px;
+
+    color: rgba(20, 20, 20);
+    font-size: 20px;
+
     opacity: .75;
     transition: opacity .25s;
 }
@@ -46,17 +56,36 @@ button:hover {
 
 #startButton {
 
-    position: absolute;
     top: calc(50% - 25px);
     left: calc(50% - 50px);
+}
 
-    width: 100px;
-    height: 50px;
 
-    border-radius: 30px;
+#settingsButton {
 
-    color: rgba(20, 20, 20);
-    font-size: 20px;
+    top: calc(50% + 50px);
+    left: calc(50% - 50px);
+}
+
+#settings {
+    
+    position: absolute;
+    top: calc(50% - 400px);
+    left: calc(50% - 250px);
+
+    padding: 20px;
+
+    
+
+    width: 500px;
+    height: 250px;
+
+    background-color: beige;
+
+    border-radius: 20px;
+    border-style: solid;
+
+    display: none;
 }
 
 

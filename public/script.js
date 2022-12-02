@@ -636,8 +636,30 @@ function fixedUpdate() {
 
 // -- key pressing -- //
 
+var keyBinds = {
+    w: "KeyW",
+    a: "KeyA",
+    s: "KeyS",
+    d: "KeyD"
+}
+
+var selectingWKey = false
+var selectingAKey = false
+var selectingSKey = false
+var selectingDKey = false
+
+
 document.addEventListener('keydown', function (event) {
     event.preventDefault();
+
+    
+    if (selectingWKey) {
+        keyBinds.w = event.code
+        wKeyBind.value = event.code
+    }
+    if (selectingAKey) keyBinds.a = event.code
+    if (selectingSKey) keyBinds.s = event.code
+    if (selectingDKey) keyBinds.d = event.code
 
     if (event.code == "Digit1") {
         changeWeaponSelection(0)
@@ -666,16 +688,16 @@ document.addEventListener('keydown', function (event) {
     if (event.code == "ArrowUp") up = true
     if (event.code == "ArrowDown") down = true
 
-    if (event.code == "KeyW") {
+    if (event.code == keyBinds.w) {
         w = true
         if (Date.now() - lastWPress < 250) {
             player.movementState = "sprinting"
         }
         if (!event.repeat) lastWPress = Date.now()
     }
-    if (event.code == "KeyS") s = true
-    if (event.code == "KeyA") a = true
-    if (event.code == "KeyD") d = true
+    if (event.code == keyBinds.s) s = true
+    if (event.code == keyBinds.a) a = true
+    if (event.code == keyBinds.d) d = true
 
     if (event.code == "ShiftLeft") {
 
@@ -692,13 +714,13 @@ document.addEventListener('keyup', function (event) {
     if (event.code == 38) up = false
     if (event.code == 40) down = false
 
-    if (event.code == "KeyW") {
+    if (event.code == keyBinds.w) {
         w = false
         player.movementState = "walking"
     }
-    if (event.code == "KeyS") s = false
-    if (event.code == "KeyA") a = false
-    if (event.code == "KeyD") d = false
+    if (event.code == keyBinds.a) s = false
+    if (event.code == keyBinds.s) a = false
+    if (event.code == keyBinds.d) d = false
 
     if (event.code == "ShiftLeft") shift = false
     if (event.code == "Space") space = false
@@ -734,10 +756,9 @@ document.addEventListener("pointerlockchange", function () {
 
 
 
+var sensitivity = Math.PI / 1024;
 document.addEventListener("mousemove", function (event) {
     if (pointerLocked) {
-        let sensitivity = .1
-        sensitivity = Math.PI / 1024;
         lookAngleX += sensitivity * event.movementY
         lookAngleY += sensitivity * event.movementX
 
@@ -761,6 +782,27 @@ startButton.onclick = () => {
 
     canvas.requestPointerLock()
 }
+
+var settingsDiv = document.getElementById("settings")
+document.getElementById("settingsButton").onclick = () => {
+    settingsDiv.style.display = "block"
+    console.log(settingsDiv.style)
+}
+
+var sensitivitySlider = document.getElementById("sensitivitySlider")
+sensitivitySlider.onchange = () => {
+    sensitivity = Math.PI / 4096 * Number(sensitivitySlider.value)
+}
+
+var wKeyBind = document.getElementById("wSelector")
+wKeyBind.oninput = () => {
+    console.log(wKeyBind.value.length)
+    if (wKeyBind.value.length > 1) wKeyBind.value = wKeyBind.value.slice(-1, 1)
+
+}
+
+wKeyBind.onmouseenter = () => {selectingWKey = true}
+wKeyBind.onmouseleave = () => {selectingWKey = false}
 
 
 document.addEventListener("mousedown", function (event) {
