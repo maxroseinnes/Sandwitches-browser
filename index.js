@@ -147,6 +147,7 @@ function genPlayerPacket(id) {
   }
   data.state = players[id].state
   data.health = players[id].health
+  data.weaponData = players[id].weaponData
 
   return data
 }
@@ -241,6 +242,7 @@ socketServer.on("connection", (socket) => {
     if (players[data.id] != null) {
       players[data.id].position = data.position;
       players[data.id].state = data.state;
+      players[data.id].weaponData = data.weaponData
     }
   })
 

@@ -71,6 +71,7 @@ var averageClientTPS = ticksPerSecond
 // Multiplayer global variables //
 var socket = io();
 var otherPlayers = {};
+var otherWeapons = []
 
 function convertOtherPlayersToArray() {
     var array = []
@@ -152,7 +153,13 @@ function tick() {
         player.lastPosition.z = respawnPositionZ*/
         socket.emit("death", { type: "void", name: player.name });
     }
-    socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state });
+    let weaponData = []
+    for (let i = 0; i < Weapon.allWeapons.length; i++) weaponData.push({
+        position: Weapon.allWeapons[i].position,
+        type: Weapon.allWeapons[i].type
+    })
+    console.log(weaponData)
+    socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, weaponData: weaponData });
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
@@ -263,6 +270,9 @@ socket.on("playerUpdate", (playersData) => {
         }
         otherPlayers[id].serverPosition = playersData[id].position
         otherPlayers[id].serverState = playersData[id].state
+        for (let i = 0; i < playersData[id].weaponData.length; i++) {
+            playersData[id].weaponData[i]
+        }
         break;
     }
 })

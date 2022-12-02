@@ -1182,8 +1182,10 @@ class Player extends PhysicalObject {
 
 
 class Weapon extends PhysicalObject {
+  static allWeapons = []
   constructor(geometryInfos, type, collidableObjects, owner) {
     super(0, 0, 0, 0, 0, {mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25}, collidableObjects)
+    Weapon.allWeapons.push(this)
 
     this.particles = []
 
@@ -1389,6 +1391,8 @@ class Weapon extends PhysicalObject {
 
   remove() {
     super.remove()
+    let allWeaponIndex = Weapon.allWeapons.indexOf(this)
+    if (allWeaponIndex != -1) Weapon.allWeapons.splice(allWeaponIndex, 1)
     for (let i = 0; i < this.particles.length; i++) this.particles[i].remove()
   }
   
