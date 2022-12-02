@@ -569,6 +569,7 @@ function fixedUpdate() {
     if (leftClicking) {
         if (!inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
             player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
+
             player.cooldownTimer = player.currentCooldown
             otherWeapons.push(inventory.currentWeapon)
 
@@ -587,6 +588,9 @@ function fixedUpdate() {
         player.velocity.z = movementVector.z / hypotenuse * speed * deltaTime
         player.position.x += player.velocity.x
         player.position.z += player.velocity.z
+    } else {
+        player.velocity.x = 0
+        player.velocity.z = 0
     }
 
 
@@ -732,7 +736,7 @@ document.addEventListener("pointerlockchange", function () {
 document.addEventListener("mousemove", function (event) {
     if (pointerLocked) {
         let sensitivity = .1
-        sensitivity = Math.PI / 512;
+        sensitivity = Math.PI / 1024;
         lookAngleX += sensitivity * event.movementY
         lookAngleY += sensitivity * event.movementX
 
