@@ -147,7 +147,6 @@ function genPlayerPacket(id) {
   }
   data.state = players[id].state
   data.health = players[id].health
-  data.weaponData = players[id].weaponData
 
   return data
 }
@@ -203,6 +202,7 @@ socketServer.on("connection", (socket) => {
 
   var nameIndex = Math.floor(Math.random() * availableNames.length)
   var name = availableNames[nameIndex]
+  console.log(name + " joined! 😃😃😃😃😃😃😃")
   availableNames.splice(nameIndex, 1);
 
   // temp variables about new player
@@ -242,7 +242,6 @@ socketServer.on("connection", (socket) => {
     if (players[data.id] != null) {
       players[data.id].position = data.position;
       players[data.id].state = data.state;
-      players[data.id].weaponData = data.weaponData
     }
   })
 

@@ -1019,7 +1019,7 @@ class Player extends PhysicalObject {
   static slidingFOV = Math.PI * 0.4
   static fovShiftSpeed = .0025
   static gravity = .00003
-  static jumpForce = 0.015
+  static jumpForce = 0.05
 
   constructor(geometries, x, y, z, yaw, lean, health, id, name, collidableObjects) {
     super(x, y, z, yaw, lean, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
@@ -1199,7 +1199,7 @@ class Weapon extends PhysicalObject {
 
     this.cooldown = 1 // seconds
 
-    //this.speed = .025 // units/millisecond
+    this.speed = .025 // units/millisecond
     this.manaCost = 20
     this.damage = 10 // this might be handled server
 
@@ -1215,8 +1215,7 @@ class Weapon extends PhysicalObject {
 
       this.cooldown = .5
       this.manaCost = 5
-      this.damage = 15
-      this.speed = 0.025
+      this.damage = 5
 
       this.scale = .625
       this.models.main = new Model(geometryInfos.tomato, this.scale, "sub")
@@ -1228,7 +1227,6 @@ class Weapon extends PhysicalObject {
       this.cooldown = .15
       this.manaCost = 5
       this.damage = 5
-      this.speed = 0.05
 
       this.scale = .925
       this.models.main = new Model(geometryInfos.olive, this.scale, "sub")
@@ -1239,8 +1237,7 @@ class Weapon extends PhysicalObject {
 
       this.cooldown = .5
       this.manaCost = 5
-      this.damage = 20
-      this.speed = 0.03
+      this.damage = 5
 
       this.scale = .625
       this.models.main = new Model(geometryInfos.pickle, this.scale, "sub")
@@ -1251,8 +1248,7 @@ class Weapon extends PhysicalObject {
     
       this.cooldown = .5
       this.manaCost = 5
-      this.damage = 20
-      this.speed = 0.02
+      this.damage = 5
 
       this.scale = .625
       this.models.main = new Model(geometryInfos.sausage, this.scale, "jerry")
@@ -1264,8 +1260,7 @@ class Weapon extends PhysicalObject {
 
       this.cooldown = .5
       this.manaCost = 5
-      this.damage = 50
-      this.speed = 0.015
+      this.damage = 5
 
       this.scale = 1
       this.models.main = new Model(geometryInfos.anchovy, this.scale, "jerry")
@@ -1294,11 +1289,6 @@ class Weapon extends PhysicalObject {
 
   }
 
-  genPacket() {
-    var data = {}
-    data[position]
-  }
-
   calculatePosition(deltaTime, socket) {
 
     for (let i = 0; i < this.particles.length; i++) {
@@ -1319,7 +1309,7 @@ class Weapon extends PhysicalObject {
 
     }
     if (!this.shooted) this.position.yaw = this.owner.position.yaw + ((this.class == "projectile") ? Date.now() / 1000 : 0)
-      this.position.yaw += ((this.class == "projectile") ? deltaTime / 1000 : 0)
+    this.position.yaw += ((this.class == "projectile") ? deltaTime / 1000 : 0)
 
     if (!this.shooted) this.position.pitch = (this.class == "missile") ? this.owner.position.lean : 0
     //this.position.roll += ((this.class == "missile") ? deltaTime / 1000 : 0)
@@ -1345,9 +1335,8 @@ class Weapon extends PhysicalObject {
             this.position.x = collision[side].x
             this.position.y = collision[side].y
             this.position.z = collision[side].z
-console.log(this.collidableObjects[i][j])
+
             if (this.collidableObjects[i][j] instanceof Player) {
-              
               socket.emit("playerHit", {
                 from: this.owner.id,
                 target: this.collidableObjects[i][j].id,
@@ -1387,14 +1376,17 @@ console.log(this.collidableObjects[i][j])
     let tempX = this.velocity.x
     this.velocity.z = Math.cos(yaw) * tempZ - Math.sin(yaw) * tempX
     this.velocity.x = Math.sin(yaw) * tempZ + Math.cos(yaw) * tempX
+
+    this.velocity.x += this.owner.velocity.x
+    this.velocity.y += this.owner.velocity.y
+    this.velocity.z += this.owner.velocity.z
 /*
+
     this.position.z += -Math.sin(yaw)
     this.position.x += Math.cos(yaw)
     this.position.y += Math.cos(angleX)
     //this.position.z += Math.sin(angleX)
 */
-
-    console.log(this.owner.velocity)
 
     this.shooted = true
 

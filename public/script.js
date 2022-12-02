@@ -158,7 +158,6 @@ function tick() {
         position: Weapon.allWeapons[i].position,
         type: Weapon.allWeapons[i].type
     })
-    console.log(weaponData)
     socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, weaponData: weaponData });
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
@@ -258,7 +257,9 @@ socket.on("playerLeave", (id) => {
 })
 
 socket.on("playerUpdate", (playersData) => {
+
     for (var id in playersData) {
+        console.log(playersData[id])
         if (otherPlayers[id] == null) continue
         if (!playersData[id].respawnedThisTick) {
             otherPlayers[id].lastPosition = otherPlayers[id].serverPosition
@@ -270,9 +271,9 @@ socket.on("playerUpdate", (playersData) => {
         }
         otherPlayers[id].serverPosition = playersData[id].position
         otherPlayers[id].serverState = playersData[id].state
-        for (let i = 0; i < playersData[id].weaponData.length; i++) {
+        /*for (let i = 0; i < playersData[id].weaponData.length; i++) {
             playersData[id].weaponData[i]
-        }
+        }*/
         break;
     }
 })
@@ -584,10 +585,10 @@ function fixedUpdate() {
     // normalize movement vector //
     let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2) + Math.pow(movementVector.z, 2))
     if (hypotenuse > 0) {
-        player.velocity.x = movementVector.x / hypotenuse * speed * deltaTime
-        player.velocity.z = movementVector.z / hypotenuse * speed * deltaTime
-        player.position.x += player.velocity.x
-        player.position.z += player.velocity.z
+        player.velocity.x = movementVector.x / hypotenuse * speed
+        player.velocity.z = movementVector.z / hypotenuse * speed
+        player.position.x += player.velocity.x * deltaTime
+        player.position.z += player.velocity.z * deltaTime
     } else {
         player.velocity.x = 0
         player.velocity.z = 0
