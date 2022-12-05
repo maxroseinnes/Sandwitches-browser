@@ -1,0 +1,29 @@
+
+<html>
+    <head>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
+            integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
+            crossorigin="anonymous" defer
+        >
+        </script>
+
+    </head>
+    <body>
+
+        <div id = "lobbyId">2</div>
+
+        <script>
+            let xhr = new XMLHttpRequest()
+            xhr.open("GET", "../index.html", false)
+            xhr.send()
+            document.body.innerHTML += xhr.response
+        </script>
+
+        <script src = "/socket.io/socket.io.js"></script>
+        <script type = "module" src = "../script.js"></script>
+    </body>
+
+
+
+</html>

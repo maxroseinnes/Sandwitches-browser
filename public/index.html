@@ -5,26 +5,60 @@
     <meta chartset = "utf-8">
     <meta name = "viewport" content = "width=device-width">
     <title>Sandwitches!</title>
-    <link href = "style.css" rel = "stylesheet" type = "text/css" />
-    <script
-        src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
-        integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
-        crossorigin="anonymous" defer
-    >
-    </script>
+    <link href = "../style.css" rel = "stylesheet" type = "text/css" />
 </head>
 
 <body>
 
     <div id = "menu">
-        <button id = "startButton">Start</button>
+        <div id = "title"></div>
+        <div id = "lobby">
+            LOBBY
 
-        <button id = "settingsButton">Settings</button>
-        <div id = "settings">
-            Sensitivity: <input type = "range" min = "1" max = "10" id = "sensitivitySlider">
-            W Keybind: <input type = "text" id = "wSelector">
+            <a class = "lobbyLink" href = "../lobby1">Lobby 1</a>
+            <a class = "lobbyLink" href = "../lobby2">Lobby 2</a>
+        </div>
+
+        <div id = "main">
+            Name: <input type = "text" id = "nameField">
+
+            <button id = "startButton">Start</button>
+    
+            <button id = "settingsButton">Settings</button>
+        </div>
+
+        <div id = "loadout">
+            LOADOUT
 
         </div>
+
+
+        <table id = "settings">
+            <tr>
+                <th>Mouse Settings</th>
+                <th>Key Bindings</th>
+            </tr>
+            <tr>
+                <td>Sensitivity: <input type = "range" min = "1" max = "10" id = "sensitivitySlider"></td>
+                <td>W: <t><input type = "text" readOnly id = "wSelector" class = "keyBindInput"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>A: <t><input type = "text" readOnly id = "aSelector" class = "keyBindInput"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>S: <t><input type = "text" readOnly id = "sSelector" class = "keyBindInput"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>D: <t><input type = "text" readOnly id = "dSelector" class = "keyBindInput"></td>
+            </tr>
+            
+            
+            
+
+        </table>
 
     </div>
 
@@ -37,9 +71,6 @@
 
     <canvas id = "canvas">your browser does not support canvases</canvas>
     <canvas id = "effectsCanvas">your browser does not support canvases</canvas>
-
-    <script src = "/socket.io/socket.io.js"></script>
-    <script type = "module" src = "./script.js"></script>
 
 </body>
 

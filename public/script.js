@@ -1,13 +1,13 @@
 
 //// ---- MAIN SCRIPT ---- ////
 console.log("starting script")
-import modelStuff from "./modules/model-data.js"
+import modelStuff from "../modules/model-data.js"
 
 var modelData = modelStuff.modelData
 var fetchObj = modelStuff.fetchObj
 var obj = modelStuff.obj
 
-import webglStuff from "./modules/webgl.js"
+import webglStuff from "../modules/webgl.js"
 
 var webgl = webglStuff.webgl
 var Point = webglStuff.Point
@@ -43,8 +43,6 @@ var pointerLocked = false
 
 var lastWPress = Date.now()
 
-// movement global variables //
-
 
 var lookAngleX = 0.0
 var lookAngleY = 0.0
@@ -69,17 +67,11 @@ var lastTickTimes = []
 var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
+var lobbyId = Number(document.getElementById("lobbyId").textContent)
 var socket = io();
 var otherPlayers = {};
 var otherWeapons = []
 
-function convertOtherPlayersToArray() {
-    var array = []
-    for (var id in otherPlayers) {
-        array.push(otherPlayers[id])
-    }
-    return array
-}
 
 // Local global variables //
 var platforms = [];
@@ -90,20 +82,93 @@ const startButton = document.getElementById("startButton")
 const info = document.getElementById("info")
 const canvas = document.getElementById("canvas")
 const effectsCanvas = document.getElementById("effectsCanvas")
+const ctx = effectsCanvas.getContext("2d")
+
+var myWeapons = [
+    "anchovy",
+    "olive",
+    "pickle",
+    "sausage",
+    "tomato"
+]
+var weaponSelectors = []
+for (let i = 0; i < 3; i++) {
+    let weaponSelector = document.createElement("select")
+    for (let j in myWeapons) {
+        let option = document.createElement("option")
+        option.value = myWeapons[j]
+        option.textContent = myWeapons[j]
+        weaponSelector.appendChild(option)
+    }
+    document.getElementById("loadout").appendChild(document.createElement("br"))
+    let label = document.createElement("span")
+    label.textContent = "Weapon " + (i + 1) + ": "
+    document.getElementById("loadout").appendChild(label)
+    document.getElementById("loadout").appendChild(weaponSelector)
+    weaponSelectors.push(weaponSelector)
+}
+
+weaponSelectors[0].onchange = () => {
+    console.log("wow")
+}
 
 
-// helpful functions //
+// AUDIO //
 
-function lerp(a, b, x) {
-    return a + (b - a) * x
+const backgroundNoises = new Audio("../assets/wet_wriggling_noises/dripping-water-nature-sounds-8050.mp3")
+backgroundNoises.volume = .5
+backgroundNoises.loop = true
+
+const splatNoise = new Audio("../assets/wet_wriggling_noises/cartoon-splat-6086.mp3")
+const jumpNoise = new Audio("../assets/wet_wriggling_noises/smb_jump-super.wav")
+const stepNoise = new Audio("../assets/wet_wriggling_noises/slime-squish-14539.mp3")
+
+
+// MAP ORGANIZATION //
+
+var otherWeapons = []
+
+var inventory
+
+var updateHUD = () => {
+    let width = effectsCanvas.width
+    let height = effectsCanvas.height
+    let slotSize = 75
+    ctx.clearRect(width - (weaponSelectors.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (weaponSelectors.length) * slotSize + 20, slotSize * 2 + 20)
+    ctx.fillStyle = "white"
+    ctx.fillRect(width - (weaponSelectors.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (weaponSelectors.length) * slotSize + 20, slotSize + 20)
+
+    for (let i = 0; i < weaponSelectors.length; i++) {
+        if (weaponSelectors[i].value == "tomato") ctx.fillStyle = "red"
+        if (weaponSelectors[i].value == "olive") ctx.fillStyle = "green"
+        if (weaponSelectors[i].value == "pickle") ctx.fillStyle = "lightgreen"
+        if (weaponSelectors[i].value == "sausage") ctx.fillStyle = "brown"
+        if (weaponSelectors[i].value == "anchovy") ctx.fillStyle = "blue"
+
+        ctx.fillRect(width - (weaponSelectors.length + 1) * slotSize + i * slotSize, height - slotSize * 2, slotSize, slotSize)
+        ctx.fillStyle = "white"
+        ctx.font = "100 15px sans-serif"
+        ctx.fillText(weaponSelectors[i].value, width - (weaponSelectors.length + 1) * slotSize + i * slotSize, height - slotSize * 2 + 100, slotSize)
+    }
+
+    ctx.fillStyle = "yellow"
+    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - (weaponSelectors.length + 1) * slotSize - i + inventory.currentSelection * slotSize, height - slotSize * 2 - i, slotSize + i * 2, slotSize + i * 2)
+}
+
+var changeWeaponSelection = (selection) => {
+    inventory.currentSelection = selection
+    inventory.currentWeapon.remove()
+
+    inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[selection].value, [platforms, otherPlayers, [ground]], player)
+    updateHUD()
 }
 
 
 // INITIALIZE WEBGL //
 
-
 webgl.initialize()
 
+// MODEL DATA ORGANIZATION //
 
 var playerIdleInfo = obj.parseWavefront(fetchObj("player/PlayerIdle.obj"), true)
 
@@ -134,10 +199,10 @@ var platformGeometry = {
 }
 
 var ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
-
 var camera = new PhysicalObject(0, 0, 0, 0, 0, { mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05 }, [platforms, [ground]])
-
 var player
+
+// SERVER STUFF //
 
 var ticks = 0;
 function tick() {
@@ -195,9 +260,8 @@ socket.on("assignPlayer", (playerInfo) => {
     player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, [ground]]);
 
     inventory = {
-        loadOut: ["anchovy", "olive", "pickle", "sausage", "tomato"],
         currentSelection: 0,
-        currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, convertOtherPlayersToArray(), [ground]], player),
+        currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player),
     }
     updateHUD()
 });
@@ -212,20 +276,6 @@ socket.on("map", (mapInfo) => {
             mapInfo.platforms[i].scale
         ))
     }
-    platforms.push(
-        new Platform(platformGeometry, "basic", 10, 1, 16, 1),
-        new Platform(platformGeometry, "basic", 10, 1, 10, 1),
-        new Platform(platformGeometry, "basic", 15, 3.5, 5, 1),
-        new Platform(platformGeometry, "basic", 19, 6, -5, 1),
-        new Platform(platformGeometry, "basic", 26, 8.5, -9, 1),
-        new Platform(platformGeometry, "basic", 25, 10, -15, 1),
-        new Platform(platformGeometry, "basic", 19, 11.5, -10, 1),
-        new Platform(platformGeometry, "basic", 13, 13.5, -2, 1),
-        new Platform(platformGeometry, "basic", 10, 16, 5, 1),
-        new Platform(platformGeometry, "basic", 5, 18.5, 10, 1),
-        new Platform(platformGeometry, "basic", 2, 21, 8, 1),
-        new Platform(platformGeometry, "basic", -5, 23.5, 5, 1)
-    )
 
 })
 
@@ -259,7 +309,6 @@ socket.on("playerLeave", (id) => {
 socket.on("playerUpdate", (playersData) => {
 
     for (var id in playersData) {
-        console.log(playersData[id])
         if (otherPlayers[id] == null) continue
         if (!playersData[id].respawnedThisTick) {
             otherPlayers[id].lastPosition = otherPlayers[id].serverPosition
@@ -295,83 +344,11 @@ socket.on("tooManyPlayers", () => {
     alert("Sorry, there are too many players connected.");
 })
 
-
-// AUDIO //
-
-const backgroundNoises = new Audio("./assets/wet_wriggling_noises/dripping-water-nature-sounds-8050.mp3")
-backgroundNoises.volume = .5
-backgroundNoises.loop = true
-
-const splatNoise = new Audio("./assets/wet_wriggling_noises/cartoon-splat-6086.mp3")
-const jumpNoise = new Audio("./assets/wet_wriggling_noises/smb_jump-super.wav")
-const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
-
-
-// MAP ORGANIZATION //
-
-var otherWeapons = []
-
-var updateHUD = () => {
-    let width = effectsCanvas.width
-    let height = effectsCanvas.height
-    let slotSize = 75
-    ctx.clearRect(width - (inventory.loadOut.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (inventory.loadOut.length) * slotSize + 20, slotSize * 2 + 20)
-    ctx.fillStyle = "white"
-    ctx.fillRect(width - (inventory.loadOut.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (inventory.loadOut.length) * slotSize + 20, slotSize + 20)
-
-    for (let i = 0; i < inventory.loadOut.length; i++) {
-        if (inventory.loadOut[i] == "tomato") ctx.fillStyle = "red"
-        if (inventory.loadOut[i] == "olive") ctx.fillStyle = "green"
-        if (inventory.loadOut[i] == "pickle") ctx.fillStyle = "lightgreen"
-        if (inventory.loadOut[i] == "sausage") ctx.fillStyle = "brown"
-        if (inventory.loadOut[i] == "anchovy") ctx.fillStyle = "blue"
-
-        ctx.fillRect(width - (inventory.loadOut.length + 1) * slotSize + i * slotSize, height - slotSize * 2, slotSize, slotSize)
-    }
-
-    ctx.fillStyle = "yellow"
-    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - (inventory.loadOut.length + 1) * slotSize - i + inventory.currentSelection * slotSize, height - slotSize * 2 - i, slotSize + i * 2, slotSize + i * 2)
-}
-
-var changeWeaponSelection = (selection) => {
-    inventory.currentSelection = selection
-    inventory.currentWeapon.remove()
-
-    inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[selection], [platforms, convertOtherPlayersToArray(), [ground]], player)
-    updateHUD()
-}
-
-// 2D EFFECTS //
-var ctx = effectsCanvas.getContext("2d")
-ctx.fillStyle = "white"
-var chOffset = 10
-//ctx.fillRect(effectsCanvas.width / 2 - 1, effectsCanvas.height / 2 - 20, 2, 10)
-//ctx.fillRect(effectsCanvas.width / 2 - 1, effectsCanvas.height / 2 + 10, 2, 10)
-//ctx.fillRect(effectsCanvas.width / 2 - 20, effectsCanvas.height / 2 - 1, 10, 2)
-//ctx.fillRect(effectsCanvas.width / 2 + 10, effectsCanvas.height / 2 + 1, 10, 2)
-
-
-
-var inventory
+socket.emit("joinRoom", lobbyId)
 
 
 // TESTING //
 
-
-var testMatrix = mat4.create()
-mat4.translate(testMatrix, testMatrix, [.5, .6, .7])
-
-var testAngle = Math.PI
-
-var matrix = [
-    1, 0, 0,
-    0, Math.cos(testAngle), -Math.sin(testAngle),
-    0, Math.sin(testAngle), Math.cos(testAngle),
-]
-
-console.log(matrix)
-
-console.log(testMatrix)
 
 
 
@@ -575,7 +552,7 @@ function fixedUpdate() {
             otherWeapons.push(inventory.currentWeapon)
 
 
-            inventory.currentWeapon = new Weapon(weaponGeometry, inventory.loadOut[inventory.currentSelection], [platforms, convertOtherPlayersToArray(), [ground]], player)
+            inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
             //console.log()
             player.weapons.push(inventory.currentWeapon)
         }
@@ -583,7 +560,7 @@ function fixedUpdate() {
 
 
     // normalize movement vector //
-    let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2) + Math.pow(movementVector.z, 2))
+    let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2))
     if (hypotenuse > 0) {
         player.velocity.x = movementVector.x / hypotenuse * speed
         player.velocity.z = movementVector.z / hypotenuse * speed
@@ -648,83 +625,95 @@ var selectingAKey = false
 var selectingSKey = false
 var selectingDKey = false
 
+function initKeyInput(preventDefault) {
+    document.onkeydown = (event) => {
+        if (preventDefault) event.preventDefault();
 
-document.addEventListener('keydown', function (event) {
-    event.preventDefault();
-
-    
-    if (selectingWKey) {
-        keyBinds.w = event.code
-        wKeyBind.value = event.code
-    }
-    if (selectingAKey) keyBinds.a = event.code
-    if (selectingSKey) keyBinds.s = event.code
-    if (selectingDKey) keyBinds.d = event.code
-
-    if (event.code == "Digit1") {
-        changeWeaponSelection(0)
-    }
-    if (event.code == "Digit2") {
-        changeWeaponSelection(1)
-    }
-    if (event.code == "Digit3") {
-        changeWeaponSelection(2)
-    }
-    if (event.code == "Digit4") {
-        changeWeaponSelection(3)
-    }
-    if (event.code == "Digit5") {
-        changeWeaponSelection(4)
-    }
-
-    if (event.code == "ArrowLeft") {
-        left = true
-        if (inventory.currentSelection - 1 >= 0) changeWeaponSelection(inventory.currentSelection - 1)
-    }
-    if (event.code == "ArrowRight") {
-        right = true
-        if (inventory.currentSelection + 1 < inventory.loadOut.length) changeWeaponSelection(inventory.currentSelection + 1)
-    }
-    if (event.code == "ArrowUp") up = true
-    if (event.code == "ArrowDown") down = true
-
-    if (event.code == keyBinds.w) {
-        w = true
-        if (Date.now() - lastWPress < 250) {
-            player.movementState = "sprinting"
+        
+        if (selectingWKey) {
+            keyBinds.w = event.code
+            wKeyBind.value = event.code
         }
-        if (!event.repeat) lastWPress = Date.now()
-    }
-    if (event.code == keyBinds.s) s = true
-    if (event.code == keyBinds.a) a = true
-    if (event.code == keyBinds.d) d = true
+        if (selectingAKey) {
+            keyBinds.a = event.code
+            aKeyBind.value = event.code
+        }
+        if (selectingSKey) {
+            keyBinds.s = event.code
+            sKeyBind.value = event.code
+        }
+        if (selectingDKey) {
+            keyBinds.d = event.code
+            dKeyBind.value = event.code
+        }
 
-    if (event.code == "ShiftLeft") {
+        if (event.code == "Digit1") {
+            changeWeaponSelection(0)
+        }
+        if (event.code == "Digit2") {
+            changeWeaponSelection(1)
+        }
+        if (event.code == "Digit3") {
+            changeWeaponSelection(2)
+        }
+        if (event.code == "Digit4") {
+            changeWeaponSelection(3)
+        }
+        if (event.code == "Digit5") {
+            changeWeaponSelection(4)
+        }
 
-        shift = true
-    }
-    if (event.code == "Space") space = true
-});
+        if (event.code == "ArrowLeft") {
+            left = true
+            if (inventory.currentSelection - 1 >= 0) changeWeaponSelection(inventory.currentSelection - 1)
+        }
+        if (event.code == "ArrowRight") {
+            right = true
+            if (inventory.currentSelection + 1 < weaponSelectors.length) changeWeaponSelection(inventory.currentSelection + 1)
+        }
+        if (event.code == "ArrowUp") up = true
+        if (event.code == "ArrowDown") down = true
 
-document.addEventListener('keyup', function (event) {
-    event.preventDefault();
+        if (event.code == keyBinds.w) {
+            w = true
+            if (Date.now() - lastWPress < 250) {
+                player.movementState = "sprinting"
+            }
+            if (!event.repeat) lastWPress = Date.now()
+        }
+        if (event.code == keyBinds.s) s = true
+        if (event.code == keyBinds.a) a = true
+        if (event.code == keyBinds.d) d = true
 
-    if (event.code == 37) left = false
-    if (event.code == 39) right = false
-    if (event.code == 38) up = false
-    if (event.code == 40) down = false
+        if (event.code == "ShiftLeft") {
 
-    if (event.code == keyBinds.w) {
-        w = false
-        player.movementState = "walking"
-    }
-    if (event.code == keyBinds.a) s = false
-    if (event.code == keyBinds.s) a = false
-    if (event.code == keyBinds.d) d = false
+            shift = true
+        }
+        if (event.code == "Space") space = true
+    };
 
-    if (event.code == "ShiftLeft") shift = false
-    if (event.code == "Space") space = false
-});
+    document.onkeyup = (event) => {
+        if (preventDefault) event.preventDefault();
+
+        if (event.code == 37) left = false
+        if (event.code == 39) right = false
+        if (event.code == 38) up = false
+        if (event.code == 40) down = false
+
+        if (event.code == keyBinds.w) {
+            w = false
+            player.movementState = "walking"
+        }
+        if (event.code == keyBinds.s) s = false
+        if (event.code == keyBinds.a) a = false
+        if (event.code == keyBinds.d) d = false
+
+        if (event.code == "ShiftLeft") shift = false
+        if (event.code == "Space") space = false
+    };
+
+}
+initKeyInput(false)
 
 // -- mouse -- //
 
@@ -735,6 +724,7 @@ document.addEventListener("pointerlockchange", function () {
     if (document.pointerLockElement === canvas) {
         pointerLocked = true
         if (!running) {
+            initKeyInput(true)
             running = true
             update()
             fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
@@ -742,6 +732,7 @@ document.addEventListener("pointerlockchange", function () {
     } else {
         console.log("stopped")
 
+        initKeyInput(false)
         pointerLocked = false
         running = false
 
@@ -779,14 +770,18 @@ startButton.onclick = () => {
     backgroundNoises.play()
     menu.style.display = "none"
 
+    changeWeaponSelection(inventory.currentSelection)
 
     canvas.requestPointerLock()
 }
 
+
+document.getElementById("title").textContent = "Lobby " + lobbyId
+
 var settingsDiv = document.getElementById("settings")
 document.getElementById("settingsButton").onclick = () => {
-    settingsDiv.style.display = "block"
-    console.log(settingsDiv.style)
+    if (settingsDiv.style.display == "") settingsDiv.style.display = "block"
+    else settingsDiv.style.display = ""
 }
 
 var sensitivitySlider = document.getElementById("sensitivitySlider")
@@ -795,14 +790,24 @@ sensitivitySlider.onchange = () => {
 }
 
 var wKeyBind = document.getElementById("wSelector")
-wKeyBind.oninput = () => {
-    console.log(wKeyBind.value.length)
-    if (wKeyBind.value.length > 1) wKeyBind.value = wKeyBind.value.slice(-1, 1)
-
-}
-
+wKeyBind.value = keyBinds.w
 wKeyBind.onmouseenter = () => {selectingWKey = true}
 wKeyBind.onmouseleave = () => {selectingWKey = false}
+
+var aKeyBind = document.getElementById("aSelector")
+aKeyBind.value = keyBinds.a
+aKeyBind.onmouseenter = () => {selectingAKey = true}
+aKeyBind.onmouseleave = () => {selectingAKey = false}
+
+var sKeyBind = document.getElementById("sSelector")
+sKeyBind.value = keyBinds.s
+sKeyBind.onmouseenter = () => {selectingSKey = true}
+sKeyBind.onmouseleave = () => {selectingSKey = false}
+
+var dKeyBind = document.getElementById("dSelector")
+dKeyBind.value = keyBinds.d
+dKeyBind.onmouseenter = () => {selectingDKey = true}
+dKeyBind.onmouseleave = () => {selectingDKey = false}
 
 
 document.addEventListener("mousedown", function (event) {

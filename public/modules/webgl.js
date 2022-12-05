@@ -22,7 +22,7 @@ var webgl = {
       index: 1
     },
     bread: {
-      url: "./assets/textures/PlayerBreadTex.png",
+      url: "../assets/textures/PlayerBreadTex.png",
       index: 2
     },
     wood: {
@@ -286,7 +286,7 @@ var webgl = {
 
 
     for (let i = 0; i < camera.collidableObjects.length; i++) {
-      for (let j = 0; j < camera.collidableObjects[i].length; j++) {
+      for (let j in camera.collidableObjects[i]) {
         let movement = camera.calculateSlopes()
         let collision = camera.collidableObjects[i][j].collision(camera.lastPosition, camera.position, movement, camera.dimensions)
 
@@ -1019,7 +1019,7 @@ class Player extends PhysicalObject {
   static slidingFOV = Math.PI * 0.4
   static fovShiftSpeed = .0025
   static gravity = .00003
-  static jumpForce = 0.05
+  static jumpForce = 0.015
 
   constructor(geometries, x, y, z, yaw, lean, health, id, name, collidableObjects) {
     super(x, y, z, yaw, lean, {mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75}, collidableObjects)
@@ -1102,7 +1102,7 @@ class Player extends PhysicalObject {
     // calculate collisions
     let movement = this.calculateSlopes()
     for (let i = 0; i < this.collidableObjects.length; i++) {
-      for (let j = 0; j < this.collidableObjects[i].length; j++) {
+      for (let j in this.collidableObjects[i]) {
         let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
         if (collision.py.intersects) {
           this.position.y = collision.py.y
@@ -1291,12 +1291,13 @@ class Weapon extends PhysicalObject {
 
   calculatePosition(deltaTime, socket) {
 
-    for (let i = 0; i < this.particles.length; i++) {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
       this.particles[i].updateWorldPosition(deltaTime)
       if (Date.now() - this.particles[i].startTime > this.particles[i].lifeSpan) {
         this.particles[i].remove()
         this.particles.splice(i, 1)
       }
+      else continue
     }
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((this.owner.currentCooldown - this.owner.cooldownTimer) / this.owner.currentCooldown - 1)) + 1) / 2
@@ -1324,7 +1325,7 @@ class Weapon extends PhysicalObject {
     }
 
     for (let i = 0; i < this.collidableObjects.length; i++) {
-      for (let j = 0; j < this.collidableObjects[i].length; j++) {
+      for (let j in this.collidableObjects[i]) {
         if (this.collidableObjects[i][j] == null) continue
         let movement = this.calculateSlopes()
         let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
@@ -1398,7 +1399,9 @@ class Weapon extends PhysicalObject {
     super.remove()
     let allWeaponIndex = Weapon.allWeapons.indexOf(this)
     if (allWeaponIndex != -1) Weapon.allWeapons.splice(allWeaponIndex, 1)
-    for (let i = 0; i < this.particles.length; i++) this.particles[i].remove()
+    for (let i = 0; i < this.particles.length; i++)// window.setTimeout(() => {
+      this.particles[i].remove()
+    //}, (this.particles[i].startTime + this.particles[i].lifeSpan) - Date.now())
   }
   
 
@@ -1454,7 +1457,6 @@ class Platform extends PhysicalObject {
 
 class Ground {
   constructor(geometryInfo) {
-    console.log(geometryInfo)
 
     this.model = new Model(geometryInfo, 1, "jerry")
 
