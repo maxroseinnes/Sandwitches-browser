@@ -208,6 +208,7 @@ class Room {
     })
   
     socket.on("playerHit", (hitInfo) => {
+      if (this.players[hitInfo.target] == undefined) return
       let newHealth = this.players[hitInfo.target].health - hitInfo.damage
       if (newHealth > 0) {
         this.players[hitInfo.target].health = newHealth
@@ -215,6 +216,7 @@ class Room {
       } else {
         let deathMessage = this.players[hitInfo.target].name + " was killed by " + this.players[hitInfo.from].name
         socket.broadcast.emit("chatMessage", deathMessage)
+        console.log(deathMessage)
         this.respawnPlayer(hitInfo.target)
       }
     })
