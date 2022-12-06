@@ -147,8 +147,6 @@ class Room {
   }
 
   addPlayer(socket, assignedId) {
-    socket.emit("startTicking", TPS)
-    
     socket.emit("map", this.mapData);
   
     let otherPlayersInfo = {};
@@ -183,6 +181,8 @@ class Room {
       state: state
     });
   
+    socket.emit("startTicking", TPS)
+    
   
     // Send everyone else the new player info
     socket.broadcast.emit("newPlayer", { 
@@ -192,6 +192,13 @@ class Room {
       health: DEFAULT_PLAYER_HEALTH, 
       state: state
     });
+
+    socket.on("nameChange", (data) => {
+      if (this.players[data.id] != null) {
+        this.players[data.id].name = data.newName
+        socket.broadcast.emit("nameChange", {id: data.id, newName: data.newName})
+      }
+    })
   
     socket.on("playerUpdate", (data) => {
       if (this.players[data.id] != null) {

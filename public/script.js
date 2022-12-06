@@ -216,7 +216,7 @@ function tick() {
         player.lastPosition.x = respawnPositionX;
         player.lastPosition.y = 0
         player.lastPosition.z = respawnPositionZ*/
-        socket.emit("death", { type: "void", name: player.name });
+        socket.emit("death", { type: "void", id: player.id, name: player.name });
     }
     let weaponData = []
     for (let i = 0; i < Weapon.allWeapons.length; i++) weaponData.push({
@@ -258,6 +258,8 @@ socket.on("startTicking", (TPS) => {
 
 socket.on("assignPlayer", (playerInfo) => {
     player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, [ground]]);
+
+    document.getElementById("nameField").value = player.name
 
     inventory = {
         currentSelection: 0,
@@ -329,6 +331,13 @@ socket.on("playerUpdate", (playersData) => {
 
 socket.on("chatMessage", (msg) => {
     console.log(msg)
+})
+
+socket.on("nameChange", (data) => {
+    if (otherPlayers[data.id] == undefined) return
+    otherPlayers[data.id].name = data.newName
+    otherPlayers[data.id].gamerTag.changeName(data.newName)
+
 })
 
 socket.on("respawn", (data) => {
@@ -456,19 +465,6 @@ function fixedUpdate() {
         movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
-        /*
-                if (player.animation.finished) {
-                    if (player.onGround) {
-                        stepNoise.currentTime = 0.25
-                        stepNoise.volume = .05
-                        stepNoise.playbackRate = 1
-                        stepNoise.play()
-                    }
-                    if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
-                    else if (player.animation.currentMeshName == "stepRightFoot") player.startAnimation("stepRightFoot", "walkLeftFoot", walkAnimationSpeed, true)
-                    else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
-        
-                }*/
     }
     if (a) {
         movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
@@ -479,19 +475,6 @@ function fixedUpdate() {
         movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         player.state.walkCycle -= walkAnimationSpeed
-        /*
-        if (player.animation.finished) {
-            if (player.onGround) {
-                stepNoise.currentTime = 0.2
-                stepNoise.volume = .05
-                stepNoise.playbackRate = 1.5
-                stepNoise.play()
-            }
-            if (player.animation.currentMeshName == "idle") player.startAnimation("idle", "stepRightFoot", .1, true)
-            else if (player.animation.currentMeshName == "stepRightFoot") player.startAnimation("stepRightFoot", "walkLeftFoot", walkAnimationSpeed, true)
-            else if (player.animation.currentMeshName == "walkLeftFoot") player.startAnimation("walkLeftFoot", "stepRightFoot", walkAnimationSpeed, true)
-            
-        }*/
     }
     if (d) {
         movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
@@ -501,11 +484,6 @@ function fixedUpdate() {
         let r = player.state.walkCycle % Math.PI
         if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
         else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
-
-
-        /*if (player.animation.finished) {
-            if (player.animation.currentMeshName != "idle") player.startAnimation(player.animation.currentMeshName, "idle", .1, true)
-        }*/
     }
 
     if (player.movementState == "sliding") {
@@ -537,11 +515,11 @@ function fixedUpdate() {
     }
 
     if (space) {
-        //if (player.onGround) {
+        if (player.onGround) {
         player.velocity.y = Player.jumpForce
         jumpNoise.currentTime = 0.025
         jumpNoise.play()
-        //}
+        }
     }
 
     if (leftClicking) {
@@ -772,12 +750,27 @@ startButton.onclick = () => {
 
     changeWeaponSelection(inventory.currentSelection)
 
+    if (player.name != player.lastName) {
+        player.gamerTag.changeName(player.name)
+        player.lastName = player.name
+
+        socket.emit("nameChange", {id: player.id, newName: player.name})
+    }
+
     canvas.requestPointerLock()
 }
 
 
 document.getElementById("title").textContent = "Lobby " + lobbyId
 
+
+var nameField = document.getElementById("nameField")
+nameField.oninput = () => {
+    player.name = nameField.value
+}
+
+
+// -- settings -- //
 var settingsDiv = document.getElementById("settings")
 document.getElementById("settingsButton").onclick = () => {
     if (settingsDiv.style.display == "") settingsDiv.style.display = "block"

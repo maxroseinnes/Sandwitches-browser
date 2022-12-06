@@ -139,6 +139,8 @@ var webgl = {
 
     this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true)
 
+    this.canvas = document.createElement("canvas")
+    this.ctx = this.canvas.getContext("2d")
     this.squareWidth = 20//Math.round(Math.sqrt(Object.keys(this.textures).length) + .499999)
     
     for (let name in this.textures) {
@@ -188,12 +190,10 @@ var webgl = {
   
   mergeImages: (gl, loadedImages, texture) => {
 
-    webgl.canvas = document.createElement("canvas")
     webgl.canvas.width = webgl.squareWidth * 64
     webgl.canvas.height = webgl.squareWidth * 64
     //document.body.appendChild(webgl.canvas)
     webgl.canvas.style.imageRendering = "pixelated"
-    webgl.ctx = webgl.canvas.getContext("2d")
     //ctx.scale(-1, 1)
 
     for (let i = 0; i < loadedImages.length; i++) {
@@ -879,6 +879,8 @@ class GamerTag {
   constructor(name) {
     GamerTag.allGamerTags.push(this)
 
+    this.name = name
+
     this.geometryInfo = {
       positions: [
         [-.75,   0 , 0],
@@ -915,28 +917,53 @@ class GamerTag {
       ]
     }
 
-    let textureIndex = Object.keys(webgl.textures).length
-    webgl.textures[name] = {
-      index: textureIndex
+    this.textureIndex = Object.keys(webgl.textures).length
+    webgl.textures[this.name] = {
+      index: this.textureIndex
     }
-    let yLocation = parseInt(textureIndex / webgl.squareWidth, 10)
-    let xLocation = textureIndex - yLocation * webgl.squareWidth
+    let yLocation = parseInt(this.textureIndex / webgl.squareWidth, 10)
+    let xLocation = this.textureIndex - yLocation * webgl.squareWidth
     webgl.ctx.fillStyle = "black"
     webgl.ctx.fillRect(xLocation * 64, yLocation * 64 + 51, 64, 13)
     webgl.ctx.fillStyle = "white"//"rgb(240, 215, 160)"
     webgl.ctx.fillRect(xLocation * 64 + 1, yLocation * 64 + 51, 62, 13)
     webgl.ctx.font = "100 15px sans-serif"
-    let nameWidth = webgl.ctx.measureText(name).width
+    let nameWidth = webgl.ctx.measureText(this.name).width
     webgl.ctx.fillStyle = "black"
-    for (let i = 0; i < 3; i++) webgl.ctx.fillText(name, xLocation * 64 + ((nameWidth < 64) ? ((63 - nameWidth) / 2) : 1), yLocation * 64 + 63, 62)
+    for (let i = 0; i < 3; i++) webgl.ctx.fillText(this.name, xLocation * 64 + ((nameWidth < 64) ? ((63 - nameWidth) / 2) : 1), yLocation * 64 + 63, 62)
     //webgl.ctx.fillStyle = "white"
     //for (let i = 0; i < 30; i++) webgl.ctx.strokeText(name, xLocation * 64 + ((nameWidth < 64) ? ((63 - nameWidth) / 2) : 1), yLocation * 64 + 63, 62)
 
 
     webgl.loadTexture(webgl.gl, webgl.textureMap)
 
-    this.model = new Model(this.geometryInfo, 1, name, 0, 0, 0)
+    this.model = new Model(this.geometryInfo, 1, this.name, 0, 0, 0)
   }
+
+
+  changeName(newName) {
+
+    delete webgl.textures[this.name]
+    this.name = newName
+    webgl.textures[newName] = {
+      index: this.textureIndex
+    }
+    this.model.texture = newName
+
+    let yLocation = parseInt(this.textureIndex / webgl.squareWidth, 10)
+    let xLocation = this.textureIndex - yLocation * webgl.squareWidth
+    webgl.ctx.fillStyle = "black"
+    webgl.ctx.fillRect(xLocation * 64, yLocation * 64 + 51, 64, 13)
+    webgl.ctx.fillStyle = "white"//"rgb(240, 215, 160)"
+    webgl.ctx.fillRect(xLocation * 64 + 1, yLocation * 64 + 51, 62, 13)
+    webgl.ctx.font = "100 15px sans-serif"
+    let nameWidth = webgl.ctx.measureText(this.name).width
+    webgl.ctx.fillStyle = "black"
+    for (let i = 0; i < 3; i++) webgl.ctx.fillText(this.name, xLocation * 64 + ((nameWidth < 64) ? ((63 - nameWidth) / 2) : 1), yLocation * 64 + 63, 62)
+
+    webgl.loadTexture(webgl.gl, webgl.textureMap)
+  }
+  
 }
 
 
@@ -1054,11 +1081,13 @@ class Player extends PhysicalObject {
 
     this.id = id
     this.name = name
+    this.lastName = this.name
 
     this.health = health
 
     this.velocity = {x: 0, y: 0, z: 0}
     this.onGround = true
+    this.hittingHead = true
     this.movementState = "walking"
 
     this.slideCountown = 0
@@ -1097,6 +1126,24 @@ class Player extends PhysicalObject {
 
 
     this.onGround = false
+    this.hittingHead = false
+
+    if (this.movementState == "walking" || this.movementState == "sprinting") this.dimensions = {
+      mx: -.75,
+      px: .75,
+      my: 0,
+      py: 2,
+      mz: -.75,
+      pz: .75
+    }
+    else if (this.movementState == "crouching" || this.movementState == "sliding") this.dimensions = {
+      mx: -.75,
+      px: .75,
+      my: 0,
+      py: 2,
+      mz: -.75,
+      pz: .75
+    }
 
 
     // calculate collisions
@@ -1112,6 +1159,7 @@ class Player extends PhysicalObject {
         if (collision.my.intersects) {
           this.position.y = collision.my.y
           this.velocity.y = 0
+          this.hittingHead = true
         }
         if (collision.mx.intersects) {
           this.position.x = collision.mx.x
