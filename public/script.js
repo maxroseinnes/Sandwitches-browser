@@ -70,7 +70,7 @@ var averageClientTPS = ticksPerSecond
 var lobbyId = Number(document.getElementById("lobbyId").textContent)
 var socket = io();
 var otherPlayers = {};
-var otherWeapons = []
+var otherWeapons = {}
 
 
 // Local global variables //
@@ -121,12 +121,12 @@ backgroundNoises.loop = true
 
 const splatNoise = new Audio("../assets/wet_wriggling_noises/cartoon-splat-6086.mp3")
 const jumpNoise = new Audio("../assets/wet_wriggling_noises/smb_jump-super.wav")
+const pauseNoise = new Audio("../assets/wet_wriggling_noises/smb_pause.wav")
 const stepNoise = new Audio("../assets/wet_wriggling_noises/slime-squish-14539.mp3")
 
 
 // MAP ORGANIZATION //
 
-var otherWeapons = []
 
 var inventory
 
@@ -219,11 +219,15 @@ function tick() {
         socket.emit("death", { type: "void", id: player.id, name: player.name });
     }
     let weaponData = []
-    for (let i = 0; i < Weapon.allWeapons.length; i++) weaponData.push({
-        position: Weapon.allWeapons[i].position,
-        type: Weapon.allWeapons[i].type
-    })
+    for (let i = 0; i < player.weapons.length; i++) {
+        weaponData.push({
+            id: player.weapons[i].id,
+            type: player.weapons[i].type,
+            position: player.weapons[i].position
+        })
+    }
     socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, weaponData: weaponData });
+
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
@@ -300,6 +304,10 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 socket.on("newPlayer", (player) => {
     console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
+})
+
+socket.on("newWeapon", (data) => {
+    //otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [ground]], data.owner)
 })
 
 socket.on("playerLeave", (id) => {
@@ -412,7 +420,7 @@ function update(now) {
 
         inventory.currentWeapon.updateWorldPosition()
     }
-    for (let i = 0; i < otherWeapons.length; i++) otherWeapons[i].updateWorldPosition()
+    for (var id in otherWeapons) otherWeapons[id].updateWorldPosition()
 
 
     camera.position.yaw = player.position.yaw
@@ -515,19 +523,25 @@ function fixedUpdate() {
     }
 
     if (space) {
-        if (player.onGround) {
+        //if (player.onGround) {
         player.velocity.y = Player.jumpForce
         jumpNoise.currentTime = 0.025
         jumpNoise.play()
-        }
+        //}
     }
 
     if (leftClicking) {
         if (!inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
             player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
+            socket.emit("newWeapon", {
+                id: inventory.currentWeapon.id,
+                owner: player.id,
+                type: inventory.currentWeapon.type,
+                position: inventory.currentWeapon.position
+            })
 
             player.cooldownTimer = player.currentCooldown
-            otherWeapons.push(inventory.currentWeapon)
+            otherWeapons[inventory.currentWeapon.id] = inventory.currentWeapon
 
 
             inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
@@ -565,13 +579,13 @@ function fixedUpdate() {
 
 
 
-    for (let i = otherWeapons.length - 1; i >= 0; i--) {
-        if (otherWeapons[i].shooted) {
-            otherWeapons[i].calculatePosition(deltaTime, socket)
+    for (var id in otherWeapons) {
+        if (otherWeapons[id].shooted) {
+            otherWeapons[id].calculatePosition(deltaTime, socket)
 
-            if (Math.abs(otherWeapons[i].position.x) > 50 || Math.abs(otherWeapons[i].position.z) > 50) {
-                otherWeapons[i].remove()
-                otherWeapons.splice(i, 1)
+            if (Math.abs(otherWeapons[id].position.x) > 50 || Math.abs(otherWeapons[id].position.z) > 50) {
+                otherWeapons[id].remove()
+                otherWeapons[id] = null
             }
         }
     }
@@ -708,6 +722,7 @@ document.addEventListener("pointerlockchange", function () {
             fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
         }
     } else {
+        pauseNoise.play()
         console.log("stopped")
 
         initKeyInput(false)
@@ -719,6 +734,8 @@ document.addEventListener("pointerlockchange", function () {
 
         menu.style.display = ""
     }
+
+    
 }, false)
 
 

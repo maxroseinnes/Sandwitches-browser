@@ -185,18 +185,18 @@ class Room {
     
   
     // Send everyone else the new player info
-    socket.broadcast.emit("newPlayer", { 
+    this.broadcast("newPlayer", { 
       id: assignedId,
       name: name, 
       position: position, 
       health: DEFAULT_PLAYER_HEALTH, 
       state: state
-    });
+    }, null);
 
     socket.on("nameChange", (data) => {
       if (this.players[data.id] != null) {
         this.players[data.id].name = data.newName
-        socket.broadcast.emit("nameChange", {id: data.id, newName: data.newName})
+        broadcast("nameChange", {id: data.id, newName: data.newName}, null)
       }
     })
   
@@ -214,9 +214,24 @@ class Room {
         console.log(newHealth)
       } else {
         let deathMessage = this.players[hitInfo.target].name + " was killed by " + this.players[hitInfo.from].name
-        socket.broadcast.emit("chatMessage", deathMessage)
+        broadcast("chatMessage", deathMessage, null)
         this.respawnPlayer(hitInfo.target)
       }
+    })
+
+    socket.on("newWeapon", (data) => {
+      this.weapons[data.id] = {
+        type: data.type,
+        owner: data.owner,
+        position: data.position,
+        velocity: data.velocity
+      }
+
+      this.broadcast("newWeapon", {
+        id: data.id,
+        owner: this.weapons[data.id].owner,
+        position: this.weapons[data.id].position
+      })
     })
   
     socket.on("death", (deathInfo) => {
