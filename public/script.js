@@ -164,6 +164,21 @@ var changeWeaponSelection = (selection) => {
 }
 
 
+var chatMessages = []
+
+function displayChatMessage(msg) {
+
+    let messageDiv = document.createElement("div")
+    messageDiv.classList.add("chatMessage")
+    messageDiv.textContent = msg
+    chatbox.appendChild(messageDiv)
+
+    chatMessages.push(messageDiv)
+    
+    for (let i = 0; i < chatMessages.length; i++) chatMessages[i].style.bottom = (chatMessages.length - i) * 25 + "px"
+}
+
+
 // INITIALIZE WEBGL //
 
 webgl.initialize()
@@ -302,7 +317,7 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 })
 
 socket.on("newPlayer", (player) => {
-    console.log(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
+    displayChatMessage(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
 })
 
@@ -311,7 +326,7 @@ socket.on("newWeapon", (data) => {
 })
 
 socket.on("playerLeave", (id) => {
-    console.log(otherPlayers[id].name + " left")
+    displayChatMessage(otherPlayers[id].name + " left")
     otherPlayers[id].remove()
     otherPlayers[id] = null
 })
@@ -337,8 +352,11 @@ socket.on("playerUpdate", (playersData) => {
     }
 })
 
+var chatbox = document.getElementById("chatbox")
 socket.on("chatMessage", (msg) => {
     console.log(msg)
+
+    displayChatMessage(msg)
 })
 
 socket.on("nameChange", (data) => {
