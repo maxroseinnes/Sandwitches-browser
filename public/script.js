@@ -128,7 +128,7 @@ const stepNoise = new Audio("../assets/wet_wriggling_noises/slime-squish-14539.m
 // MAP ORGANIZATION //
 
 
-var inventory
+//var inventory
 
 var updateHUD = () => {
     let width = effectsCanvas.width
@@ -152,14 +152,14 @@ var updateHUD = () => {
     }
 
     ctx.fillStyle = "yellow"
-    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - (weaponSelectors.length + 1) * slotSize - i + inventory.currentSelection * slotSize, height - slotSize * 2 - i, slotSize + i * 2, slotSize + i * 2)
+    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - (weaponSelectors.length + 1) * slotSize - i + player.inventory.currentSelection * slotSize, height - slotSize * 2 - i, slotSize + i * 2, slotSize + i * 2)
 }
 
 var changeWeaponSelection = (selection) => {
-    inventory.currentSelection = selection
-    inventory.currentWeapon.remove()
+    player.inventory.currentSelection = selection
+    player.inventory.currentWeapon.remove()
 
-    inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[selection].value, [platforms, otherPlayers, [ground]], player)
+    player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[selection].value, [platforms, otherPlayers, [ground]], player)
     updateHUD()
 }
 
@@ -314,7 +314,7 @@ socket.on("assignPlayer", (playerInfo) => {
 
     document.getElementById("nameField").value = player.name
 
-    inventory = {
+    player.inventory = {
         currentSelection: 0,
         currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player),
     }
@@ -356,12 +356,12 @@ socket.on("newPlayer", (player) => {
 })
 
 socket.on("newWeapon", (data) => {
+    if (data.ownerId == player.id) {
+        
+    }
+    //otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [ground]], otherPlayers[data.ownerId])
+    
     Weapon.nextId++
-    console.log(data.id)
-    /*otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [ground]], otherPlayers[data.ownerId])
-    otherWeapons[data.id].shooted = true
-    otherWeapons[data.id].position = data.position
-    otherWeapons[data.id].velocity = data.velocity*/
 })
 
 socket.on("playerLeave", (id) => {
@@ -473,10 +473,10 @@ function update(now) {
 
 
 
-    if (inventory.currentWeapon != null) {
-        inventory.currentWeapon.calculatePosition(deltaTime, socket) // weapon collision updates need to be sent to the server in calculatePosition method
+    if (player.inventory.currentWeapon != null) {
+        player.inventory.currentWeapon.calculatePosition(deltaTime, socket) // weapon collision updates need to be sent to the server in calculatePosition method
 
-        inventory.currentWeapon.updateWorldPosition()
+        player. inventory.currentWeapon.updateWorldPosition()
     }
     for (var id in otherWeapons) if (otherWeapons[id] != null) otherWeapons[id].updateWorldPosition()
 
@@ -590,23 +590,22 @@ function fixedUpdate() {
         }
 
         if (leftClicking) {
-            if (!inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
-                player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
+            if (!player.inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
+                player.currentCooldown = player.inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
                 socket.emit("newWeapon", {
-                    id: inventory.currentWeapon.id,
-                    ownerId: player.id,
-                    type: inventory.currentWeapon.type,
-                    position: inventory.currentWeapon.position,
-                    velocity: inventory.currentWeapon.velocity
+                        ownerId: player.id,
+                    type: player.inventory.currentWeapon.type,
+                    position: player.inventory.currentWeapon.position,
+                    velocity: player.inventory.currentWeapon.velocity
                 })
 
                 player.cooldownTimer = player.currentCooldown
-                otherWeapons[inventory.currentWeapon.id] = inventory.currentWeapon
+                otherWeapons[player.inventory.currentWeapon.id] = player.inventory.currentWeapon
 
 
-                inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
+                player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[player.inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
                 //console.log()
-                player.weapons.push(inventory.currentWeapon)
+                player.weapons.push(player.inventory.currentWeapon)
             }
         }
 
@@ -685,7 +684,7 @@ function initKeyInput(preventDefault) {
     document.onkeydown = (event) => {
         if (preventDefault) event.preventDefault();
 
-        
+
         if (selectingWKey) {
             keyBinds.w = event.code
             wKeyBind.value = event.code
@@ -703,29 +702,32 @@ function initKeyInput(preventDefault) {
             dKeyBind.value = event.code
         }
 
-        if (event.code == "Digit1") {
-            changeWeaponSelection(0)
-        }
-        if (event.code == "Digit2") {
-            changeWeaponSelection(1)
-        }
-        if (event.code == "Digit3") {
-            changeWeaponSelection(2)
-        }
-        if (event.code == "Digit4") {
-            changeWeaponSelection(3)
-        }
-        if (event.code == "Digit5") {
-            changeWeaponSelection(4)
-        }
+        if (player != undefined) {
+            if (event.code == "Digit1") {
+                changeWeaponSelection(0)
+            }
+            if (event.code == "Digit2") {
+                changeWeaponSelection(1)
+            }
+            if (event.code == "Digit3") {
+                changeWeaponSelection(2)
+            }
+            if (event.code == "Digit4") {
+                changeWeaponSelection(3)
+            }
+            if (event.code == "Digit5") {
+                changeWeaponSelection(4)
+            }
 
-        if (event.code == "ArrowLeft") {
-            left = true
-            if (inventory.currentSelection - 1 >= 0) changeWeaponSelection(inventory.currentSelection - 1)
-        }
-        if (event.code == "ArrowRight") {
-            right = true
-            if (inventory.currentSelection + 1 < weaponSelectors.length) changeWeaponSelection(inventory.currentSelection + 1)
+
+            if (event.code == "ArrowLeft") {
+                left = true
+                if (player.inventory.currentSelection - 1 >= 0) changeWeaponSelection(player.inventory.currentSelection - 1)
+            }
+            if (event.code == "ArrowRight") {
+                right = true
+                if (player.inventory.currentSelection + 1 < weaponSelectors.length) changeWeaponSelection(player.inventory.currentSelection + 1)
+            }
         }
         if (event.code == "ArrowUp") up = true
         if (event.code == "ArrowDown") down = true
@@ -826,7 +828,7 @@ document.addEventListener("pointerlockchange", function () {
         if (!chatboxOpen) pauseGame()
     }
 
-    
+
 }, false)
 
 
@@ -856,13 +858,13 @@ startButton.onclick = () => {
     backgroundNoises.play()
     menu.style.display = "none"
 
-    changeWeaponSelection(inventory.currentSelection)
+    changeWeaponSelection(player.inventory.currentSelection)
 
     if (player.name != player.lastName) {
         player.gamerTag.changeName(player.name)
         player.lastName = player.name
 
-        socket.emit("nameChange", {id: player.id, newName: player.name})
+        socket.emit("nameChange", { id: player.id, newName: player.name })
     }
 
     canvas.requestPointerLock()
@@ -893,23 +895,23 @@ sensitivitySlider.onchange = () => {
 
 var wKeyBind = document.getElementById("wSelector")
 wKeyBind.value = keyBinds.w
-wKeyBind.onmouseenter = () => {selectingWKey = true}
-wKeyBind.onmouseleave = () => {selectingWKey = false}
+wKeyBind.onmouseenter = () => { selectingWKey = true }
+wKeyBind.onmouseleave = () => { selectingWKey = false }
 
 var aKeyBind = document.getElementById("aSelector")
 aKeyBind.value = keyBinds.a
-aKeyBind.onmouseenter = () => {selectingAKey = true}
-aKeyBind.onmouseleave = () => {selectingAKey = false}
+aKeyBind.onmouseenter = () => { selectingAKey = true }
+aKeyBind.onmouseleave = () => { selectingAKey = false }
 
 var sKeyBind = document.getElementById("sSelector")
 sKeyBind.value = keyBinds.s
-sKeyBind.onmouseenter = () => {selectingSKey = true}
-sKeyBind.onmouseleave = () => {selectingSKey = false}
+sKeyBind.onmouseenter = () => { selectingSKey = true }
+sKeyBind.onmouseleave = () => { selectingSKey = false }
 
 var dKeyBind = document.getElementById("dSelector")
 dKeyBind.value = keyBinds.d
-dKeyBind.onmouseenter = () => {selectingDKey = true}
-dKeyBind.onmouseleave = () => {selectingDKey = false}
+dKeyBind.onmouseenter = () => { selectingDKey = true }
+dKeyBind.onmouseleave = () => { selectingDKey = false }
 
 
 document.addEventListener("mousedown", function (event) {

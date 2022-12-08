@@ -6,7 +6,7 @@ const server = http.createServer(app);
 const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
 const ipv4 = require("ip").address();
-const localhost = false;
+const localhost = true;
 const port = 3000;
 
 const DEFAULT_PLAYER_HEALTH = 100 
@@ -130,6 +130,7 @@ var maps = {
 
 
 var nextId = 0
+var nextWeaponId = 0
 
 const TPS = 20;
 
@@ -225,18 +226,18 @@ class Room {
     })
 
     socket.on("newWeapon", (data) => {
-      this.weapons[data.id] = {
+      this.weapons[nextWeaponId] = {
         type: data.type,
         ownerId: data.ownerId,
         position: data.position,
       }
 
       this.broadcast("newWeapon", {
-        id: data.id,
+        id: nextWeaponId,
         type: data.type,
-        ownerId: this.weapons[data.id].ownerId,
-        position: this.weapons[data.id].position
-      }, data.ownerId)
+        ownerId: this.weapons[nextWeaponId].ownerId,
+        position: this.weapons[nextWeaponId].position
+      }, null)
     })
   
     socket.on("death", (deathInfo) => {

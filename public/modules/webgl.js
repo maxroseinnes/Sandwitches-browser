@@ -1231,7 +1231,6 @@ class Player extends PhysicalObject {
 
 class Weapon extends PhysicalObject {
   static allWeapons = []
-  static nextId = 0
   constructor(geometryInfos, type, collidableObjects, owner) {
     super(0, 0, 0, 0, 0, {mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25}, collidableObjects)
     Weapon.allWeapons.push(this)
@@ -1240,8 +1239,6 @@ class Weapon extends PhysicalObject {
 
     this.geometryInfos = geometryInfos
     this.type = type
-    this.id = Weapon.nextId
-    Weapon.nextId++
 
     this.owner = owner
 
