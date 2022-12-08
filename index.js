@@ -191,7 +191,7 @@ class Room {
       position: position, 
       health: DEFAULT_PLAYER_HEALTH, 
       state: state
-    }, null);
+    }, assignedId);
 
     socket.on("nameChange", (data) => {
       if (this.players[data.id] != null) {
@@ -223,16 +223,16 @@ class Room {
     socket.on("newWeapon", (data) => {
       this.weapons[data.id] = {
         type: data.type,
-        owner: data.owner,
+        ownerId: data.ownerId,
         position: data.position,
-        velocity: data.velocity
       }
 
       this.broadcast("newWeapon", {
         id: data.id,
-        owner: this.weapons[data.id].owner,
+        type: data.type,
+        ownerId: this.weapons[data.id].ownerId,
         position: this.weapons[data.id].position
-      })
+      }, data.ownerId)
     })
   
     socket.on("death", (deathInfo) => {
