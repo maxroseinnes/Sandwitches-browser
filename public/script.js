@@ -323,7 +323,12 @@ socket.on("newPlayer", (player) => {
 })
 
 socket.on("newWeapon", (data) => {
-    //otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [ground]], data.owner)
+    Weapon.nextId++
+    console.log(data.id)
+    /*otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [ground]], otherPlayers[data.ownerId])
+    otherWeapons[data.id].shooted = true
+    otherWeapons[data.id].position = data.position
+    otherWeapons[data.id].velocity = data.velocity*/
 })
 
 socket.on("playerLeave", (id) => {
@@ -440,7 +445,7 @@ function update(now) {
 
         inventory.currentWeapon.updateWorldPosition()
     }
-    for (var id in otherWeapons) otherWeapons[id].updateWorldPosition()
+    for (var id in otherWeapons) if (otherWeapons[id] != null) otherWeapons[id].updateWorldPosition()
 
 
     camera.position.yaw = player.position.yaw
@@ -555,9 +560,10 @@ function fixedUpdate() {
             player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
             socket.emit("newWeapon", {
                 id: inventory.currentWeapon.id,
-                owner: player.id,
+                ownerId: player.id,
                 type: inventory.currentWeapon.type,
-                position: inventory.currentWeapon.position
+                position: inventory.currentWeapon.position,
+                velocity: inventory.currentWeapon.velocity
             })
 
             player.cooldownTimer = player.currentCooldown
@@ -600,6 +606,7 @@ function fixedUpdate() {
 
 
     for (var id in otherWeapons) {
+        if (otherWeapons[id] == null) continue
         if (otherWeapons[id].shooted) {
             otherWeapons[id].calculatePosition(deltaTime, socket)
 
