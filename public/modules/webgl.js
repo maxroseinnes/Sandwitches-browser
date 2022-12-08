@@ -1479,7 +1479,7 @@ class Platform extends PhysicalObject {
       }
     }
 
-    this.texture = "jerry"
+    this.texture = "jerry" // default to jerry texture
 
     if (type == "basic") {
       this.texture = "sub"

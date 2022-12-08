@@ -210,7 +210,8 @@ var weaponGeometry = {
 var platformGeometry = {
     basic: obj.parseWavefront(modelData.platforms.basic, false),
     crate: obj.parseWavefront(fetchObj("platforms/crate.obj"), false),
-    pinetree: obj.parseWavefront(fetchObj("platforms/pinetree.obj"), false)
+    pinetree: obj.parseWavefront(fetchObj("platforms/pinetree.obj"), false),
+    doorTest: obj.parseWavefront(fetchObj("doorTest.obj"), false)
 }
 
 var ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
@@ -384,6 +385,7 @@ socket.emit("joinRoom", lobbyId)
 
 // TESTING //
 
+platforms.push(new Platform(platformGeometry, "doorTest", -10, 3, -20, 1))
 
 
 
