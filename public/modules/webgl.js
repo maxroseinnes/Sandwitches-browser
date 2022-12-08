@@ -1277,7 +1277,7 @@ class Weapon extends PhysicalObject {
 
       this.cooldown = .15
       this.manaCost = 5
-      this.damage = 5
+      this.damage = 100
 
       this.scale = .925
       this.models.main = new Model(geometryInfos.olive, this.scale, "sub")

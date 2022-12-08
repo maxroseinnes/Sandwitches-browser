@@ -196,8 +196,12 @@ class Room {
     socket.on("nameChange", (data) => {
       if (this.players[data.id] != null) {
         this.players[data.id].name = data.newName
-        broadcast("nameChange", {id: data.id, newName: data.newName}, null)
+        this.broadcast("nameChange", {id: data.id, newName: data.newName}, null)
       }
+    })
+
+    socket.on("sendChatMessage", (msg) => {
+      this.broadcast("chatMessage", msg, null)
     })
   
     socket.on("playerUpdate", (data) => {
@@ -215,7 +219,7 @@ class Room {
         console.log(newHealth)
       } else {
         let deathMessage = this.players[hitInfo.target].name + " was killed by " + this.players[hitInfo.from].name
-        socket.broadcast.emit("chatMessage", deathMessage)
+        this.broadcast("chatMessage", deathMessage, null)
         this.respawnPlayer(hitInfo.target)
       }
     })
@@ -245,7 +249,7 @@ class Room {
         deathMessage = deathInfo.name + " died."
       }
       console.log(deathMessage)
-      socket.broadcast.emit("chatMessage", deathMessage)
+      this.broadcast("chatMessage", deathMessage, false)
     })
   
     socket.on("disconnect", () => {

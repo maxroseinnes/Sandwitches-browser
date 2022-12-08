@@ -174,9 +174,42 @@ function displayChatMessage(msg) {
     chatbox.appendChild(messageDiv)
 
     chatMessages.push(messageDiv)
+
+    if (msg.indexOf("fell") != -1 || msg.indexOf("killed") != -1) messageDiv.style.color = "red"
+    if (msg.indexOf("spawned") != -1) messageDiv.style.color = "lightgreen"
+
+    window.setTimeout(() => {
+        messageDiv.style.opacity = 0.0
+    }, 10000)
     
-    for (let i = 0; i < chatMessages.length; i++) chatMessages[i].style.bottom = (chatMessages.length - i) * 25 + "px"
+    let bottomValue = 10
+    for (let i = chatMessages.length - 1; i >= 0; i--) {
+        console.log(chatMessages[i].offsetHeight)
+        chatMessages[i].style.bottom = bottomValue + "px"
+        bottomValue += chatMessages[i].offsetHeight + 10
+    }
 }
+
+var chatboxOpen = false
+var chatboxInput = document.getElementById("chatboxInput")
+chatboxInput.style.display = "none"
+function openChatbox() {
+    chatboxOpen = true
+    document.exitPointerLock()
+
+    chatboxInput.style.display = ""
+}
+
+function closeChatbox() {
+    chatboxOpen = false
+    startGame()
+    window.setTimeout(() => {
+        canvas.requestPointerLock()
+    }, 200)
+
+    chatboxInput.style.display = "none"
+}
+
 
 
 // INITIALIZE WEBGL //
@@ -464,129 +497,132 @@ function fixedUpdate() {
 
     // -- Movement -- //
 
-    let speed = 0;
-    if (player.movementState == "walking") {
-        speed = Player.walkingSpeed
-        webgl.fov -= deltaTime * Player.fovShiftSpeed
-        if (webgl.fov < Player.walkingFOV) webgl.fov = Player.walkingFOV
-    }
-    if (player.movementState == "crouching") {
-        speed = Player.crouchingSpeed
-        webgl.fov -= deltaTime * Player.fovShiftSpeed
-        if (webgl.fov < Player.crouchingFOV) webgl.fov = Player.walkingFOV
-    }
-    if (player.movementState == "sprinting") {
-        speed = Player.sprintingSpeed
-        webgl.fov += deltaTime * Player.fovShiftSpeed
-        if (webgl.fov > Player.sprintingFOV) webgl.fov = Player.sprintingFOV
-    }
-    if (player.movementState == "sliding") {
-        speed = Player.slidingSpeed
-        webgl.fov += deltaTime * Player.fovShiftSpeed
-        if (webgl.fov > Player.slidingFOV) webgl.fov = Player.slidingFOV
-    }
-    let walkAnimationSpeed = 2.25 * deltaTime * speed
+    if (!chatboxOpen) {
+        let speed = 0;
+        if (player.movementState == "walking") {
+            speed = Player.walkingSpeed
+            webgl.fov -= deltaTime * Player.fovShiftSpeed
+            if (webgl.fov < Player.walkingFOV) webgl.fov = Player.walkingFOV
+        }
+        if (player.movementState == "crouching") {
+            speed = Player.crouchingSpeed
+            webgl.fov -= deltaTime * Player.fovShiftSpeed
+            if (webgl.fov < Player.crouchingFOV) webgl.fov = Player.walkingFOV
+        }
+        if (player.movementState == "sprinting") {
+            speed = Player.sprintingSpeed
+            webgl.fov += deltaTime * Player.fovShiftSpeed
+            if (webgl.fov > Player.sprintingFOV) webgl.fov = Player.sprintingFOV
+        }
+        if (player.movementState == "sliding") {
+            speed = Player.slidingSpeed
+            webgl.fov += deltaTime * Player.fovShiftSpeed
+            if (webgl.fov > Player.slidingFOV) webgl.fov = Player.slidingFOV
+        }
+        let walkAnimationSpeed = 2.25 * deltaTime * speed
 
-    let movementVector = {
-        x: 0,
-        y: 0,
-        z: 0
-    }
+        let movementVector = {
+            x: 0,
+            y: 0,
+            z: 0
+        }
 
-    if (w) {
-        movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-        movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+        if (w) {
+            movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+            movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
-        if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
-    }
-    if (a) {
-        movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
-        movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
-    }
-    if (s) {
-        movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-        movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+            if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
+        }
+        if (a) {
+            movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
+            movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
+        }
+        if (s) {
+            movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+            movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
-        player.state.walkCycle -= walkAnimationSpeed
-    }
-    if (d) {
-        movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
-        movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
-    }
-    if ((!w && !s) || player.movementState == "sliding") {
-        let r = player.state.walkCycle % Math.PI
-        if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
-        else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
-    }
+            player.state.walkCycle -= walkAnimationSpeed
+        }
+        if (d) {
+            movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
+            movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
+        }
+        if ((!w && !s) || player.movementState == "sliding") {
+            let r = player.state.walkCycle % Math.PI
+            if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
+            else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
+        }
 
-    if (player.movementState == "sliding") {
-        player.slideCountdown -= deltaTime
-        if (player.slideCountdown != null && player.slideCountdown <= 0) {
+        if (player.movementState == "sliding") {
+            player.slideCountdown -= deltaTime
+            if (player.slideCountdown != null && player.slideCountdown <= 0) {
+                player.movementState = "crouching"
+                player.slideCountdown = 1000
+            }
+        }
+        if (shift && player.movementState == "walking") {
             player.movementState = "crouching"
+            player.state.crouchValue += .015 * deltaTime
+            if (player.state.crouchValue > 1) player.state.crouchValue = 1
+        }
+        else if (shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
+            player.state.crouchValue += .015 * deltaTime
+            if (player.state.crouchValue > 1) player.state.crouchValue = 1
+        }
+        else if (!shift && player.movementState != "crouching") {
+            player.state.crouchValue -= .015 * deltaTime
+            if (player.state.crouchValue < 0) player.state.crouchValue = 0
+        }
+        else if (shift && player.movementState == "sprinting") {
+            player.movementState = "sliding"
             player.slideCountdown = 1000
         }
-    }
-    if (shift && player.movementState == "walking") {
-        player.movementState = "crouching"
-        player.state.crouchValue += .015 * deltaTime
-        if (player.state.crouchValue > 1) player.state.crouchValue = 1
-    }
-    else if (shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
-        player.state.crouchValue += .015 * deltaTime
-        if (player.state.crouchValue > 1) player.state.crouchValue = 1
-    }
-    else if (!shift && player.movementState != "crouching") {
-        player.state.crouchValue -= .015 * deltaTime
-        if (player.state.crouchValue < 0) player.state.crouchValue = 0
-    }
-    else if (shift && player.movementState == "sprinting") {
-        player.movementState = "sliding"
-        player.slideCountdown = 1000
-    }
-    else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
-        player.movementState = "walking"
-    }
-
-    if (space) {
-        //if (player.onGround) {
-        player.velocity.y = Player.jumpForce
-        jumpNoise.currentTime = 0.025
-        jumpNoise.play()
-        //}
-    }
-
-    if (leftClicking) {
-        if (!inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
-            player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
-            socket.emit("newWeapon", {
-                id: inventory.currentWeapon.id,
-                ownerId: player.id,
-                type: inventory.currentWeapon.type,
-                position: inventory.currentWeapon.position,
-                velocity: inventory.currentWeapon.velocity
-            })
-
-            player.cooldownTimer = player.currentCooldown
-            otherWeapons[inventory.currentWeapon.id] = inventory.currentWeapon
-
-
-            inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
-            //console.log()
-            player.weapons.push(inventory.currentWeapon)
+        else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
+            player.movementState = "walking"
         }
-    }
+
+        if (space) {
+            //if (player.onGround) {
+            player.velocity.y = Player.jumpForce
+            jumpNoise.currentTime = 0.025
+            jumpNoise.play()
+            //}
+        }
+
+        if (leftClicking) {
+            if (!inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
+                player.currentCooldown = inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
+                socket.emit("newWeapon", {
+                    id: inventory.currentWeapon.id,
+                    ownerId: player.id,
+                    type: inventory.currentWeapon.type,
+                    position: inventory.currentWeapon.position,
+                    velocity: inventory.currentWeapon.velocity
+                })
+
+                player.cooldownTimer = player.currentCooldown
+                otherWeapons[inventory.currentWeapon.id] = inventory.currentWeapon
 
 
-    // normalize movement vector //
-    let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2))
-    if (hypotenuse > 0) {
-        player.velocity.x = movementVector.x / hypotenuse * speed
-        player.velocity.z = movementVector.z / hypotenuse * speed
-        player.position.x += player.velocity.x * deltaTime
-        player.position.z += player.velocity.z * deltaTime
-    } else {
-        player.velocity.x = 0
-        player.velocity.z = 0
+                inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
+                //console.log()
+                player.weapons.push(inventory.currentWeapon)
+            }
+        }
+
+
+        // normalize movement vector //
+        let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2))
+        if (hypotenuse > 0) {
+            player.velocity.x = movementVector.x / hypotenuse * speed
+            player.velocity.z = movementVector.z / hypotenuse * speed
+            player.position.x += player.velocity.x * deltaTime
+            player.position.z += player.velocity.z * deltaTime
+        } else {
+            player.velocity.x = 0
+            player.velocity.z = 0
+        }
+            
     }
 
 
@@ -636,7 +672,8 @@ var keyBinds = {
     w: "KeyW",
     a: "KeyA",
     s: "KeyS",
-    d: "KeyD"
+    d: "KeyD",
+    openChat: "KeyC"
 }
 
 var selectingWKey = false
@@ -709,6 +746,26 @@ function initKeyInput(preventDefault) {
             shift = true
         }
         if (event.code == "Space") space = true
+
+        if (chatboxOpen) {
+            if (event.code == "Backspace") {
+                chatboxInput.textContent = chatboxInput.textContent.slice(0, -1)
+            }
+            else if (event.code == "Enter") {
+                socket.emit("sendChatMessage", player.name + ": " + chatboxInput.textContent)
+                chatboxInput.textContent = ""
+            }
+            else if (event.code == "Escape") {
+                closeChatbox()
+            }
+            else if (event.key.length == 1) chatboxInput.textContent += event.key
+        }
+        
+        if (event.code == keyBinds.openChat) {
+            openChatbox()
+        }
+
+
     };
 
     document.onkeyup = (event) => {
@@ -736,30 +793,37 @@ initKeyInput(false)
 
 // -- mouse -- //
 
+function startGame() {
+    if (!running) {
+        initKeyInput(true)
+        running = true
+        update()
+        fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
+    }
+}
+
+function pauseGame() {
+    pauseNoise.play()
+    console.log("stopped")
+
+    initKeyInput(false)
+    running = false
+
+    fixedUpdateThen = Date.now();
+    clearInterval(fixedUpdateInterval)
+
+    menu.style.display = ""
+}
+
 
 var lastPointerLockExited = Date.now()
 document.addEventListener("pointerlockchange", function () {
     lastPointerLockExited = Date.now()
     if (document.pointerLockElement === canvas) {
         pointerLocked = true
-        if (!running) {
-            initKeyInput(true)
-            running = true
-            update()
-            fixedUpdateInterval = setInterval(fixedUpdate, 10) // set fixedUpdate to run 100 times/second
-        }
     } else {
-        pauseNoise.play()
-        console.log("stopped")
-
-        initKeyInput(false)
         pointerLocked = false
-        running = false
-
-        fixedUpdateThen = Date.now();
-        clearInterval(fixedUpdateInterval)
-
-        menu.style.display = ""
+        if (!chatboxOpen) pauseGame()
     }
 
     
@@ -802,6 +866,7 @@ startButton.onclick = () => {
     }
 
     canvas.requestPointerLock()
+    startGame()
 }
 
 
