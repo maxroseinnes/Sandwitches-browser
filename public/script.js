@@ -356,12 +356,16 @@ socket.on("newPlayer", (player) => {
 })
 
 socket.on("newWeapon", (data) => {
+    console.log(data)
     if (data.ownerId == player.id) {
-        
+        player.inventory.currentWeapon.id = data.id
     }
-    //otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [ground]], otherPlayers[data.ownerId])
-    
-    Weapon.nextId++
+    else {
+        otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [ground]], otherPlayers[data.ownerId])
+        otherWeapons[data.id].position = data.position
+        otherWeapons[data.id].velocity = data.velocity
+        otherWeapons[data.id].shooted = true
+    }
 })
 
 socket.on("playerLeave", (id) => {
@@ -462,7 +466,7 @@ function update(now) {
     for (let i = 0; i < lastTickTimes.length - 1; i++) averageClientTPS += (lastTickTimes[i] - lastTickTimes[i + 1]) / (lastTickTimes.length - 1)
     let currentTickStage = timeSinceLastTick / averageClientTPS / 1.15
 
-    for (var id in otherPlayers) {
+    for (let id in otherPlayers) {
         if (otherPlayers[id] == null) continue
         otherPlayers[id].smoothPosition(currentTickStage)
 
@@ -476,7 +480,7 @@ function update(now) {
     if (player.inventory.currentWeapon != null) {
         player.inventory.currentWeapon.calculatePosition(deltaTime, socket) // weapon collision updates need to be sent to the server in calculatePosition method
 
-        player. inventory.currentWeapon.updateWorldPosition()
+        player.inventory.currentWeapon.updateWorldPosition()
     }
     for (var id in otherWeapons) if (otherWeapons[id] != null) otherWeapons[id].updateWorldPosition()
 
@@ -593,7 +597,7 @@ function fixedUpdate() {
             if (!player.inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
                 player.currentCooldown = player.inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
                 socket.emit("newWeapon", {
-                        ownerId: player.id,
+                    ownerId: player.id,
                     type: player.inventory.currentWeapon.type,
                     position: player.inventory.currentWeapon.position,
                     velocity: player.inventory.currentWeapon.velocity

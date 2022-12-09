@@ -6,7 +6,7 @@ const server = http.createServer(app);
 const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
 const ipv4 = require("ip").address();
-const localhost = true;
+const localhost = false;
 const port = 3000;
 
 const DEFAULT_PLAYER_HEALTH = 100 
@@ -225,6 +225,10 @@ class Room {
       }
     })
 
+    // MAKING WEAPONS: 
+    // client: send newWeapon message
+    // server: brodcast message with weapon id and data
+
     socket.on("newWeapon", (data) => {
       this.weapons[nextWeaponId] = {
         type: data.type,
@@ -236,8 +240,11 @@ class Room {
         id: nextWeaponId,
         type: data.type,
         ownerId: this.weapons[nextWeaponId].ownerId,
-        position: this.weapons[nextWeaponId].position
+        position: this.weapons[nextWeaponId].position,
+        velocity: data.velocity
       }, null)
+
+      nextWeaponId++
     })
   
     socket.on("death", (deathInfo) => {
