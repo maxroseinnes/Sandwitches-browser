@@ -1412,7 +1412,7 @@ class Weapon extends PhysicalObject {
   }
 
   shoot(angleX, yaw) {
-    angleX = -angleX + Math.PI / 64
+    angleX = -angleX + Math.PI / 8
     yaw = -yaw
     this.velocity.x = 0
     this.velocity.y = 0
@@ -1475,6 +1475,26 @@ class Platform extends PhysicalObject {
         pz: (positions[i][2] * this.scale > this.dimensions.pz) ? positions[i][2] * this.scale : this.dimensions.pz
       }
     }
+
+
+    // SPLIT UP INTO CUBES //
+
+    /*
+    Steps:
+
+    find edges
+
+    cut off rectangular prisms as they are found
+
+    repeat for model with found rectprism cut off
+
+
+    */
+
+    //this.dimensions = []
+    
+
+
 
     this.texture = "jerry" // default to jerry texture
 

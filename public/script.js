@@ -147,7 +147,7 @@ var updateHUD = () => {
 
         ctx.fillRect(width - (weaponSelectors.length + 1) * slotSize + i * slotSize, height - slotSize * 2, slotSize, slotSize)
         ctx.fillStyle = "white"
-        ctx.font = "100 15px sans-serif"
+        ctx.font = "100 15px monospace"
         ctx.fillText(weaponSelectors[i].value, width - (weaponSelectors.length + 1) * slotSize + i * slotSize, height - slotSize * 2 + 100, slotSize)
     }
 
@@ -165,28 +165,33 @@ var changeWeaponSelection = (selection) => {
 
 
 var chatMessages = []
+var chatLifespan = 10000
+var chatMessageTransition= "opacity 1s"
 
 function displayChatMessage(msg) {
 
-    let messageDiv = document.createElement("div")
-    messageDiv.classList.add("chatMessage")
-    messageDiv.textContent = msg
-    chatbox.appendChild(messageDiv)
+    let message = {
+        element: document.createElement("div"),
+        createdTime: Date.now()
+    }
+    message.element.classList.add("chatMessage")
+    message.element.style.transition = chatMessageTransition
+    message.element.textContent = msg
+    chatbox.appendChild(message.element)
 
-    chatMessages.push(messageDiv)
+    chatMessages.push(message)
 
-    if (msg.indexOf("fell") != -1 || msg.indexOf("killed") != -1) messageDiv.style.color = "red"
-    if (msg.indexOf("spawned") != -1) messageDiv.style.color = "lightgreen"
+    if (msg.indexOf("fell") != -1 || msg.indexOf("killed") != -1) message.element.style.color = "red"
+    if (msg.indexOf("spawned") != -1) message.element.style.color = "lightgreen"
 
     window.setTimeout(() => {
-        messageDiv.style.opacity = 0.0
-    }, 10000)
+        if (!chatboxOpen) message.element.style.opacity = 0.0
+    }, chatLifespan)
     
-    let bottomValue = 10
+    let bottomValue = 20
     for (let i = chatMessages.length - 1; i >= 0; i--) {
-        console.log(chatMessages[i].offsetHeight)
-        chatMessages[i].style.bottom = bottomValue + "px"
-        bottomValue += chatMessages[i].offsetHeight + 10
+        chatMessages[i].element.style.bottom = bottomValue + "px"
+        bottomValue += chatMessages[i].element.offsetHeight + 10
     }
 }
 
@@ -198,6 +203,12 @@ function openChatbox() {
     document.exitPointerLock()
 
     chatboxInput.style.display = ""
+    chatboxInput.contentEditable = true
+
+    for (let i in chatMessages) {
+        if (Date.now() > chatMessages[i].createdTime + chatLifespan) chatMessages[i].element.style.transition = "opacity .1s"
+        chatMessages[i].element.style.opacity = 1.0
+    }
 }
 
 function closeChatbox() {
@@ -208,6 +219,10 @@ function closeChatbox() {
     }, 200)
 
     chatboxInput.style.display = "none"
+
+    for (let i in chatMessages) {
+        if (Date.now() > chatMessages[i].createdTime + chatLifespan) chatMessages[i].element.style.opacity = 0.0
+    }
 }
 
 
@@ -593,7 +608,7 @@ function fixedUpdate() {
             if (!player.inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
                 player.currentCooldown = player.inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
                 socket.emit("newWeapon", {
-                        ownerId: player.id,
+                    ownerId: player.id,
                     type: player.inventory.currentWeapon.type,
                     position: player.inventory.currentWeapon.position,
                     velocity: player.inventory.currentWeapon.velocity
@@ -755,7 +770,7 @@ function initKeyInput(preventDefault) {
             }
             else if (event.code == "Enter") {
                 socket.emit("sendChatMessage", player.name + ": " + chatboxInput.textContent)
-                chatboxInput.textContent = ""
+                chatboxInput.innerHTML = ""
             }
             else if (event.code == "Escape") {
                 closeChatbox()
