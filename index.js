@@ -152,7 +152,7 @@ class Room {
   
     let otherPlayersInfo = {};
     for (let id in this.players) {
-      if (this.players[id] != null) otherPlayersInfo[id] = { name: this.players[id].name, position: this.players[id].position, state: this.players[id].state };
+      if (this.players[id] != null) otherPlayersInfo[id] = { name: this.players[id].name, position: this.players[id].position, state: this.players[id].state, currentWeaponType: this.players[id].currentWeaponType };
     }
     socket.emit("otherPlayers", otherPlayersInfo);
   
@@ -209,6 +209,7 @@ class Room {
       if (this.players[data.id] != null) {
         this.players[data.id].position = data.position;
         this.players[data.id].state = data.state;
+        this.players[data.id].currentWeaponType = data.currentWeaponType;
       }
     })
   
@@ -305,6 +306,7 @@ class Room {
       lean: this.players[id].position.lean,
     }
     data.state = this.players[id].state
+    data.currentWeaponType = this.players[id].currentWeaponType
     data.health = this.players[id].health
   
     return data

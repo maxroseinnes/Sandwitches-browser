@@ -928,12 +928,14 @@ class GamerTag {
     webgl.ctx.fillStyle = "white"//"rgb(240, 215, 160)"
     webgl.ctx.fillRect(xLocation * 64 + 1, yLocation * 64 + 51, 62, 13)
     webgl.ctx.font = "100 15px sans-serif"
+
     let nameWidth = webgl.ctx.measureText(this.name).width
     webgl.ctx.fillStyle = "black"
     for (let i = 0; i < 3; i++) webgl.ctx.fillText(this.name, xLocation * 64 + ((nameWidth < 64) ? ((63 - nameWidth) / 2) : 1), yLocation * 64 + 63, 62)
     //webgl.ctx.fillStyle = "white"
     //for (let i = 0; i < 30; i++) webgl.ctx.strokeText(name, xLocation * 64 + ((nameWidth < 64) ? ((63 - nameWidth) / 2) : 1), yLocation * 64 + 63, 62)
 
+    
 
     webgl.loadTexture(webgl.gl, webgl.textureMap)
 
@@ -1062,22 +1064,11 @@ class Player extends PhysicalObject {
 
     // Stores this player's currently active weapons
     this.weapons = []
+    this.currentWeaponType
+    this.inventory = {}
 
     this.cooldownTimer = 0
     this.currentCooldown = 1
-
-
-    this.animation = {
-      startMeshName: "idle",
-      endMeshName: "idle",
-      currentMeshName: "idle",
-      speed: 0,
-      startTime: Date.now(),
-      endTime: Date.now(),
-      smooth: true,
-      finished: true,
-      stage: 1
-    }
 
     this.id = id
     this.name = name
@@ -1119,6 +1110,7 @@ class Player extends PhysicalObject {
 
   calculatePosition(deltaTime) {
 
+    
     this.velocity.y -= Player.gravity * deltaTime // subtract by gravitational constant (units/frames^2)
 
 
@@ -1182,6 +1174,12 @@ class Player extends PhysicalObject {
 
   }
 
+  updateCooldown(deltaTime) {
+    if (isNaN(deltaTime)) deltaTime = 0
+    this.cooldownTimer -= deltaTime / 1000
+    if (this.cooldownTimer < 0) this.cooldownTimer = 0
+  }
+
   updateWorldPosition(gamerTagAngleY, gamerTagAngleX) {
     this.gamerTag.model.setPosition(gamerTagAngleY, 0, gamerTagAngleX, 0, this.position.x, this.position.y + 2.75, this.position.z, this.gamerTag.geometryInfo)
     for (let ingredient in this.models) {
@@ -1222,6 +1220,7 @@ class Player extends PhysicalObject {
     for (var weapon in this.weapons) {
       weapon.remove()
     }
+    this.inventory.currentWeapon.remove()
     this.gamerTag.model.delete()
   }
 
@@ -1236,6 +1235,7 @@ class Weapon extends PhysicalObject {
     Weapon.allWeapons.push(this)
 
     this.particles = []
+    this.particleSpawnCounter = 0
 
     this.geometryInfos = geometryInfos
     this.type = type
@@ -1274,9 +1274,9 @@ class Weapon extends PhysicalObject {
 
       this.cooldown = .15
       this.manaCost = 5
-      this.damage = 100
+      this.damage = 10
 
-      this.scale = .925
+      this.scale = .5//.925
       this.models.main = new Model(geometryInfos.olive, this.scale, "sub")
     }
 
@@ -1308,7 +1308,8 @@ class Weapon extends PhysicalObject {
 
       this.cooldown = .5
       this.manaCost = 5
-      this.damage = 5
+      this.damage = 25
+      this.speed = .01
 
       this.scale = 1
       this.models.main = new Model(geometryInfos.anchovy, this.scale, "jerry")
@@ -1369,7 +1370,7 @@ class Weapon extends PhysicalObject {
       this.position.y += this.velocity.y * deltaTime
       this.position.z += this.velocity.z * deltaTime
 
-      this.velocity.y -= 0.00001 * deltaTime
+      if (this.class == "projectile") this.velocity.y -= 0.00001 * deltaTime
     } else {
       return
     }
@@ -1404,7 +1405,8 @@ class Weapon extends PhysicalObject {
   }
 
   updateWorldPosition() {
-    if (Math.random() < 1 && this.shooted) for (let i = 0; i < 2; i++) this.particles.push(
+    this.particleSpawnCounter++
+    if (this.particleSpawnCounter % 4 == 0 && this.shooted) for (let i = 0; i < 2; i++) this.particles.push(
       new Particle(this.position.x, this.position.y, this.position.z, {x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5}, 1500, [])
     )
 
@@ -1412,7 +1414,8 @@ class Weapon extends PhysicalObject {
   }
 
   shoot(angleX, yaw) {
-    angleX = -angleX + Math.PI / 8
+    if (this.class == "projectile") angleX = -angleX + Math.PI / 8
+    else angleX = -angleX + Math.PI / 64
     yaw = -yaw
     this.velocity.x = 0
     this.velocity.y = 0

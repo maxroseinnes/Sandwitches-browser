@@ -164,6 +164,7 @@ var changeWeaponSelection = (selection) => {
 }
 
 
+var chatbox = document.getElementById("chatbox")
 var chatMessages = []
 var chatLifespan = 10000
 var chatMessageTransition= "opacity 1s"
@@ -196,29 +197,48 @@ function displayChatMessage(msg) {
 }
 
 var chatboxOpen = false
+var chatboxLastCloseTime = Date.now()
 var chatboxInput = document.getElementById("chatboxInput")
 chatboxInput.style.display = "none"
 function openChatbox() {
     chatboxOpen = true
     document.exitPointerLock()
 
+    var blinkCursor = (lastInput) => {
+        if (!chatboxOpen) return
+        if (Date.now() < chatboxLastCloseTime + 500) return
+        if (chatboxInput.textContent.slice(-1) == " " || lastInput != chatboxInput.textContent.slice(0, -1)) {
+            chatboxInput.textContent = chatboxInput.textContent.slice(0, -1) + "|"
+            window.setTimeout(blinkCursor, 500, chatboxInput.textContent.slice(0, -1))
+        }
+        else {
+            chatboxInput.textContent = chatboxInput.textContent.slice(0, -1) + " "
+            window.setTimeout(blinkCursor, 500, chatboxInput.textContent.slice(0, -1))
+        }
+        
+    }
+    blinkCursor(chatboxInput.textContent.slice(0, -1))
+    
+
     chatboxInput.style.display = ""
-    chatboxInput.contentEditable = true
+    chatbox.style.backgroundColor = "rgba(0, 0, 0, .1)"
 
     for (let i in chatMessages) {
-        if (Date.now() > chatMessages[i].createdTime + chatLifespan) chatMessages[i].element.style.transition = "opacity .1s"
+        if (Date.now() > chatMessages[i].createdTime + chatLifespan) chatMessages[i].element.style.transition = ""
         chatMessages[i].element.style.opacity = 1.0
     }
 }
 
 function closeChatbox() {
     chatboxOpen = false
+    chatboxLastCloseTime = Date.now()
     startGame()
     window.setTimeout(() => {
         canvas.requestPointerLock()
     }, 200)
 
     chatboxInput.style.display = "none"
+    chatbox.style.backgroundColor = "transparent"
 
     for (let i in chatMessages) {
         if (Date.now() > chatMessages[i].createdTime + chatLifespan) chatMessages[i].element.style.opacity = 0.0
@@ -248,7 +268,7 @@ var playerGeometry = {
 
 var weaponGeometry = {
     tomato: obj.parseWavefront(fetchObj("weapons/tomato.obj"), false),
-    olive: obj.parseWavefront(fetchObj("weapons/olive.obj"), false),
+    olive: obj.parseWavefront(fetchObj("weapons/low_poly_olive.obj"), false),
     pickle: obj.parseWavefront(fetchObj("weapons/small_horizontal_cylinder.obj"), false),
     sausage: obj.parseWavefront(fetchObj("weapons/sausage.obj"), false),
     pan: obj.parseWavefront(fetchObj("weapons/fryingpan.obj"), false),
@@ -282,15 +302,7 @@ function tick() {
         player.lastPosition.z = respawnPositionZ*/
         socket.emit("death", { type: "void", id: player.id, name: player.name });
     }
-    let weaponData = []
-    for (let i = 0; i < player.weapons.length; i++) {
-        weaponData.push({
-            id: player.weapons[i].id,
-            type: player.weapons[i].type,
-            position: player.weapons[i].position
-        })
-    }
-    socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, weaponData: weaponData });
+    socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, currentWeaponType: player.inventory.currentWeapon.type });
 
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
@@ -371,15 +383,16 @@ socket.on("newPlayer", (player) => {
 })
 
 socket.on("newWeapon", (data) => {
-    console.log(data)
     if (data.ownerId == player.id) {
         player.inventory.currentWeapon.id = data.id
     }
     else {
-        otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [ground]], otherPlayers[data.ownerId])
+        otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId])
         otherWeapons[data.id].position = data.position
         otherWeapons[data.id].velocity = data.velocity
         otherWeapons[data.id].shooted = true
+
+        otherPlayers[data.ownerId].cooldownTimer = otherPlayers[data.ownerId].currentCooldown
     }
 })
 
@@ -403,14 +416,16 @@ socket.on("playerUpdate", (playersData) => {
         }
         otherPlayers[id].serverPosition = playersData[id].position
         otherPlayers[id].serverState = playersData[id].state
-        /*for (let i = 0; i < playersData[id].weaponData.length; i++) {
-            playersData[id].weaponData[i]
-        }*/
+        if (otherPlayers[id].currentWeaponType != playersData[id].currentWeaponType && playersData[id].currentWeaponType != undefined) {
+            otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
+            if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
+            otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [platforms, otherPlayers, [ground]], otherPlayers[id])
+            otherPlayers[id].currentCooldown = otherPlayers[id].inventory.currentWeapon.cooldown
+        }
         break;
     }
 })
 
-var chatbox = document.getElementById("chatbox")
 socket.on("chatMessage", (msg) => {
     console.log(msg)
 
@@ -484,6 +499,12 @@ function update(now) {
     for (let id in otherPlayers) {
         if (otherPlayers[id] == null) continue
         otherPlayers[id].smoothPosition(currentTickStage)
+
+        if (otherPlayers[id].inventory.currentWeapon != null) {
+            otherPlayers[id].inventory.currentWeapon.calculatePosition(deltaTime)
+            otherPlayers[id].inventory.currentWeapon.updateWorldPosition()
+            otherPlayers[id].updateCooldown(deltaTime)
+        }
 
 
 
@@ -677,8 +698,7 @@ function fixedUpdate() {
 
 
     // combat updates //
-    player.cooldownTimer -= deltaTime / 1000
-    if (player.cooldownTimer < 0) player.cooldownTimer = 0
+    player.updateCooldown(deltaTime)
 
 }
 
@@ -687,38 +707,39 @@ function fixedUpdate() {
 // -- key pressing -- //
 
 var keyBinds = {
-    w: "KeyW",
-    a: "KeyA",
-    s: "KeyS",
-    d: "KeyD",
-    openChat: "KeyC"
+    w: {
+        code: "KeyW",
+        selecting: false
+    },
+    a: {
+        code: "KeyA",
+        selecting: false
+    },
+    s: {
+        code: "KeyS",
+        selecting: false
+    },
+    d: {
+        code: "KeyD",
+        selecting: false
+    },
+    openChat: {
+        code: "KeyC",
+        selecting: false
+    }
 }
 
-var selectingWKey = false
-var selectingAKey = false
-var selectingSKey = false
-var selectingDKey = false
 
 function initKeyInput(preventDefault) {
     document.onkeydown = (event) => {
         if (preventDefault) event.preventDefault();
 
 
-        if (selectingWKey) {
-            keyBinds.w = event.code
-            wKeyBind.value = event.code
-        }
-        if (selectingAKey) {
-            keyBinds.a = event.code
-            aKeyBind.value = event.code
-        }
-        if (selectingSKey) {
-            keyBinds.s = event.code
-            sKeyBind.value = event.code
-        }
-        if (selectingDKey) {
-            keyBinds.d = event.code
-            dKeyBind.value = event.code
+        for (let i in keyBinds) {
+            if (keyBinds[i].selecting) {
+                keyBinds[i].code = event.code
+                keyBinds[i].selector.value = event.code
+            }
         }
 
         if (player != undefined) {
@@ -751,16 +772,16 @@ function initKeyInput(preventDefault) {
         if (event.code == "ArrowUp") up = true
         if (event.code == "ArrowDown") down = true
 
-        if (event.code == keyBinds.w) {
+        if (event.code == keyBinds.w.code) {
             w = true
             if (Date.now() - lastWPress < 250) {
                 player.movementState = "sprinting"
             }
             if (!event.repeat) lastWPress = Date.now()
         }
-        if (event.code == keyBinds.s) s = true
-        if (event.code == keyBinds.a) a = true
-        if (event.code == keyBinds.d) d = true
+        if (event.code == keyBinds.s.code) s = true
+        if (event.code == keyBinds.a.code) a = true
+        if (event.code == keyBinds.d.code) d = true
 
         if (event.code == "ShiftLeft") {
 
@@ -770,19 +791,22 @@ function initKeyInput(preventDefault) {
 
         if (chatboxOpen) {
             if (event.code == "Backspace") {
-                chatboxInput.textContent = chatboxInput.textContent.slice(0, -1)
+                chatboxInput.textContent = chatboxInput.textContent.slice(0, -2) + "|"
             }
             else if (event.code == "Enter") {
-                socket.emit("sendChatMessage", player.name + ": " + chatboxInput.textContent)
+                socket.emit("sendChatMessage", player.name + ": " + chatboxInput.textContent.slice(0, -1))
                 chatboxInput.innerHTML = ""
             }
             else if (event.code == "Escape") {
                 closeChatbox()
             }
-            else if (event.key.length == 1) chatboxInput.textContent += event.key
+            else if (event.key.length == 1) {
+                chatboxInput.textContent = chatboxInput.textContent.slice(0, -1) + event.key + "|"
+                chatboxInput.textContent.slice(0, -1) + "|"
+            }
         }
         
-        if (event.code == keyBinds.openChat) {
+        if (event.code == keyBinds.openChat.code && running) {
             openChatbox()
         }
 
@@ -797,13 +821,13 @@ function initKeyInput(preventDefault) {
         if (event.code == 38) up = false
         if (event.code == 40) down = false
 
-        if (event.code == keyBinds.w) {
+        if (event.code == keyBinds.w.code) {
             w = false
             player.movementState = "walking"
         }
-        if (event.code == keyBinds.s) s = false
-        if (event.code == keyBinds.a) a = false
-        if (event.code == keyBinds.d) d = false
+        if (event.code == keyBinds.s.code) s = false
+        if (event.code == keyBinds.a.code) a = false
+        if (event.code == keyBinds.d.code) d = false
 
         if (event.code == "ShiftLeft") shift = false
         if (event.code == "Space") space = false
@@ -912,25 +936,14 @@ sensitivitySlider.onchange = () => {
     sensitivity = Math.PI / 4096 * Number(sensitivitySlider.value)
 }
 
-var wKeyBind = document.getElementById("wSelector")
-wKeyBind.value = keyBinds.w
-wKeyBind.onmouseenter = () => { selectingWKey = true }
-wKeyBind.onmouseleave = () => { selectingWKey = false }
-
-var aKeyBind = document.getElementById("aSelector")
-aKeyBind.value = keyBinds.a
-aKeyBind.onmouseenter = () => { selectingAKey = true }
-aKeyBind.onmouseleave = () => { selectingAKey = false }
-
-var sKeyBind = document.getElementById("sSelector")
-sKeyBind.value = keyBinds.s
-sKeyBind.onmouseenter = () => { selectingSKey = true }
-sKeyBind.onmouseleave = () => { selectingSKey = false }
-
-var dKeyBind = document.getElementById("dSelector")
-dKeyBind.value = keyBinds.d
-dKeyBind.onmouseenter = () => { selectingDKey = true }
-dKeyBind.onmouseleave = () => { selectingDKey = false }
+var keyBindSelectors = document.getElementsByClassName("keyBindInput")
+for (let i = 0; i < keyBindSelectors.length; i++) {
+    let keyBind = keyBindSelectors[i].id
+    keyBinds[keyBind].selector = keyBindSelectors[i]
+    keyBindSelectors[i].value = keyBinds[keyBind].code
+    keyBindSelectors[i].onmouseenter = () => { keyBinds[keyBind].selecting = true }
+    keyBindSelectors[i].onmouseleave = () => { keyBinds[keyBind].selecting = false }
+}
 
 
 document.addEventListener("mousedown", function (event) {
