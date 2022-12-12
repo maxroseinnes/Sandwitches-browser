@@ -58,7 +58,7 @@ f 6/8/6 5/6/6 1/1/6 2/2/6
 var fetchObj = (name) => {
     
     let xhr = new XMLHttpRequest()
-    xhr.open("GET", "../assets/models/" + name, false)
+    xhr.open("GET", "./assets/models/" + name, false)
     xhr.send()
 
     return xhr.response

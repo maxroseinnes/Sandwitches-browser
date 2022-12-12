@@ -266,7 +266,7 @@ class Room {
         // maybe using object takes a little too long to fully delete the name value pair?
         // adding if (this.players[name] != null) fixes problem
         if (this.players[id] != null && socket == this.players[id].socket) {
-          socket.broadcast.emit("playerLeave", id);
+          this.broadcast("playerLeave", id, null);
           console.log(this.players[id].name + " left. 😭😭😭😭😭😭😭");
           availableNames.push(this.players[id].name);
           delete this.players[id];
@@ -355,6 +355,23 @@ socketServer.on("connection", (socket) => {
   })*/
   
   socket.on("joinRoom", (roomId) => {
+    for (let i in rooms) {
+      if (Object.keys(rooms[i].players).indexOf(String(nextId)) != -1) { // if joining player is in this room
+        rooms[i].broadcast("playerLeave", nextId, null);
+        console.log(rooms[i].players[nextId].name + " left. 😭😭😭😭😭😭😭");
+
+        let listeners = socket.eventNames()
+        for (let j in listeners) {
+          if (listeners[j] == "joinRoom") continue
+          socket.removeAllListeners(listeners[j])
+        }
+
+        socket.emit("stopTicking")
+
+        availableNames.push(rooms[i].players[nextId].name);
+        delete rooms[i].players[nextId];
+      }
+    }
     rooms[roomId].addPlayer(socket, nextId)
     console.log("room: " + roomId)
     console.log("id: " + nextId)

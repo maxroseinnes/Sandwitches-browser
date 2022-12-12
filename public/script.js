@@ -1,13 +1,13 @@
 
 //// ---- MAIN SCRIPT ---- ////
 console.log("starting script")
-import modelStuff from "../modules/model-data.js"
+import modelStuff from "./modules/model-data.js"
 
 var modelData = modelStuff.modelData
 var fetchObj = modelStuff.fetchObj
 var obj = modelStuff.obj
 
-import webglStuff from "../modules/webgl.js"
+import webglStuff from "./modules/webgl.js"
 
 var webgl = webglStuff.webgl
 var Point = webglStuff.Point
@@ -67,7 +67,7 @@ var lastTickTimes = []
 var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
-var lobbyId = Number(document.getElementById("lobbyId").textContent)
+var lobbyId
 var socket = io();
 var otherPlayers = {};
 var otherWeapons = {}
@@ -83,6 +83,17 @@ const info = document.getElementById("info")
 const canvas = document.getElementById("canvas")
 const effectsCanvas = document.getElementById("effectsCanvas")
 const ctx = effectsCanvas.getContext("2d")
+const roomKeyInput = document.getElementById("roomKeyInput")
+const joinRoomButton = document.getElementById("joinRoomButton")
+
+joinRoomButton.onclick = () => {
+    if (roomKeyInput.value == lobbyId) return
+    lobbyId = roomKeyInput.value
+    changeRoom(lobbyId)
+}
+roomKeyInput.value = 1
+lobbyId = 1
+changeRoom(1) // go to room 1 first
 
 var myWeapons = [
     "anchovy",
@@ -115,14 +126,14 @@ weaponSelectors[0].onchange = () => {
 
 // AUDIO //
 
-const backgroundNoises = new Audio("../assets/wet_wriggling_noises/dripping-water-nature-sounds-8050.mp3")
+const backgroundNoises = new Audio("./assets/wet_wriggling_noises/dripping-water-nature-sounds-8050.mp3")
 backgroundNoises.volume = .5
 backgroundNoises.loop = true
 
-const splatNoise = new Audio("../assets/wet_wriggling_noises/cartoon-splat-6086.mp3")
-const jumpNoise = new Audio("../assets/wet_wriggling_noises/smb_jump-super.wav")
-const pauseNoise = new Audio("../assets/wet_wriggling_noises/smb_pause.wav")
-const stepNoise = new Audio("../assets/wet_wriggling_noises/slime-squish-14539.mp3")
+const splatNoise = new Audio("./assets/wet_wriggling_noises/cartoon-splat-6086.mp3")
+const jumpNoise = new Audio("./assets/wet_wriggling_noises/smb_jump-super.wav")
+const pauseNoise = new Audio("./assets/wet_wriggling_noises/smb_pause.wav")
+const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
 
 
 // MAP ORGANIZATION //
@@ -160,6 +171,7 @@ var changeWeaponSelection = (selection) => {
     player.inventory.currentWeapon.remove()
 
     player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[selection].value, [platforms, otherPlayers, [ground]], player)
+    player.currentCooldown = player.inventory.currentWeapon.cooldown
     updateHUD()
 }
 
@@ -291,19 +303,20 @@ var player
 var ticks = 0;
 function tick() {
     ticks++;
-    if (player.position.y < -100) {
-        /*var respawnPositionX = Math.random() * 10 - 5;
-        var respawnPositionZ = Math.random() * 10 - 5;
-        player.position.x = respawnPositionX;
-        player.position.y = 0;
-        player.position.z = respawnPositionZ;
-        player.lastPosition.x = respawnPositionX;
-        player.lastPosition.y = 0
-        player.lastPosition.z = respawnPositionZ*/
-        socket.emit("death", { type: "void", id: player.id, name: player.name });
+    if (player != null) {
+        if (player.position.y < -100) {
+            /*var respawnPositionX = Math.random() * 10 - 5;
+            var respawnPositionZ = Math.random() * 10 - 5;
+            player.position.x = respawnPositionX;
+            player.position.y = 0;
+            player.position.z = respawnPositionZ;
+            player.lastPosition.x = respawnPositionX;
+            player.lastPosition.y = 0
+            player.lastPosition.z = respawnPositionZ*/
+            socket.emit("death", { type: "void", id: player.id, name: player.name });
+        }
+        socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, currentWeaponType: player.inventory.currentWeapon.type });
     }
-    socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, currentWeaponType: player.inventory.currentWeapon.type });
-
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
@@ -331,9 +344,14 @@ socket.on("ping", () => {
     }
 })*/
 
+var tickInterval
 socket.on("startTicking", (TPS) => {
-    setInterval(tick, 1000 / TPS);
+    tickInterval = setInterval(tick, 1000 / TPS);
     ticksPerSecond = TPS
+})
+
+socket.on("stopTicking", () => {
+    clearInterval(tickInterval)
 })
 
 socket.on("assignPlayer", (playerInfo) => {
@@ -383,20 +401,22 @@ socket.on("newPlayer", (player) => {
 })
 
 socket.on("newWeapon", (data) => {
-    if (data.ownerId == player.id) {
-        player.inventory.currentWeapon.id = data.id
-    }
-    else {
-        otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId])
-        otherWeapons[data.id].position = data.position
-        otherWeapons[data.id].velocity = data.velocity
-        otherWeapons[data.id].shooted = true
+    let owner
+    if (data.ownerId == player.id) owner = player
+    else owner = otherPlayers[data.ownerId]
 
-        otherPlayers[data.ownerId].cooldownTimer = otherPlayers[data.ownerId].currentCooldown
-    }
+    otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [player], [ground]], owner)
+    otherWeapons[data.id].position = data.position
+    otherWeapons[data.id].velocity = data.velocity
+    otherWeapons[data.id].shooted = true
+
+    owner.weapons.push(otherWeapons[data.id])
+
+    owner.cooldownTimer = owner.currentCooldown
 })
 
 socket.on("playerLeave", (id) => {
+    if (otherPlayers[id] == null) return
     displayChatMessage(otherPlayers[id].name + " left")
     otherPlayers[id].remove()
     otherPlayers[id] = null
@@ -452,7 +472,24 @@ socket.on("tooManyPlayers", () => {
     alert("Sorry, there are too many players connected.");
 })
 
-socket.emit("joinRoom", lobbyId)
+function changeRoom(key) {
+    // delete all map geometry
+    for (let i = 0; i < platforms.length; i++) {
+        platforms[i].remove()
+    }
+    platforms.splice(0, platforms.length)
+    if (player != undefined) {
+        player.remove()
+        player = undefined
+    }
+
+    for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
+
+    socket.emit("joinRoom", lobbyId)
+    
+    document.getElementById("title").textContent = "Room " + lobbyId
+
+}
 
 
 // TESTING //
@@ -631,21 +668,20 @@ function fixedUpdate() {
 
         if (leftClicking) {
             if (!player.inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
-                player.currentCooldown = player.inventory.currentWeapon.shoot(lookAngleX, lookAngleY)
                 socket.emit("newWeapon", {
                     ownerId: player.id,
                     type: player.inventory.currentWeapon.type,
                     position: player.inventory.currentWeapon.position,
-                    velocity: player.inventory.currentWeapon.velocity
+                    velocity: player.inventory.currentWeapon.getShootVelocity(lookAngleX, lookAngleY)
                 })
-
+/* THIS IS ALL DONE ON WEAPON CONFIRMATION FROM SERVER
                 player.cooldownTimer = player.currentCooldown
                 otherWeapons[player.inventory.currentWeapon.id] = player.inventory.currentWeapon
 
 
                 player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[player.inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
                 //console.log()
-                player.weapons.push(player.inventory.currentWeapon)
+                player.weapons.push(player.inventory.currentWeapon)*/
             }
         }
 
@@ -914,8 +950,6 @@ startButton.onclick = () => {
     startGame()
 }
 
-
-document.getElementById("title").textContent = "Lobby " + lobbyId
 
 
 var nameField = document.getElementById("nameField")
