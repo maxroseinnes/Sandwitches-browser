@@ -395,6 +395,28 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
     }
 })
 
+socket.on("weaponStatesRequest", (recipientId) => {
+    var weaponStates = {}
+    for (var id in player.weapons) {
+        if (player.weapons[id].shooted) {
+            weaponStates[id].position = {
+                x: otherPlayers.weapons[id].position.x,
+                y: otherPlayers.weapons[id].position.y,
+                z: otherPlayers.weapons[id].position.z
+            }
+            weaponStates[id].velocity = {
+                x: otherPlayers.weapons[id].velocity.x,
+                y: otherPlayers.weapons[id].velocity.y,
+                z: otherPlayers.weapons[id].velocity.z
+            }
+        }
+    }
+    socket.emit("weaponStates", {
+        recipientId: recipientId,
+        ownerId: player.id, 
+        states: weaponStates})
+})
+
 socket.on("newPlayer", (player) => {
     displayChatMessage(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
