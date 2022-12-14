@@ -171,6 +171,12 @@ var maps = {
 
     ]
 
+  },
+
+  testMap: {
+    floorTexture: "",
+    platforms: [],
+    mapFile: "full_starting_map.obj"
   }
 
 
@@ -304,7 +310,7 @@ class Room {
     socket.on("weaponStates", (data) => {    
       var weaponInfo = {}
       for (var id in data.states) {
-        weaponsInfo[id] = {
+        weaponInfo[id] = {
           ownerId: data.ownerId,
           type: this.weapons[id].type,
           position: {
@@ -413,7 +419,8 @@ class Room {
 
 var rooms = {
   1: new Room(maps.lobby1),
-  2: new Room(maps.lobby2)
+  2: new Room(maps.lobby2),
+  3: new Room(maps.testMap)
 }
 
 socketServer.on("connection", (socket) => {

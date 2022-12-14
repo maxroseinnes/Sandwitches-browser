@@ -294,7 +294,7 @@ var platformGeometry = {
     doorTest: obj.parseWavefront(fetchObj("doorTest.obj"), false)
 }
 
-var ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
+var ground
 var camera = new PhysicalObject(0, 0, 0, 0, 0, { mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05 }, [platforms, [ground]])
 var player
 
@@ -376,6 +376,25 @@ socket.on("map", (mapInfo) => {
             mapInfo.platforms[i].scale
         ))
     }
+    
+    if (mapInfo.mapFile != undefined) {
+        let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), true)
+        for (let name in mapGeometry) {
+            platforms.push(new Platform(mapGeometry, name, 0, 0, 0, 1))
+        }
+    }
+
+    if (mapInfo.floorTexture != "") {
+        ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
+        if (camera instanceof PhysicalObject) {
+            for (let i in camera.collidableObjects) if (camera.collidableObjects[i][0] instanceof Ground) {
+                console.log("omg")
+                camera.collidableObjects.splice(i, 1)
+                continue
+            }
+            camera.collidableObjects.push([ground])
+        }
+    }
 
 })
 
@@ -431,6 +450,7 @@ socket.on("newWeapon", (data) => {
     otherWeapons[data.id].position = data.position
     otherWeapons[data.id].velocity = data.velocity
     otherWeapons[data.id].shooted = true
+    otherWeapons[data.id].shootSoundEffect.play()
 
     owner.weapons.push(otherWeapons[data.id])
 
@@ -503,6 +523,11 @@ function changeRoom(key) {
     if (player != undefined) {
         player.remove()
         player = undefined
+    }
+
+    if (ground != null) {
+        ground.remove()
+        ground = null
     }
 
     for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
@@ -683,8 +708,6 @@ function fixedUpdate() {
         if (space) {
             //if (player.onGround) {
             player.velocity.y = Player.jumpForce
-            jumpNoise.currentTime = 0.025
-            jumpNoise.play()
             //}
         }
 
@@ -725,7 +748,10 @@ function fixedUpdate() {
 
     player.calculatePosition(deltaTime)
 
-    if (!player.lastOnGround && player.onGround && (player.position.y - player.lastPosition.y) < -.1) {
+    if (!player.lastOnGround && player.onGround) {
+        let volume = Math.abs(player.lastVelocity.y) * 50 - .75
+        volume = volume > 0 ? volume : 0
+        splatNoise.volume = volume < 1 ? volume : 1
         splatNoise.currentTime = .1
         splatNoise.playbackRate = 1.5
         splatNoise.play()
@@ -845,7 +871,13 @@ function initKeyInput(preventDefault) {
 
             shift = true
         }
-        if (event.code == "Space") space = true
+        if (event.code == "Space") {
+            space = true
+            if (!event.repeat) {
+                jumpNoise.currentTime = 0.025
+                jumpNoise.play()
+            }
+        }
 
         if (chatboxOpen) {
             if (event.code == "Backspace") {

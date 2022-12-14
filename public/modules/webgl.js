@@ -299,6 +299,7 @@ var webgl = {
 
     for (let i = 0; i < camera.collidableObjects.length; i++) {
       for (let j in camera.collidableObjects[i]) {
+        if (camera.collidableObjects[i][j] == null) continue
         let movement = camera.calculateSlopes()
         let collision = camera.collidableObjects[i][j].collision(camera.lastPosition, camera.position, movement, camera.dimensions)
 
@@ -1091,6 +1092,7 @@ class Player extends PhysicalObject {
     this.health = health
 
     this.velocity = { x: 0, y: 0, z: 0 }
+    this.lastVelocity = { x: 0, y: 0, z: 0 }
     this.onGround = true
     this.hittingHead = true
     this.movementState = "walking"
@@ -1123,7 +1125,7 @@ class Player extends PhysicalObject {
   }
 
   calculatePosition(deltaTime) {
-
+    this.lastVelocity = { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z}
 
     this.velocity.y -= Player.gravity * deltaTime // subtract by gravitational constant (units/frames^2)
 
@@ -1156,6 +1158,7 @@ class Player extends PhysicalObject {
     let movement = this.calculateSlopes()
     for (let i = 0; i < this.collidableObjects.length; i++) {
       for (let j in this.collidableObjects[i]) {
+        if (this.collidableObjects[i][j] == null) continue
         let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
         if (collision.py.intersects) {
           this.position.y = collision.py.y
@@ -1246,6 +1249,9 @@ class Weapon extends PhysicalObject {
   constructor(geometryInfos, type, collidableObjects, owner) {
     super(0, 0, 0, 0, 0, { mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25 }, collidableObjects)
     Weapon.allWeapons.push(this)
+
+    this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
+    this.shootSoundEffect.currentTime = 0.25
 
     this.particles = []
     this.particleSpawnCounter = 0
@@ -1422,7 +1428,7 @@ class Weapon extends PhysicalObject {
 
   updateWorldPosition() {
     this.particleSpawnCounter++
-    if (/*this.particleSpawnCounter % 4 == 0 && */this.shooted) for (let i = 0; i < 5; i++) this.particles.push(
+    if (this.particleSpawnCounter % 4 == 0 && this.shooted) for (let i = 0; i < 5; i++) this.particles.push(
       new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
     )
 
@@ -1507,12 +1513,12 @@ class Platform extends PhysicalObject {
     let positions = geometryInfo[type].positions
     for (let i = 0; i < positions.length; i++) {
       this.dimensions = {
-        mx: (positions[i][0] * this.scale < this.dimensions.mx) ? positions[i][0] * this.scale : this.dimensions.mx,
-        px: (positions[i][0] * this.scale > this.dimensions.px) ? positions[i][0] * this.scale : this.dimensions.px,
-        my: (positions[i][1] * this.scale < this.dimensions.my) ? positions[i][1] * this.scale : this.dimensions.my,
-        py: (positions[i][1] * this.scale > this.dimensions.py) ? positions[i][1] * this.scale : this.dimensions.py,
-        mz: (positions[i][2] * this.scale < this.dimensions.mz) ? positions[i][2] * this.scale : this.dimensions.mz,
-        pz: (positions[i][2] * this.scale > this.dimensions.pz) ? positions[i][2] * this.scale : this.dimensions.pz
+        mx: (positions[i][0] * this.scale < this.dimensions.mx || i == 0) ? positions[i][0] * this.scale : this.dimensions.mx,
+        px: (positions[i][0] * this.scale > this.dimensions.px || i == 0) ? positions[i][0] * this.scale : this.dimensions.px,
+        my: (positions[i][1] * this.scale < this.dimensions.my || i == 0) ? positions[i][1] * this.scale : this.dimensions.my,
+        py: (positions[i][1] * this.scale > this.dimensions.py || i == 0) ? positions[i][1] * this.scale : this.dimensions.py,
+        mz: (positions[i][2] * this.scale < this.dimensions.mz || i == 0) ? positions[i][2] * this.scale : this.dimensions.mz,
+        pz: (positions[i][2] * this.scale > this.dimensions.pz || i == 0) ? positions[i][2] * this.scale : this.dimensions.pz
       }
     }
 
@@ -1536,7 +1542,7 @@ class Platform extends PhysicalObject {
 
 
 
-    this.texture = "jerry" // default to jerry texture
+    this.texture = "olive" // default to jerry texture
 
     if (type == "basic") {
       this.texture = "sub"
@@ -1686,7 +1692,9 @@ class Ground {
     }
   }
 
-
+  remove() {
+    this.model.delete()
+  }
 
 
 }
