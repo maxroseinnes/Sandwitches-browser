@@ -179,7 +179,7 @@ var changeWeaponSelection = (selection) => {
 var chatbox = document.getElementById("chatbox")
 var chatMessages = []
 var chatLifespan = 10000
-var chatMessageTransition= "opacity 1s"
+var chatMessageTransition = "opacity 1s"
 
 function displayChatMessage(msg) {
 
@@ -200,7 +200,7 @@ function displayChatMessage(msg) {
     window.setTimeout(() => {
         if (!chatboxOpen) message.element.style.opacity = 0.0
     }, chatLifespan)
-    
+
     let bottomValue = 20
     for (let i = chatMessages.length - 1; i >= 0; i--) {
         chatMessages[i].element.style.bottom = bottomValue + "px"
@@ -227,10 +227,10 @@ function openChatbox() {
             chatboxInput.textContent = chatboxInput.textContent.slice(0, -1) + " "
             window.setTimeout(blinkCursor, 500, chatboxInput.textContent.slice(0, -1))
         }
-        
+
     }
     blinkCursor(chatboxInput.textContent.slice(0, -1))
-    
+
 
     chatboxInput.style.display = ""
     chatbox.style.backgroundColor = "rgba(0, 0, 0, .1)"
@@ -376,7 +376,7 @@ socket.on("map", (mapInfo) => {
             mapInfo.platforms[i].scale
         ))
     }
-    
+
     if (mapInfo.mapFile != undefined) {
         let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), true)
         for (let name in mapGeometry) {
@@ -415,25 +415,43 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 })
 
 socket.on("weaponStatesRequest", (recipientId) => {
+    console.log("weapon states")
     var weaponStates = {}
     for (var id in player.weapons) {
         if (player.weapons[id].shooted) {
-            weaponStates[id].position = {
-                x: otherPlayers.weapons[id].position.x,
-                y: otherPlayers.weapons[id].position.y,
-                z: otherPlayers.weapons[id].position.z
+            weaponStates[id] = {
+                position: {
+                    x: player.weapons[id].position.x,
+                    y: player.weapons[id].position.y,
+                    z: player.weapons[id].position.z
+                },
+                velocity: {
+                    x: player.weapons[id].velocity.x,
+                    y: player.weapons[id].velocity.y,
+                    z: player.weapons[id].velocity.z
+                }
             }
-            weaponStates[id].velocity = {
-                x: otherPlayers.weapons[id].velocity.x,
-                y: otherPlayers.weapons[id].velocity.y,
-                z: otherPlayers.weapons[id].velocity.z
-            }
+
         }
     }
+    
     socket.emit("weaponStates", {
-        recipientId: recipientId,
-        ownerId: player.id, 
-        states: weaponStates})
+        recipientId: recipientId, // so server doesn't forget who needs the weapon info
+        ownerId: player.id,
+        states: weaponStates
+    })
+})
+
+socket.on("weaponStates", (data) => {
+    console.log("test")
+    for (let id in data.weaponData) {
+        otherWeapons[id] = new Weapon(weaponGeometry, data.weaponData[id].type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId])
+        otherWeapons[id].position = data.weaponData[id].position
+        otherWeapons[id].velocity = data.weaponData[id].velocity
+        otherWeapons[id].shooted = true
+        otherWeapons[id].shootSoundEffect.play()
+        otherPlayers[data.ownerId].weapons.push(otherWeapons[id])
+    }
 })
 
 socket.on("newPlayer", (player) => {
@@ -533,7 +551,7 @@ function changeRoom(key) {
     for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
 
     socket.emit("joinRoom", lobbyId)
-    
+
     document.getElementById("title").textContent = "Room " + lobbyId
 
 }
@@ -719,14 +737,14 @@ function fixedUpdate() {
                     position: player.inventory.currentWeapon.position,
                     velocity: player.inventory.currentWeapon.getShootVelocity(lookAngleX, lookAngleY)
                 })
-/* THIS IS ALL DONE ON WEAPON CONFIRMATION FROM SERVER
-                player.cooldownTimer = player.currentCooldown
-                otherWeapons[player.inventory.currentWeapon.id] = player.inventory.currentWeapon
-
-
-                player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[player.inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
-                //console.log()
-                player.weapons.push(player.inventory.currentWeapon)*/
+                /* THIS IS ALL DONE ON WEAPON CONFIRMATION FROM SERVER
+                                player.cooldownTimer = player.currentCooldown
+                                otherWeapons[player.inventory.currentWeapon.id] = player.inventory.currentWeapon
+                
+                
+                                player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[player.inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
+                                //console.log()
+                                player.weapons.push(player.inventory.currentWeapon)*/
             }
         }
 
@@ -742,7 +760,7 @@ function fixedUpdate() {
             player.velocity.x = 0
             player.velocity.z = 0
         }
-            
+
     }
 
 
@@ -895,7 +913,7 @@ function initKeyInput(preventDefault) {
                 chatboxInput.textContent.slice(0, -1) + "|"
             }
         }
-        
+
         if (event.code == keyBinds.openChat.code && running) {
             openChatbox()
         }

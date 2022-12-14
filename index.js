@@ -307,11 +307,10 @@ class Room {
       nextWeaponId++
     })
 
-    socket.on("weaponStates", (data) => {    
-      var weaponInfo = {}
-      for (var id in data.states) {
+    socket.on("weaponStates", (data) => {
+      let weaponInfo = {}
+      for (let id in data.states) {
         weaponInfo[id] = {
-          ownerId: data.ownerId,
           type: this.weapons[id].type,
           position: {
             x: data.states[id].position.x,
@@ -325,6 +324,10 @@ class Room {
           }
         }
       }
+      
+      this.players[data.recipientId].socket.emit("weaponStates", {
+        ownerId: data.ownerId, 
+        weaponData: weaponInfo})
     })
 
     socket.on("death", (deathInfo) => {
@@ -376,7 +379,7 @@ class Room {
   }
 
   genPlayerPacket(id) {
-    var data = {}
+    let data = {}
     data.position = {
       x: this.players[id].position.x,
       y: this.players[id].position.y,
@@ -392,7 +395,7 @@ class Room {
   }
 
   broadcast(eventName, msg, except) {
-    for (var id in this.players) {
+    for (let id in this.players) {
       if (id != except) this.players[id].socket.emit(eventName, msg)
     }
   }
@@ -400,8 +403,8 @@ class Room {
   timeOfLastTick
   tick(room) {
     // Compile player data into an array
-    var playersData = {}
-    for (var id in room.players) {
+    let playersData = {}
+    for (let id in room.players) {
       if (room.players[id] != null) playersData[id] = room.genPlayerPacket(id)
     }
 
