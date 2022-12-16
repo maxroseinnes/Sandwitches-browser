@@ -184,12 +184,52 @@ var maps = {
 
 }
 
+function getWeaponInfo(type) {
+  let weaponInfo = {}
+
+  switch (type) {
+    case "tomato":
+      weaponInfo.class = "projectile"
+      weaponInfo.speed = 0.025
+      weaponInfo.damage = 5
+      break
+    case "olive":
+      weaponInfo.class = "projectile"
+      weaponInfo.speed = 0.025
+      weaponInfo.damage = 10
+      break
+    case "pickle":
+      weaponInfo.class = "projectile"
+      weaponInfo.speed = 0.025
+      weaponInfo.damage = 5
+      break
+    case "sausage":
+      weaponInfo.class = "melee"
+      weaponInfo.speed = 0.025
+      weaponInfo.damage = 5
+      break
+    case "anchovy":
+      weaponInfo.class = "missile"
+      weaponInfo.speed = 0.01
+      weaponInfo.damage = 25
+      break
+    case "pan":
+      weaponInfo.class = "melee"
+      weaponInfo.speed = 0.025
+      weaponInfo.damage = 5
+      break
+  }
+
+  return weaponInfo
+}
+
 
 
 var nextId = 0
 var nextWeaponId = 0
 
 const TPS = 20;
+const weaponGravity = 0.0003
 
 app.use(express.static("public"));
 
@@ -213,7 +253,7 @@ class Room {
     }
     socket.emit("otherPlayers", otherPlayersInfo);
 
-    socket.broadcast.emit("weaponStatesRequest", assignedId)
+    //socket.broadcast.emit("weaponStatesRequest", assignedId)
 
     let nameIndex = Math.floor(Math.random() * availableNames.length)
     let name = availableNames[nameIndex]
@@ -291,23 +331,23 @@ class Room {
 
     socket.on("newWeapon", (data) => {
       this.weapons[nextWeaponId] = {
+        ownerId: data.ownerId,
         type: data.type,
-        ownerId: data.ownerId/*,
-        position: data.position,*/
+        position: data.position,
+        velocity: data.velocity,
       }
 
       this.broadcast("newWeapon", {
         id: nextWeaponId,
-        type: data.type,
         ownerId: data.ownerId,
+        type: data.type,  
         position: data.position,
-        velocity: data.velocity
       }, null)
 
       nextWeaponId++
     })
 
-    socket.on("weaponStates", (data) => {
+    /*socket.on("weaponStates", (data) => {
       let weaponInfo = {}
       for (let id in data.states) {
         weaponInfo[id] = {
@@ -330,7 +370,7 @@ class Room {
       this.players[data.recipientId].socket.emit("weaponStates", {
         ownerId: data.ownerId, 
         weaponData: weaponInfo})
-    })
+    })*/
 
     socket.on("death", (deathInfo) => {
       this.respawnPlayer(deathInfo.id)
@@ -358,6 +398,13 @@ class Room {
       }
 
     })
+  }
+
+  updateWeapon(id) {
+    weapons[id].position += velocity
+    if (getWeaponInfo(weapons[id].type).class == projectile) {
+      weapons[id].velocity.y -= weaponGravity / TPS
+    } 
   }
 
   respawnPlayer(id) {
@@ -409,6 +456,8 @@ class Room {
     for (let id in room.players) {
       if (room.players[id] != null) playersData[id] = room.genPlayerPacket(id)
     }
+
+    
 
     // Send array to each connected player
     room.broadcast("playerUpdate", playersData, null)
