@@ -126,14 +126,29 @@ weaponSelectors[0].onchange = () => {
 
 // AUDIO //
 
+var volume = 1
 const backgroundNoises = new Audio("./assets/wet_wriggling_noises/dripping-water-nature-sounds-8050.mp3")
-backgroundNoises.volume = .5
 backgroundNoises.loop = true
 
 const splatNoise = new Audio("./assets/wet_wriggling_noises/cartoon-splat-6086.mp3")
 const jumpNoise = new Audio("./assets/wet_wriggling_noises/smb_jump-super.wav")
 const pauseNoise = new Audio("./assets/wet_wriggling_noises/smb_pause.wav")
 const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
+
+var setVolume = () => {
+    backgroundNoises.volume = .5 * volume
+    splatNoise.volume = volume
+    jumpNoise.volume = volume
+    pauseNoise.volume = volume
+    stepNoise.volume = volume
+}
+
+setVolume()
+
+document.getElementById("volumeSlider").onchange = () => {
+    volume = document.getElementById("volumeSlider").value / 100
+    setVolume()
+}
 
 
 // MAP ORGANIZATION //
@@ -388,7 +403,6 @@ socket.on("map", (mapInfo) => {
         ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
         if (camera instanceof PhysicalObject) {
             for (let i in camera.collidableObjects) if (camera.collidableObjects[i][0] instanceof Ground) {
-                console.log("omg")
                 camera.collidableObjects.splice(i, 1)
                 continue
             }
@@ -457,6 +471,7 @@ socket.on("weaponStates", (data) => {
 socket.on("newPlayer", (player) => {
     displayChatMessage(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
+    console.log(otherPlayers[player.id])
 })
 
 socket.on("newWeapon", (data) => {
@@ -550,7 +565,7 @@ function changeRoom(key) {
 
     for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
 
-    socket.emit("joinRoom", lobbyId)
+    socket.emit("joinRoom", {roomId: lobbyId, playerId: (player != null) ? player.id : null})
 
     document.getElementById("title").textContent = "Room " + lobbyId
 
@@ -611,6 +626,10 @@ function update(now) {
 
 
         otherPlayers[id].updateWorldPosition(lookAngleY, lookAngleX);
+    }
+
+    if (Math.random() < .1) {
+        console.log(otherPlayers)
     }
 
 
@@ -767,9 +786,9 @@ function fixedUpdate() {
     player.calculatePosition(deltaTime)
 
     if (!player.lastOnGround && player.onGround) {
-        let volume = Math.abs(player.lastVelocity.y) * 50 - .75
-        volume = volume > 0 ? volume : 0
-        splatNoise.volume = volume < 1 ? volume : 1
+        let splatVolume = Math.abs(player.lastVelocity.y) * 50 - .75
+        splatVolume = splatVolume > 0 ? splatVolume : 0
+        splatNoise.volume = (splatVolume < 1 ? splatVolume : 1) * volume
         splatNoise.currentTime = .1
         splatNoise.playbackRate = 1.5
         splatNoise.play()

@@ -325,7 +325,7 @@ class Room {
         }
       }
       
-      this.players[data.recipientId].socket.emit("weaponStates", {
+      if (this.players[data.recipientId] != null) this.players[data.recipientId].socket.emit("weaponStates", {
         ownerId: data.ownerId, 
         weaponData: weaponInfo})
     })
@@ -437,11 +437,13 @@ socketServer.on("connection", (socket) => {
     setTimeout(() => { setInterval(tick, 1000 / TPS) }, ping / 2);
   })*/
 
-  socket.on("joinRoom", (roomId) => {
+  socket.on("joinRoom", (data) => {
+    let playerId = nextId
+    if (data.playerId != null) id = data.playerId
     for (let i in rooms) {
-      if (Object.keys(rooms[i].players).indexOf(String(nextId)) != -1) { // if joining player is in this room
-        rooms[i].broadcast("playerLeave", nextId, null);
-        console.log(rooms[i].players[nextId].name + " left. 😭😭😭😭😭😭😭");
+      if (Object.keys(rooms[i].players).indexOf(String(playerId)) != -1) { // if joining player is in this room
+        rooms[i].broadcast("playerLeave", playerId, null);
+        console.log(rooms[i].players[playerId].name + " left. 😭😭😭😭😭😭😭");
 
         let listeners = socket.eventNames()
         for (let j in listeners) {
@@ -451,13 +453,13 @@ socketServer.on("connection", (socket) => {
 
         socket.emit("stopTicking")
 
-        availableNames.push(rooms[i].players[nextId].name);
-        delete rooms[i].players[nextId];
+        availableNames.push(rooms[i].players[playerId].name);
+        delete rooms[i].players[playerId];
       }
     }
-    rooms[roomId].addPlayer(socket, nextId)
-    console.log("room: " + roomId)
-    console.log("id: " + nextId)
+    rooms[data.roomId].addPlayer(socket, playerId)
+    console.log("room: " + data.roomId)
+    console.log("id: " + playerId)
   })
   nextId++
 
