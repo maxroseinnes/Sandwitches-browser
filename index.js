@@ -315,7 +315,9 @@ class Room {
           position: {
             x: data.states[id].position.x,
             y: data.states[id].position.y,
-            z: data.states[id].position.z
+            z: data.states[id].position.z,
+            yaw: data.states[id].yaw,
+            pitch: data.states[id].pitch
           },
           velocity: {
             x: data.states[id].velocity.x,

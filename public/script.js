@@ -415,15 +415,17 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 })
 
 socket.on("weaponStatesRequest", (recipientId) => {
-    console.log("weapon states")
     var weaponStates = {}
     for (var id in player.weapons) {
         if (player.weapons[id].shooted) {
+            console.log(player.weapons[id].position)
             weaponStates[id] = {
                 position: {
                     x: player.weapons[id].position.x,
                     y: player.weapons[id].position.y,
-                    z: player.weapons[id].position.z
+                    z: player.weapons[id].position.z,
+                    yaw: player.weapons[id].yaw,
+                    pitch: player.weapons[id].pitch
                 },
                 velocity: {
                     x: player.weapons[id].velocity.x,
@@ -445,12 +447,14 @@ socket.on("weaponStatesRequest", (recipientId) => {
 socket.on("weaponStates", (data) => {
     console.log("test")
     for (let id in data.weaponData) {
+        console.log(weaponGeometry)
         otherWeapons[id] = new Weapon(weaponGeometry, data.weaponData[id].type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId])
         otherWeapons[id].position = data.weaponData[id].position
         otherWeapons[id].velocity = data.weaponData[id].velocity
         otherWeapons[id].shooted = true
         otherWeapons[id].shootSoundEffect.play()
         otherPlayers[data.ownerId].weapons.push(otherWeapons[id])
+        otherPlayers[data.ownerId].cooldownTimer = otherPlayers[data.ownerId].currentCooldown
     }
 })
 

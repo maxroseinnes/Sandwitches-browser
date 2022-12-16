@@ -507,6 +507,14 @@ class Model {
     crouchValue = crouchValue || 0
     slideValue = slideValue || 0
 
+    yaw = yaw || 0
+    lean = lean || 0
+    pitch = pitch || 0
+    roll = roll || 0
+    x = x || 0
+    y = y || 0
+    z = z || 0
+
 
     let geometryInfo = this.geometryInfo
     let indices = geometryInfo.indices
@@ -1251,6 +1259,7 @@ class Weapon extends PhysicalObject {
   static allWeapons = []
   static gravity = 0.00001
   constructor(geometryInfos, type, collidableObjects, owner) {
+    console.log(geometryInfos)
     super(0, 0, 0, 0, 0, { mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25 }, collidableObjects)
     Weapon.allWeapons.push(this)
 
