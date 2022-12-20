@@ -283,7 +283,7 @@ var webgl = {
     //let ratio = 1
     //if (cameraPositionY < 0) ratio = Math.pow((playerPosition.y + 1) / (Math.sin(angleX) * -cameraDistance), 1.5)
 
-
+/*
     camera.lastPosition.x = playerPosition.x
     camera.lastPosition.y = playerPosition.y + 1
     camera.lastPosition.z = playerPosition.z
@@ -342,10 +342,10 @@ var webgl = {
 
       }
     }
+*/
 
 
-
-    //mat4.translate(tMatrix, tMatrix, [-2, -1, -cameraDistance * ratio]);
+    mat4.translate(tMatrix, tMatrix, [0, 0, -2]);
     mat4.rotateX(tMatrix, tMatrix, camera.position.lean);
     mat4.rotateY(tMatrix, tMatrix, camera.position.yaw);
     mat4.translate(tMatrix, tMatrix, [-camera.position.x, -camera.position.y, -camera.position.z]);
@@ -670,6 +670,13 @@ class PhysicalObject {
         roll: 0
       }
     ]
+
+    this.velocity = {
+      x: 0,
+      y: 0,
+      z: 0
+    }
+
     // dimensions used for collision
     this.dimensions = dimensions
 
