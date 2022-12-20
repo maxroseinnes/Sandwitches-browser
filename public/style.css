@@ -212,6 +212,19 @@ input[type=text] {
     color: white;
 }
 
+#roomInfo {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+
+    border-style: solid;
+    padding: 20px;
+
+    background-color: rgba(0, 0, 0, .1);
+
+    color: white;
+}
+
 #chatbox {
     position: absolute;
     bottom: 80px;

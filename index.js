@@ -201,19 +201,19 @@ class Room {
   constructor(mapData) {
     this.mapData = mapData
 
-    this.tickInterval = setInterval(this.tick, 1000 / TPS, this)
+    this.tickInterval = setInterval(() => { this.tick() }, 1000 / TPS)
   }
 
-  addPlayer(socket, assignedId) {
+  addPlayer(socket, assignedId) { // this gets called when a player joins this room
     socket.emit("map", this.mapData);
 
-    let otherPlayersInfo = {};
+    let otherPlayersInfo = {}; // compile other players info into an object to send to the new player
     for (let id in this.players) {
       if (this.players[id] != null) otherPlayersInfo[id] = { name: this.players[id].name, position: this.players[id].position, state: this.players[id].state, currentWeaponType: this.players[id].currentWeaponType };
     }
     socket.emit("otherPlayers", otherPlayersInfo);
 
-    socket.broadcast.emit("weaponStatesRequest", assignedId)
+    this.broadcast("weaponStatesRequest", assignedId, null)
 
     let nameIndex = Math.floor(Math.random() * availableNames.length)
     let name = availableNames[nameIndex]
@@ -401,21 +401,21 @@ class Room {
   }
 
   timeOfLastTick
-  tick(room) {
+  tick() {
     // Compile player data into an array
     let playersData = {}
-    for (let id in room.players) {
-      if (room.players[id] != null) playersData[id] = room.genPlayerPacket(id)
+    for (let id in this.players) {
+      if (this.players[id] != null) playersData[id] = this.genPlayerPacket(id)
     }
 
     // Send array to each connected player
-    room.broadcast("playerUpdate", playersData, null)
+    this.broadcast("playerUpdate", playersData, null)
 
-    if (room.timeOfLastTick != undefined) {
+    if (this.timeOfLastTick != undefined) {
       //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
     }
 
-    room.timeOfLastTick = new Date().getTime();
+    this.timeOfLastTick = new Date().getTime();
   }
 
 }
@@ -438,30 +438,35 @@ socketServer.on("connection", (socket) => {
   })*/
 
   socket.on("joinRoom", (data) => {
-    let playerId = nextId
-    if (data.playerId != null) id = data.playerId
-    for (let i in rooms) {
-      if (Object.keys(rooms[i].players).indexOf(String(playerId)) != -1) { // if joining player is in this room
-        rooms[i].broadcast("playerLeave", playerId, null);
-        console.log(rooms[i].players[playerId].name + " left. 😭😭😭😭😭😭😭");
 
-        let listeners = socket.eventNames()
-        for (let j in listeners) {
-          if (listeners[j] == "joinRoom") continue
-          socket.removeAllListeners(listeners[j])
+    if (data.playerId != null) { // delete this player from their room
+      for (let i in rooms) {
+        if (Object.keys(rooms[i].players).indexOf(String(data.playerId)) != -1) { // if joining player is in this room
+          rooms[i].broadcast("playerLeave", data.playerId, null);
+          console.log(rooms[i].players[data.playerId].name + " left. 😭😭😭😭😭😭😭");
+
+          let listeners = socket.eventNames()
+          for (let j in listeners) {
+            if (listeners[j] == "joinRoom") continue
+            socket.removeAllListeners(listeners[j])
+          }
+
+          socket.emit("stopTicking")
+
+          availableNames.push(rooms[i].players[data.playerId].name);
+          delete rooms[i].players[data.playerId];
         }
-
-        socket.emit("stopTicking")
-
-        availableNames.push(rooms[i].players[playerId].name);
-        delete rooms[i].players[playerId];
       }
     }
-    rooms[data.roomId].addPlayer(socket, playerId)
+
+
+
+    
+    rooms[data.roomId].addPlayer(socket, nextId)
     console.log("room: " + data.roomId)
-    console.log("id: " + playerId)
+    console.log("id: " + nextId)
+    nextId++
   })
-  nextId++
 
 });
 

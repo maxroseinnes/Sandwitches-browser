@@ -13,6 +13,7 @@ var webgl = webglStuff.webgl
 var Point = webglStuff.Point
 var Model = webglStuff.Model
 var PhysicalObject = webglStuff.PhysicalObject
+var Particle = webglStuff.Particle
 var Player = webglStuff.Player
 var Weapon = webglStuff.Weapon
 var Platform = webglStuff.Platform
@@ -96,11 +97,11 @@ lobbyId = 1
 changeRoom(1) // go to room 1 first
 
 var myWeapons = [
-    "anchovy",
     "olive",
     "pickle",
+    "tomato",
     "sausage",
-    "tomato"
+    "anchovy"
 ]
 var weaponSelectors = []
 for (let i = 0; i < 3; i++) {
@@ -274,6 +275,27 @@ function closeChatbox() {
 
 
 
+var playerInfo = document.getElementById("roomInfo")
+var playerInfos = {}
+
+function addPlayerToHUD(id, name) {
+    playerInfos[id] = document.createElement("li")
+
+    playerInfos[id].textContent = name
+    playerInfo.appendChild(playerInfos[id])
+}
+
+function changePlayerNameInHUD(id, newName) {
+    playerInfos[id].textContent = newName
+}
+
+function removePlayerFromHUD(id) {
+    playerInfos[id].remove()
+    delete playerInfos[id]
+}
+
+
+
 // INITIALIZE WEBGL //
 
 webgl.initialize()
@@ -425,6 +447,8 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
             otherPlayersInfo[id].health,
             id,
             otherPlayersInfo[id].name)
+
+        addPlayerToHUD(id, otherPlayersInfo[id].name)
     }
 })
 
@@ -472,6 +496,7 @@ socket.on("newPlayer", (player) => {
     displayChatMessage(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
     console.log(otherPlayers[player.id])
+    addPlayerToHUD(player.id, player.name)
 })
 
 socket.on("newWeapon", (data) => {
@@ -495,6 +520,7 @@ socket.on("playerLeave", (id) => {
     displayChatMessage(otherPlayers[id].name + " left")
     otherPlayers[id].remove()
     otherPlayers[id] = null
+    removePlayerFromHUD(id)
 })
 
 socket.on("playerUpdate", (playersData) => {
@@ -532,6 +558,8 @@ socket.on("nameChange", (data) => {
     otherPlayers[data.id].name = data.newName
     otherPlayers[data.id].gamerTag.changeName(data.newName)
 
+    changePlayerNameInHUD(data.id, data.newName)
+
 })
 
 socket.on("respawn", (data) => {
@@ -548,6 +576,8 @@ socket.on("tooManyPlayers", () => {
 })
 
 function changeRoom(key) {
+    socket.emit("joinRoom", {roomId: lobbyId, playerId: (player != null) ? player.id : null})
+
     // delete all map geometry
     for (let i = 0; i < platforms.length; i++) {
         platforms[i].remove()
@@ -564,8 +594,6 @@ function changeRoom(key) {
     }
 
     for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
-
-    socket.emit("joinRoom", {roomId: lobbyId, playerId: (player != null) ? player.id : null})
 
     document.getElementById("title").textContent = "Room " + lobbyId
 
@@ -595,9 +623,7 @@ function update(now) {
     info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9 + "<br>client TPS: " + Math.round(1000 / averageClientTPS * 100) / 100
 
 
-
-
-    player.updateAnimation()
+    Particle.updateParticles(deltaTime)
 
 
     player.position.yaw = lookAngleY
@@ -628,9 +654,6 @@ function update(now) {
         otherPlayers[id].updateWorldPosition(lookAngleY, lookAngleX);
     }
 
-    if (Math.random() < .1) {
-        console.log(otherPlayers)
-    }
 
 
 
@@ -756,14 +779,6 @@ function fixedUpdate() {
                     position: player.inventory.currentWeapon.position,
                     velocity: player.inventory.currentWeapon.getShootVelocity(lookAngleX, lookAngleY)
                 })
-                /* THIS IS ALL DONE ON WEAPON CONFIRMATION FROM SERVER
-                                player.cooldownTimer = player.currentCooldown
-                                otherWeapons[player.inventory.currentWeapon.id] = player.inventory.currentWeapon
-                
-                
-                                player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[player.inventory.currentSelection].value, [platforms, otherPlayers, [ground]], player)
-                                //console.log()
-                                player.weapons.push(player.inventory.currentWeapon)*/
             }
         }
 
