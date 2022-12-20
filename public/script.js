@@ -382,12 +382,12 @@ function update(now) {
             currentPoint = 0
         
             hitBoxData.push({
-                mx: firstPoint[0],
-                px: secondPoint[0],
-                my: firstPoint[1],
-                py: secondPoint[1],
-                mz: firstPoint[2],
-                pz: secondPoint[2]
+                mx: (firstPoint[0] < secondPoint[0]) ? firstPoint[0] : secondPoint[0],
+                px: (firstPoint[0] > secondPoint[0]) ? firstPoint[0] : secondPoint[0],
+                my: (firstPoint[1] < secondPoint[1]) ? firstPoint[1] : secondPoint[1],
+                py: (firstPoint[1] > secondPoint[1]) ? firstPoint[1] : secondPoint[1],
+                mz: (firstPoint[2] < secondPoint[2]) ? firstPoint[2] : secondPoint[2],
+                pz: (firstPoint[2] > secondPoint[2]) ? firstPoint[2] : secondPoint[2],
             })
         }
         else currentPoint++
