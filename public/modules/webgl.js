@@ -1444,15 +1444,18 @@ class Platform extends PhysicalObject {
     super(x, y, z, 0, 0, { mx: 0, px: 0, my: 0, py: 0, mz: 0, pz: 0 })
     this.scale = scale || 1
 
-    let positions = geometryInfo[type].positions
-    for (let i = 0; i < positions.length; i++) {
-      this.dimensions = {
-        mx: (positions[i][0] * this.scale < this.dimensions.mx || i == 0) ? positions[i][0] * this.scale : this.dimensions.mx,
-        px: (positions[i][0] * this.scale > this.dimensions.px || i == 0) ? positions[i][0] * this.scale : this.dimensions.px,
-        my: (positions[i][1] * this.scale < this.dimensions.my || i == 0) ? positions[i][1] * this.scale : this.dimensions.my,
-        py: (positions[i][1] * this.scale > this.dimensions.py || i == 0) ? positions[i][1] * this.scale : this.dimensions.py,
-        mz: (positions[i][2] * this.scale < this.dimensions.mz || i == 0) ? positions[i][2] * this.scale : this.dimensions.mz,
-        pz: (positions[i][2] * this.scale > this.dimensions.pz || i == 0) ? positions[i][2] * this.scale : this.dimensions.pz
+    if (geometryInfo) {
+
+      let positions = geometryInfo[type].positions
+      for (let i = 0; i < positions.length; i++) {
+        this.dimensions = {
+          mx: (positions[i][0] * this.scale < this.dimensions.mx || i == 0) ? positions[i][0] * this.scale : this.dimensions.mx,
+          px: (positions[i][0] * this.scale > this.dimensions.px || i == 0) ? positions[i][0] * this.scale : this.dimensions.px,
+          my: (positions[i][1] * this.scale < this.dimensions.my || i == 0) ? positions[i][1] * this.scale : this.dimensions.my,
+          py: (positions[i][1] * this.scale > this.dimensions.py || i == 0) ? positions[i][1] * this.scale : this.dimensions.py,
+          mz: (positions[i][2] * this.scale < this.dimensions.mz || i == 0) ? positions[i][2] * this.scale : this.dimensions.mz,
+          pz: (positions[i][2] * this.scale > this.dimensions.pz || i == 0) ? positions[i][2] * this.scale : this.dimensions.pz
+        }
       }
     }
 
@@ -1480,8 +1483,10 @@ class Platform extends PhysicalObject {
       //}, 20)
     }
 
-    this.models.main = new Model(geometryInfo[type], this.scale, this.texture)
-    this.models.main.setPosition(0, 0, 0, 0, this.position.x, this.position.y, this.position.z)
+    if (geometryInfo) {
+      this.models.main = new Model(geometryInfo[type], this.scale, this.texture)
+      this.models.main.setPosition(0, 0, 0, 0, this.position.x, this.position.y, this.position.z)
+    }
   }
 
 

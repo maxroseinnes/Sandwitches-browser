@@ -332,6 +332,7 @@ var platformGeometry = {
 }
 
 var ground
+var mapModel
 var camera = new PhysicalObject(0, 0, 0, 0, 0, { mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05 }, [platforms, [ground]])
 var player
 
@@ -415,9 +416,17 @@ socket.on("map", (mapInfo) => {
     }
 
     if (mapInfo.mapFile != undefined) {
-        let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), true)
-        for (let name in mapGeometry) {
-            platforms.push(new Platform(mapGeometry, name, 0, 0, 0, 1))
+        let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), false)
+        mapModel = new Model(mapGeometry, 1, "olive", 0, 0, 0)
+
+        let mapCollisionData = JSON.parse(fetchObj("collision-data.json"))
+        for (let i in mapCollisionData) {
+            let platform = new Platform(null, null, 0, 0, 0, 1)
+            platform.dimensions = mapCollisionData[i]
+            platforms.push(platform)
+
+            console.log(platform.dimensions)
+            
         }
     }
 
@@ -579,6 +588,8 @@ function changeRoom(key) {
     socket.emit("joinRoom", {roomId: lobbyId, playerId: (player != null) ? player.id : null})
 
     // delete all map geometry
+    if (mapModel) mapModel.delete()
+
     for (let i = 0; i < platforms.length; i++) {
         platforms[i].remove()
     }
