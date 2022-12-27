@@ -1,59 +1,4 @@
 
-var modelData = {
-
-
-
-  platforms: {
-
-    basic: `
-# Blender 3.3.0
-# www.blender.org
-mtllib untitled.mtl
-o Cube
-v 2.445886 1.455015 -2.627166
-v 2.445886 -0.035772 -2.627166
-v 2.445886 1.455015 2.628288
-v 2.445886 -0.035772 2.628288
-v -2.423902 1.455015 -2.627166
-v -2.423902 -0.035772 -2.627166
-v -2.423902 1.455015 2.628288
-v -2.423902 -0.035772 2.628288
-vn -0.0000 1.0000 -0.0000
-vn -0.0000 -0.0000 1.0000
-vn -1.0000 -0.0000 -0.0000
-vn -0.0000 -1.0000 -0.0000
-vn 1.0000 -0.0000 -0.0000
-vn -0.0000 -0.0000 -1.0000
-vt 0.625000 0.500000
-vt 0.375000 0.500000
-vt 0.625000 0.750000
-vt 0.375000 0.750000
-vt 0.875000 0.500000
-vt 0.625000 0.250000
-vt 0.125000 0.500000
-vt 0.375000 0.250000
-vt 0.875000 0.750000
-vt 0.625000 1.000000
-vt 0.625000 0.000000
-vt 0.375000 1.000000
-vt 0.375000 0.000000
-vt 0.125000 0.750000
-s 0
-usemtl Material
-f 1/1/1 5/5/1 7/9/1 3/3/1
-f 4/4/2 3/3/2 7/10/2 8/12/2
-f 8/13/3 7/11/3 5/6/3 6/8/3
-f 6/7/4 2/2/4 4/4/4 8/14/4
-f 2/2/5 1/1/5 3/3/5 4/4/5
-f 6/8/6 5/6/6 1/1/6 2/2/6
-`
-
-
-  },
-
-
-}
-
 
 var fetchObj = (name) => {
     
@@ -177,7 +122,7 @@ var obj = {
             if (identifier == "vt") texcoords.push(this.parseFloats(this.parseWords(currentLine)))
 
             if (identifier == "s") {
-                if (currentLine = "0") smooth = false
+                if (currentLine == "0") smooth = false
                 else smooth = true
             }
 
@@ -217,6 +162,33 @@ var obj = {
         }
     }
 
+    for (let i in objects) if (objects[i].smooth) {
+        // make a normal for every point
+        let newNormals = []
+        for (let j in objects[i].positions) {
+            let connectedNormals = []
+            for (let k in objects[i].indices) {
+                for (let l in objects[i].indices[k].vertexes) {
+                    if (objects[i].indices[k].vertexes[l] == j) {
+                        connectedNormals.push(objects[i].normals[objects[i].indices[k].normals[l]])
+                    }
+                }
+            }
+            let averageNormal = [0, 0, 0]
+            for (let k = 0; k < connectedNormals.length; k++) {
+                for (let l in averageNormal) averageNormal[l] += connectedNormals[k][l] / connectedNormals.length
+            }
+            newNormals.push(averageNormal)
+        }
+        objects[i].normals = newNormals
+
+        for (let j in objects[i].indices) {
+            for (let k in objects[i].indices[j].vertexes) {
+                objects[i].indices[j].normals[k] = objects[i].indices[j].vertexes[k]
+            }
+        }
+    }
+
     if (seperateObjects) return objects
     else return Object.values(objects)[0]
 
@@ -226,4 +198,4 @@ var obj = {
 
 
 
-export default { modelData, fetchObj, obj }
+export default { fetchObj, obj }

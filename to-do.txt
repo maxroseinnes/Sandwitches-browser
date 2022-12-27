@@ -29,3 +29,6 @@ drawing transparent stuff:
 
 make smoothPosition method for PhysicalObject class
 
+
+move gloss and shadowable values to models
+

@@ -101,7 +101,9 @@ var myWeapons = [
     "pickle",
     "tomato",
     "sausage",
-    "anchovy"
+    "anchovy",
+    "pan",
+    "meatball"
 ]
 var weaponSelectors = []
 for (let i = 0; i < 3; i++) {
@@ -212,6 +214,7 @@ function displayChatMessage(msg) {
 
     if (msg.indexOf("fell") != -1 || msg.indexOf("killed") != -1) message.element.style.color = "red"
     if (msg.indexOf("spawned") != -1) message.element.style.color = "lightgreen"
+    if (msg.indexOf("left") != -1) message.element.style.color = "orange"
 
     window.setTimeout(() => {
         if (!chatboxOpen) message.element.style.opacity = 0.0
@@ -315,17 +318,10 @@ var playerGeometry = {
     tomato4: playerIdleInfo["Tomato.003"]
 }
 
-var weaponGeometry = {
-    tomato: obj.parseWavefront(fetchObj("weapons/tomato.obj"), false),
-    olive: obj.parseWavefront(fetchObj("weapons/low_poly_olive.obj"), false),
-    pickle: obj.parseWavefront(fetchObj("weapons/small_horizontal_cylinder.obj"), false),
-    sausage: obj.parseWavefront(fetchObj("weapons/sausage.obj"), false),
-    pan: obj.parseWavefront(fetchObj("weapons/fryingpan.obj"), false),
-    anchovy: obj.parseWavefront(fetchObj("weapons/anchovy_terrible.obj"), false)
-}
+var weaponGeometry = {}
 
 var platformGeometry = {
-    basic: obj.parseWavefront(modelData.platforms.basic, false),
+    basic: obj.parseWavefront(fetchObj("platforms/basic.obj"), false),
     crate: obj.parseWavefront(fetchObj("platforms/crate.obj"), false),
     pinetree: obj.parseWavefront(fetchObj("platforms/pinetree.obj"), false),
     doorTest: obj.parseWavefront(fetchObj("doorTest.obj"), false)
@@ -397,12 +393,19 @@ socket.on("assignPlayer", (playerInfo) => {
 
     document.getElementById("nameField").value = player.name
 
+    addPlayerToHUD(player.id, player.name)
+
     player.inventory = {
         currentSelection: 0,
         currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player),
     }
     updateHUD()
 });
+
+socket.on("weaponGeometry", (data) => {
+    weaponGeometry = data
+    console.log(weaponGeometry)
+})
 
 socket.on("map", (mapInfo) => {
     for (let i = 0; i < mapInfo.platforms.length; i++) {
@@ -417,9 +420,10 @@ socket.on("map", (mapInfo) => {
 
     if (mapInfo.mapFile != undefined) {
         let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), false)
-        mapModel = new Model(mapGeometry, 1, "olive", 0, 0, 0)
+        mapModel = new Model({}, mapGeometry, 1, "olive", 0, 0, 0)
 
-        let mapCollisionData = JSON.parse(fetchObj("collision-data.json"))
+        /*
+        let mapCollisionData = JSON.parse(fetchObj("collision-data (2).json"))
         for (let i in mapCollisionData) {
             let platform = new Platform(null, null, 0, 0, 0, 1)
             platform.dimensions = mapCollisionData[i]
@@ -427,6 +431,26 @@ socket.on("map", (mapInfo) => {
 
             console.log(platform.dimensions)
             
+        }
+        */
+
+        for (let i in mapGeometry.indices) {
+
+            let platform = new Platform(null, null, 0, 0, 0, 1)
+
+            for (let j = 0; j < 3; j++) {
+
+                platform.dimensions = {
+                    mx: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0] < platform.dimensions.mx || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0] : platform.dimensions.mx,
+                    px: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0] > platform.dimensions.px || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0] : platform.dimensions.px,
+                    my: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1] < platform.dimensions.my || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1] : platform.dimensions.my,
+                    py: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1] > platform.dimensions.py || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1] : platform.dimensions.py,
+                    mz: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2] < platform.dimensions.mz || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2] : platform.dimensions.mz,
+                    pz: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2] > platform.dimensions.pz || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2] : platform.dimensions.pz
+                }
+            }
+
+            platforms.push(platform)
         }
     }
 
@@ -439,6 +463,17 @@ socket.on("map", (mapInfo) => {
             }
             camera.collidableObjects.push([ground])
         }
+    } else {
+
+        console.log(camera.collidableObjects)
+        for (let i in camera.collidableObjects) {
+            for (let j in camera.collidableObjects[i]) {
+                if (camera.collidableObjects[i][j] instanceof Ground) {
+                    camera.collidableObjects.splice(i, 1)
+                }
+            }
+        }
+
     }
 
 })
@@ -587,6 +622,8 @@ socket.on("tooManyPlayers", () => {
 function changeRoom(key) {
     socket.emit("joinRoom", {roomId: lobbyId, playerId: (player != null) ? player.id : null})
 
+    if (player != null) removePlayerFromHUD(player.id, player.name)
+
     // delete all map geometry
     if (mapModel) mapModel.delete()
 
@@ -614,7 +651,18 @@ function changeRoom(key) {
 // TESTING //
 
 platforms.push(new Platform(platformGeometry, "doorTest", -10, 3, -20, 1))
-
+/*
+new Model({
+    positions: [[0, 0, -10], [0, 20, -10], [0, 20, 10], [0, 0, 10]],
+    normals: [[0, 1, 0]],
+    texcoords: [[0, 0], [0, 1], [1, 1], [1, 0]],
+    smooth: false,
+    indices: [
+        {vertexes: [0, 1, 2], normals: [0, 0, 0], texcoords: [0, 1, 2]},
+        {vertexes: [2, 3, 0], normals: [0, 0, 0], texcoords: [2, 3, 0]},
+    ]
+}, 1, null, 0, 0,)
+*/
 
 
 
@@ -630,17 +678,30 @@ function update(now) {
     lastFramerates.splice(0, 0, 1000 / deltaTime)
     lastFramerates.splice(20)
     let rollingFramerate = 0
-    for (let i = 0; i < lastFramerates.length; i++) rollingFramerate += lastFramerates[i] / lastFramerates.length
+    let recentFrameCount = Math.round(333 / deltaTime)
+    recentFrameCount = recentFrameCount < 1 ? 1 : recentFrameCount
+    recentFrameCount = recentFrameCount > lastFramerates.length ? lastFramerates.length : recentFrameCount
+    for (let i = 0; i < recentFrameCount; i++) rollingFramerate += lastFramerates[i] / recentFrameCount
     info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9 + "<br>client TPS: " + Math.round(1000 / averageClientTPS * 100) / 100
 
 
     Particle.updateParticles(deltaTime)
 
 
-    player.position.yaw = lookAngleY
-    player.position.lean = lookAngleX
-    player.updateWorldPosition(lookAngleY, lookAngleX) // this must go last
+    if (player) {
+        player.position.yaw = lookAngleY
+        player.position.lean = lookAngleX
+        player.gamerTag.position = {
+          x: player.position.x,
+          y: player.position.y + 2.75,
+          z: player.position.z,
+          yaw: lookAngleY,
+          lean: 0,
+          pitch: lookAngleX,
+          roll: 0
+        }
 
+    }
 
     // update other player positions
 
@@ -653,35 +714,41 @@ function update(now) {
     for (let id in otherPlayers) {
         if (otherPlayers[id] == null) continue
         otherPlayers[id].smoothPosition(currentTickStage)
+        otherPlayers[id].gamerTag.position = {
+          x: otherPlayers[id].position.x,
+          y: otherPlayers[id].position.y + 2.75,
+          z: otherPlayers[id].position.z,
+          yaw: lookAngleY,
+          lean: 0,
+          pitch: lookAngleX,
+          roll: 0
+        }
 
         if (otherPlayers[id].inventory.currentWeapon != null) {
             otherPlayers[id].inventory.currentWeapon.calculatePosition(deltaTime)
-            otherPlayers[id].inventory.currentWeapon.updateWorldPosition()
             otherPlayers[id].updateCooldown(deltaTime)
         }
 
 
 
-        otherPlayers[id].updateWorldPosition(lookAngleY, lookAngleX);
     }
 
 
 
 
-    if (player.inventory.currentWeapon != null) {
+    if (player && player.inventory.currentWeapon != null) {
         player.inventory.currentWeapon.calculatePosition(deltaTime, socket) // weapon collision updates need to be sent to the server in calculatePosition method
 
-        player.inventory.currentWeapon.updateWorldPosition()
     }
-    for (var id in otherWeapons) if (otherWeapons[id] != null) otherWeapons[id].updateWorldPosition()
 
 
-    camera.position.yaw = player.position.yaw
-    camera.position.lean = player.position.lean
+    camera.position.yaw = player ? player.position.yaw : 0
+    camera.position.lean = player ? player.position.lean : 0
 
-    webgl.renderFrame(player.position, camera);
+    webgl.renderFrame(player ? player.position : {x: 0, y: 0, z: 0}, camera);
     if (running) requestAnimationFrame(update)
 }
+update()
 
 
 
@@ -1059,6 +1126,8 @@ startButton.onclick = () => {
     if (player.name != player.lastName) {
         player.gamerTag.changeName(player.name)
         player.lastName = player.name
+
+        changePlayerNameInHUD(player.id, player.name)
 
         socket.emit("nameChange", { id: player.id, newName: player.name })
     }
