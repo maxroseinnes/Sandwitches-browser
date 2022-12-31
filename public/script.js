@@ -420,7 +420,7 @@ socket.on("map", (mapInfo) => {
 
     if (mapInfo.mapFile != undefined) {
         let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), false)
-        mapModel = new Model({}, mapGeometry, 1, "olive", 0, 0, 0)
+        mapModel = new Model({}, mapGeometry, 1, "wood", 0, 0, 0)
 
         /*
         let mapCollisionData = JSON.parse(fetchObj("collision-data (2).json"))

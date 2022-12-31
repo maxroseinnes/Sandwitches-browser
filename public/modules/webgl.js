@@ -3,10 +3,31 @@
 var webgl = {
 
 
-  points: [],
-  pointNormals: [],
-  texCoords: [],
-  pointCount: 0,
+  points: [
+    -1, -1, 1,
+     1, -1, 1,
+     1,  1, 1,
+     1,  1, 1,
+    -1,  1, 1,
+    -1, -1, 1,
+  ],
+  pointNormals: [
+    0, 0, 1,
+    0, 0, 1,
+    0, 0, 1,
+    0, 0, 1,
+    0, 0, 1,
+    0, 0, 1,
+  ],
+  texCoords: [
+    0, 0,
+    1, 0,
+    1, 1,
+    1, 1,
+    0, 1,
+    0, 0,
+  ],
+  pointCount: 6,
   deletedPoints: [],
 
   textureMap: null,
@@ -35,7 +56,7 @@ var webgl = {
     wood: {
       url: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSTvQrFPAcP14DaOSKKum5YSaAsmgthQIMksQ&usqp=CAU",
       normalMap: "./assets/normalMaps/flat.jpeg",
-      gloss: 5,
+      gloss: 3,
       index: 3
     },
     purple: {
@@ -93,7 +114,30 @@ var webgl = {
   textureResolution: 64,
   normalMapResolution: 64,
 
-  shadowMapResolution: 2048,
+  settings: {
+    shadowMapResolution: 2048,
+    shadowMapSmoothing: 0,
+
+    specularLighting: true,
+    directionalLighting: true,
+
+    volumetricMapResolution: 512,
+    volumetricSampleResolution: 100,
+
+    volumetricMapSmoothing: 4,
+
+    fogIntensity: .03,
+
+    fogColorR: .45,
+    fogColorG: .4,
+    fogColorB: .35,
+
+    sunPosition: [-75, 100, 25],
+    sunAnglePitch: Math.PI / 4,
+    sunAngleYaw: Math.PI / 3,
+
+
+  },
 
 
 
@@ -177,6 +221,7 @@ var webgl = {
     uniform sampler2D uSampler;
     uniform sampler2D uNormalMapSampler;
     uniform sampler2D uShadowSampler;
+    uniform sampler2D uVolumetricSampler;
     uniform vec3 cPosition;
     uniform vec3 lPosition;
     uniform float uGlossValue;
@@ -202,16 +247,35 @@ var webgl = {
       highp vec3 lighting = vec3(0.75, 0.75, 0.75) + (vec3(0.5, 0.5, 0.5) * directional);
 
       bool inRange = (vProjectedCoord.x >= 0.0 && vProjectedCoord.x <= 1.0 && vProjectedCoord.y >= 0.0 && vProjectedCoord.y <= 1.0 && vProjectedCoord.z >= 0.0 && vProjectedCoord.z <= 1.0);
+      float inShadowValue = 0.0;
 
-      bool inShadow = texture2D(uShadowSampler, vProjectedCoord.xy).r < vProjectedCoord.z - .0015;
-      float inShadowValue = ((!inShadow && inRange) || !uShadowable) ? 1.0 : 0.5;
+      float shadowTexelSize = 1.0 / ${this.settings.shadowMapResolution}.0;
+      for (int i = -${this.settings.shadowMapSmoothing}; i <= ${this.settings.shadowMapSmoothing}; i++) {
+        for (int j = -${this.settings.shadowMapSmoothing}; j <= ${this.settings.shadowMapSmoothing}; j++) {
+          bool inShadow = texture2D(uShadowSampler, vProjectedCoord.xy + vec2(i, j) * shadowTexelSize).r < vProjectedCoord.z - .0015;
+          inShadowValue  += ((!inShadow && inRange) || !uShadowable) ? 1.0 : 0.5;
+        }
+      }
+
+      inShadowValue /= ${Math.pow(this.settings.shadowMapSmoothing * 2 + 1, 2)}.0;
       
       lowp vec4 texelColor = texture2D(uSampler, vTextureCoord);
 
+      vec3 fogColor = vec3(0.0, 0.0, 0.0);
+      float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
+      for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
+        for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
+          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / ${this.gl.canvas.width}.0, gl_FragCoord.y / ${this.gl.canvas.height}.0) + vec2(i, j) * volumetricTexelSize).rgb;
+        }
+      }
+
+      fogColor /= ${Math.pow(this.settings.volumetricMapSmoothing * 2 + 1, 2)}.0;
+      
+
       gl_FragColor = vec4(
-        (texelColor.r * lighting.x + specularLight * 0.625) * inShadowValue, 
-        (texelColor.g * lighting.y + specularLight * 0.625) * inShadowValue, 
-        (texelColor.b * lighting.z + specularLight * 0.500) * inShadowValue, 
+        (texelColor.r * lighting.x + specularLight * 0.5) * inShadowValue + fogColor.r * ${this.settings.fogColorR}, 
+        (texelColor.g * lighting.y + specularLight * 0.5) * inShadowValue + fogColor.g * ${this.settings.fogColorG}, 
+        (texelColor.b * lighting.z + specularLight * 0.5) * inShadowValue + fogColor.b * ${this.settings.fogColorB}, 
         texelColor.a
       );
     }
@@ -322,13 +386,34 @@ var webgl = {
 
     uniform samplerCube skybox;
     uniform mat4 matrix;
+
+    uniform sampler2D uVolumetricSampler;
   
     varying lowp vec4 vPosition;
   
     void main() {
 
       vec4 texcoord = vPosition * matrix;
-      gl_FragColor = textureCube(skybox, texcoord.xyz);
+
+
+      vec3 fogColor = vec3(0.0, 0.0, 0.0);
+      float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
+      for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
+        for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
+          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / ${this.gl.canvas.width}.0, gl_FragCoord.y / ${this.gl.canvas.height}.0) + vec2(i, j) * volumetricTexelSize).rgb;
+        }
+      }
+
+      fogColor /= ${Math.pow(this.settings.volumetricMapSmoothing * 2 + 1, 2)}.0;
+      
+
+      vec4 color = textureCube(skybox, texcoord.xyz);
+      gl_FragColor = vec4(
+        color.r + fogColor.r * ${this.settings.fogColorR},
+        color.g + fogColor.g * ${this.settings.fogColorG},
+        color.b + fogColor.b * ${this.settings.fogColorB},
+        1.0
+      );
     }
     `
 
@@ -419,7 +504,7 @@ var webgl = {
       this.gl.generateMipmap(this.gl.TEXTURE_CUBE_MAP)
 
     }
-    skyboxImage.src = "https://i.imgur.com/fAyaLtu.png"
+    skyboxImage.src = "https://miro.medium.com/max/1400/1*1XbggjOprfuQ5JfBEeR-pQ.png"
 
 
 
@@ -469,10 +554,8 @@ var webgl = {
         position.y = walkZ * sin(uLean * modelPosition.y / 3.0) + walkY * cos(uLean * modelPosition.y / 3.0);
 
       }
-      position = mMatrix * position;
 
-
-      gl_Position = pMatrix * tMatrix * position;
+      gl_Position = pMatrix * tMatrix * mMatrix * position;
 
     }
     `
@@ -512,7 +595,7 @@ var webgl = {
     this.depthTexture = this.gl.createTexture()
 
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.depthTexture)
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.DEPTH_COMPONENT, this.shadowMapResolution, this.shadowMapResolution, 0, this.gl.DEPTH_COMPONENT, this.gl.UNSIGNED_INT, null)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.DEPTH_COMPONENT, this.settings.shadowMapResolution, this.settings.shadowMapResolution, 0, this.gl.DEPTH_COMPONENT, this.gl.UNSIGNED_INT, null)
 
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
@@ -521,7 +604,7 @@ var webgl = {
 
     this.unusedTexture = this.gl.createTexture()
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.unusedTexture)
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.shadowMapResolution, this.shadowMapResolution, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.shadowMapResolution, this.settings.shadowMapResolution, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
 
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
@@ -541,7 +624,145 @@ var webgl = {
   
     if (!this.gl.getProgramParameter(this.shadowProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the shadow shader program: ${this.gl.getProgramInfoLog(this.shadowProgram)}`)
   
+    // draw an extra square at the 
   
+    this.volumetricVertexShaderText = `
+    precision mediump float;
+  
+    attribute vec4 vertPosition;
+  
+    uniform float uScale;
+    uniform vec3 uOffset;
+    uniform float uWalkCycle;
+    uniform float uCrouchValue;
+    uniform float uLean;
+    uniform mat4 mMatrix;
+    uniform mat4 mnMatrix;
+
+    uniform mat4 pMatrix;
+    uniform mat4 tMatrix;
+
+    varying lowp vec3 vPosition;
+
+  
+    void main() {
+      vec4 modelPosition = vec4(vertPosition.xyz * uScale + uOffset, 1.0);
+      vec4 position = modelPosition;
+
+      if (uWalkCycle != 0.0 || uCrouchValue != 0.0 || uLean != 0.0) {
+        float walk = sin(uWalkCycle) * (2.0 - modelPosition.y) * sin(modelPosition.x * 2.0);
+        float walkY = modelPosition.y * (1.0 - (uCrouchValue / 2.0)) + modelPosition.y * sin(modelPosition.x * 2.0) * sin(uWalkCycle) * 0.025;
+        float walkZ = modelPosition.z + 0.2 * walk;
+
+        position.z = walkZ * cos(uLean * modelPosition.y / 3.0) - walkY * sin(uLean * modelPosition.y / 3.0);
+        position.y = walkZ * sin(uLean * modelPosition.y / 3.0) + walkY * cos(uLean * modelPosition.y / 3.0);
+      }
+      gl_Position = pMatrix * tMatrix * mMatrix * position;
+
+      vPosition = vec4(mMatrix * position).xyz;
+
+    }
+    `
+
+    this.volumetricFragmentShaderText = `
+    precision mediump float;
+
+    uniform mat4 shadowMatrix;
+    uniform sampler2D uShadowSampler;
+
+    uniform vec3 cPosition;
+
+    varying lowp vec3 vPosition;
+
+
+    void main() {
+
+      float brightness = 0.0;
+
+      float distance = length(vPosition - cPosition);
+
+      for (float z = 0.0; z < 1.0; z += 1.0 / ${this.settings.volumetricSampleResolution}.0) {
+        vec4 realWorldPosition = vec4(mix(vPosition, cPosition, z), 1.0);
+  
+        vec4 projectedCoord = shadowMatrix * realWorldPosition;
+        bool inShadow = texture2D(uShadowSampler, projectedCoord.xy).r < projectedCoord.z - .0015;
+        if (!inShadow) brightness += distance * ${this.settings.fogIntensity} / ${this.settings.volumetricSampleResolution}.0;
+      }
+
+      brightness = pow(brightness, 1.0);
+
+      //vec3 color = vec3(brightness * .75, brightness * .5, brightness * .25);
+      vec3 color = vec3(brightness, brightness, brightness);
+      
+      gl_FragColor = vec4(color, 1.0);
+
+    }
+    `
+
+
+    // shaders //
+    this.volumetricVertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
+    this.volumetricFragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
+
+
+    // program //
+    this.volumetricProgram = this.gl.createProgram()
+
+
+    this.gl.shaderSource(this.volumetricVertexShader, this.volumetricVertexShaderText)
+    this.gl.shaderSource(this.volumetricFragmentShader, this.volumetricFragmentShaderText)
+
+    this.gl.compileShader(this.volumetricVertexShader)
+    this.gl.compileShader(this.volumetricFragmentShader)
+
+    this.gl.attachShader(this.volumetricProgram, this.volumetricVertexShader)
+    this.gl.attachShader(this.volumetricProgram, this.volumetricFragmentShader)
+    this.gl.linkProgram(this.volumetricProgram)
+    this.gl.validateProgram(this.volumetricProgram)
+
+
+    // make framebuffer for volumetric map
+
+    this.volumetricMap = this.gl.createTexture()
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
+
+    this.volumetricFramebuffer = this.gl.createFramebuffer()
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.volumetricFramebuffer)
+
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.volumetricMap, 0)
+
+    this.volumetricMapDepthBuffer = this.gl.createRenderbuffer()
+    this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.volumetricMapDepthBuffer)
+
+    this.gl.renderbufferStorage(this.gl.RENDERBUFFER, this.gl.DEPTH_COMPONENT16, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution)
+    this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.RENDERBUFFER, this.volumetricMapDepthBuffer)
+
+    if (!this.gl.getProgramParameter(this.volumetricProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the volumetric shader program: ${this.gl.getProgramInfoLog(this.volumetricProgram)}`)
+  
+
+    
+    // collision pipeline:
+
+    /*
+    create a 3D texture with collision voxels for each physical object:
+      - vertex shader runs twice with model data, once with front faces, once with back faces
+      
+      - run another shader that iterates through grid by rendering layered triangle strips at the correct resolution
+        - the output is a 3d texture of collision voxels (booleans as alpha values)
+
+
+    */
+   
+
+    // volumetric lighting pipeline
+    /*
+      before running fragment shader, take a low resolution picture of the scene with depth values
+    */
   
   
   },
@@ -628,7 +849,127 @@ var webgl = {
 
   renderFrame: function (playerPosition, camera) {
 
-    // run shadow program and get depth map
+
+    // ---------- // Matrices
+
+    let shadowTMatrix = mat4.create();
+
+    mat4.rotateX(shadowTMatrix, shadowTMatrix, this.settings.sunAnglePitch);
+    mat4.rotateY(shadowTMatrix, shadowTMatrix, this.settings.sunAngleYaw);
+    mat4.translate(shadowTMatrix, shadowTMatrix, [-this.settings.sunPosition[0], -this.settings.sunPosition[1], -this.settings.sunPosition[2]]);
+
+    let shadowPMatrix = mat4.create();
+
+    //                        fov        , aspect, near, far
+    //mat4.perspective(shadowPMatrix, Math.PI / 2, 1, .1, 1000);
+    mat4.ortho(shadowPMatrix, -80, 80, -80, 80, .1, 150)
+
+
+    let tMatrix = mat4.create();
+
+    {
+      camera.lastPosition.x = playerPosition.x
+      camera.lastPosition.y = playerPosition.y + 1
+      camera.lastPosition.z = playerPosition.z
+
+      let cameraX = 2
+      let cameraY = 1
+      let cameraZ = 8
+
+      let cameraRY = Math.cos(-camera.position.lean) * cameraY - Math.sin(-camera.position.lean) * cameraZ
+      let cameraRZ = Math.sin(-camera.position.lean) * cameraY + Math.cos(-camera.position.lean) * cameraZ
+      let cameraRX = cameraX
+
+      camera.position.z = Math.cos(-camera.position.yaw) * cameraRZ - Math.sin(-camera.position.yaw) * cameraRX + playerPosition.z
+      camera.position.x = Math.sin(-camera.position.yaw) * cameraRZ + Math.cos(-camera.position.yaw) * cameraRX + playerPosition.x
+      camera.position.y = cameraRY + playerPosition.y
+
+
+      for (let i = 0; i < camera.collidableObjects.length; i++) {
+        for (let j in camera.collidableObjects[i]) {
+          if (camera.collidableObjects[i][j] == null) continue
+          let movement = camera.calculateSlopes()
+          let collision = camera.collidableObjects[i][j].collision(camera.lastPosition, camera.position, movement, camera.dimensions)
+
+          if (collision.mx.intersects) {
+            camera.position.x = collision.mx.x
+            camera.position.y = collision.mx.y
+            camera.position.z = collision.mx.z
+          }
+          if (collision.px.intersects) {
+            camera.position.x = collision.px.x
+            camera.position.y = collision.px.y
+            camera.position.z = collision.px.z
+          }
+
+          if (collision.my.intersects) {
+            camera.position.x = collision.my.x
+            camera.position.y = collision.my.y
+            camera.position.z = collision.my.z
+          }
+          if (collision.py.intersects) {
+            camera.position.x = collision.py.x
+            camera.position.y = collision.py.y
+            camera.position.z = collision.py.z
+          }
+
+          if (collision.mz.intersects) {
+            camera.position.x = collision.mz.x
+            camera.position.y = collision.mz.y
+            camera.position.z = collision.mz.z
+          }
+          if (collision.pz.intersects) {
+            camera.position.x = collision.pz.x
+            camera.position.y = collision.pz.y
+            camera.position.z = collision.pz.z
+          }
+
+        }
+      }
+
+    }
+
+
+    mat4.rotateX(tMatrix, tMatrix, camera.position.lean);
+    mat4.rotateY(tMatrix, tMatrix, camera.position.yaw);
+    mat4.translate(tMatrix, tMatrix, [-camera.position.x, -camera.position.y, -camera.position.z]);
+
+    let pMatrix = mat4.create();
+
+    //                        fov        , aspect, near, far
+    mat4.perspective(pMatrix, this.fov, this.aspect, .1, 1000);
+
+    let shadowMatrix = mat4.create()
+    mat4.scale(shadowMatrix, shadowMatrix, [0.5, 0.5, 0.5])
+    mat4.translate(shadowMatrix, shadowMatrix, [1, 1, 1])
+    mat4.multiply(shadowMatrix, shadowMatrix, shadowPMatrix)
+    mat4.multiply(shadowMatrix, shadowMatrix, shadowTMatrix)
+
+
+    let sMatrix = mat4.create();
+
+    //                        fov        , aspect, near, far
+    mat4.perspective(sMatrix, 2 / this.fov, this.aspect, .1, 1000);
+
+    mat4.rotateX(sMatrix, sMatrix, camera.position.lean);
+    mat4.rotateY(sMatrix, sMatrix, camera.position.yaw + this.settings.sunAngleYaw - Math.PI);
+
+
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA)
+    this.gl.enable(this.gl.BLEND)
+
+    this.gl.enable(this.gl.CULL_FACE)
+    this.gl.enable(this.gl.DEPTH_TEST)
+
+    // ---------------- RENDER SHADOW TEXTURE ---------------- //
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.depthFramebuffer)
+    this.gl.viewport(0, 0, this.settings.shadowMapResolution, this.settings.shadowMapResolution)
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+
+
+
+    this.gl.useProgram(this.shadowProgram);
 
     let shadowVSize = 3;
 
@@ -639,82 +980,75 @@ var webgl = {
     this.gl.vertexAttribPointer(shadowPosAttribLocation, shadowVSize, this.gl.FLOAT, false, shadowVSize * Float32Array.BYTES_PER_ELEMENT, 0);
     this.gl.enableVertexAttribArray(shadowPosAttribLocation);
 
-
-
-    this.gl.useProgram(this.shadowProgram);
-
-
-    // ---------- // Matrices
-
-    let shadowTMatrix = mat4.create();
-
-    let shadowYaw = Math.PI / 3
-    let shadowPitch = Math.PI / 4
-    let shadowPosition = [-75, 100, 25]
-
-    mat4.rotateX(shadowTMatrix, shadowTMatrix, shadowPitch);
-    mat4.rotateY(shadowTMatrix, shadowTMatrix, shadowYaw);
-    mat4.translate(shadowTMatrix, shadowTMatrix, [-shadowPosition[0], -shadowPosition[1], -shadowPosition[2]]);
-
     let shadowTMatrixLocation = this.gl.getUniformLocation(this.shadowProgram, "tMatrix");
     this.gl.uniformMatrix4fv(shadowTMatrixLocation, false, shadowTMatrix);
-
-    let shadowPMatrix = mat4.create();
-
-    //                        fov        , aspect, near, far
-    //mat4.perspective(shadowPMatrix, Math.PI / 2, 1, .1, 1000);
-    mat4.ortho(shadowPMatrix, -70, 70, -70, 70, .1, 150)
 
     let shadowPMatrixLocation = this.gl.getUniformLocation(this.shadowProgram, "pMatrix");
     this.gl.uniformMatrix4fv(shadowPMatrixLocation, false, shadowPMatrix);
 
-    this.gl.enable(this.gl.CULL_FACE)
-    this.gl.enable(this.gl.DEPTH_TEST)
+    this.drawModels({
+      mMatrix: this.gl.getUniformLocation(this.shadowProgram, "mMatrix"),
+      walkCycle: this.gl.getUniformLocation(this.shadowProgram, "uWalkCycle"),
+      crouchValue: this.gl.getUniformLocation(this.shadowProgram, "uCrouchValue"),
+      lean: this.gl.getUniformLocation(this.shadowProgram, "uLean"),
+      scale: this.gl.getUniformLocation(this.shadowProgram, "uScale"),
+      offset: this.gl.getUniformLocation(this.shadowProgram, "uOffset")
+    }, {
+      endWithTransparent: true
+    })
 
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.depthFramebuffer)
-    this.gl.viewport(0, 0, this.shadowMapResolution, this.shadowMapResolution)
+
+
+
+    // ---------------- RENDER VOLUMETRIC TEXTURE ---------------- //
+
+
+    this.gl.clearColor(1, 1, 1, 1);
+    this.gl.clearDepth(1);
+    this.gl.depthFunc(this.gl.LEQUAL);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.volumetricFramebuffer)
+    this.gl.viewport(0, 0, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution)
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+    
+
+    this.gl.useProgram(this.volumetricProgram);
+
+    let volumetricVSize = 3;
+    
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointsBuffer);
+    
+    let volumetricPosAttribLocation = this.gl.getAttribLocation(this.shadowProgram, "vertPosition");
+    this.gl.vertexAttribPointer(volumetricPosAttribLocation, volumetricVSize, this.gl.FLOAT, false, volumetricVSize * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(volumetricPosAttribLocation);
 
 
-    let sMMatrixLocation = this.gl.getUniformLocation(this.shadowProgram, "mMatrix");
-    let sWalkCycleLocation = this.gl.getUniformLocation(this.shadowProgram, "uWalkCycle")
-    let sCrouchValueLocation = this.gl.getUniformLocation(this.shadowProgram, "uCrouchValue")
-    let sLeanLocation = this.gl.getUniformLocation(this.shadowProgram, "uLean")
-    let sScaleLocation = this.gl.getUniformLocation(this.shadowProgram, "uScale")
-    let sOffsetLocation = this.gl.getUniformLocation(this.shadowProgram, "uOffset")
-    for (let i in Model.allModels) {
+    let volumetricTMatrixLocation = this.gl.getUniformLocation(this.volumetricProgram, "tMatrix");
+    this.gl.uniformMatrix4fv(volumetricTMatrixLocation, false, tMatrix);
 
-      // all of these: yaw, lean, pitch, roll, x, y, z, walkCycle, crouchValue, slideValue, scale
+    let volumetricPMatrixLocation = this.gl.getUniformLocation(this.volumetricProgram, "pMatrix");
+    this.gl.uniformMatrix4fv(volumetricPMatrixLocation, false, pMatrix);
 
-      let parent = Model.allModels[i].parent
+    let volumetricShadowMatrixLocation = this.gl.getUniformLocation(this.volumetricProgram, "shadowMatrix");
+    this.gl.uniformMatrix4fv(volumetricShadowMatrixLocation, false, shadowMatrix);
 
-      let mMatrix = mat4.create()
+    this.gl.uniform3fv(this.gl.getUniformLocation(this.volumetricProgram, "cPosition"), new Float32Array([camera.position.x, camera.position.y, camera.position.z]));
 
-      if (parent.position) {
-        mat4.translate(mMatrix, mMatrix, [parent.position.x, parent.position.y, parent.position.z]);
-        mat4.rotateY(mMatrix, mMatrix, -parent.position.yaw);
-        mat4.rotateX(mMatrix, mMatrix, -parent.position.pitch);
-        mat4.rotateZ(mMatrix, mMatrix, parent.position.roll);
-      }
-      //mat4.translate(mMatrix, mMatrix, [Model.allModels[i].offsetX, Model.allModels[i].offsetY, Model.allModels[i].offsetZ]);
-      //mat4.scale(mMatrix, mMatrix, [Model.allModels[i].scale, Model.allModels[i].scale, Model.allModels[i].scale])
-      this.gl.uniformMatrix4fv(sMMatrixLocation, false, mMatrix);
+    this.gl.activeTexture(this.gl.TEXTURE0)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.depthTexture)
+    this.gl.uniform1i(this.gl.getUniformLocation(this.volumetricProgram, "uShadowSampler"), 0)
 
-      this.gl.uniform1f(sWalkCycleLocation, parent.state ? parent.state.walkCycle : 0)
-      this.gl.uniform1f(sCrouchValueLocation, parent.state ? parent.state.crouchValue : 0)
-      this.gl.uniform1f(sLeanLocation, parent.position ? parent.position.lean : 0)
+    this.drawModels({
+      mMatrix: this.gl.getUniformLocation(this.volumetricProgram, "mMatrix"),
+      walkCycle: this.gl.getUniformLocation(this.volumetricProgram, "uWalkCycle"),
+      crouchValue: this.gl.getUniformLocation(this.volumetricProgram, "uCrouchValue"),
+      lean: this.gl.getUniformLocation(this.volumetricProgram, "uLean"),
+      scale: this.gl.getUniformLocation(this.volumetricProgram, "uScale"),
+      offset: this.gl.getUniformLocation(this.volumetricProgram, "uOffset")
+    }, {
+      endWithTransparent: true
+    })
 
-      this.gl.uniform1f(sScaleLocation, Model.allModels[i].scale)
-      this.gl.uniform3fv(sOffsetLocation, new Float32Array([Model.allModels[i].offsetX, Model.allModels[i].offsetY, Model.allModels[i].offsetZ]))
-
-      this.gl.drawArrays(
-        this.gl.TRIANGLES, 
-        Model.allModels[i].pointIndices[0][0] + Model.allModels[i].indexOffset, 
-        Model.allModels[i].pointIndices.length * 3
-      )
-
-    }
-
+    // ---------------- SKYBOX RENDER ---------------- //
 
 
     this.gl.clearColor(0.75, 0.8, 1, 1);
@@ -724,8 +1058,6 @@ var webgl = {
     this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
-
-    // draw skybox
 
     this.gl.useProgram(this.skyboxProgram);
 
@@ -742,15 +1074,8 @@ var webgl = {
        1,  1
     ]), this.gl.STATIC_DRAW);
 
+
     this.gl.vertexAttribPointer(sPosAttribLocation, 2, this.gl.FLOAT, false, 0, 0);
-    let sMatrix = mat4.create();
-
-    //                        fov        , aspect, near, far
-    mat4.perspective(sMatrix, 2 / this.fov, this.aspect, .1, 1000);
-
-    mat4.rotateX(sMatrix, sMatrix, camera.position.lean);
-    mat4.rotateY(sMatrix, sMatrix, camera.position.yaw);
-
     let sMatrixLocation = this.gl.getUniformLocation(this.skyboxProgram, "matrix");
     this.gl.uniformMatrix4fv(sMatrixLocation, false, sMatrix);
 
@@ -758,17 +1083,23 @@ var webgl = {
     this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.skyboxTexture)
     this.gl.uniform1i(this.gl.getUniformLocation(this.skyboxProgram, "skybox"), 0)
 
+    this.gl.activeTexture(this.gl.TEXTURE1)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
+    this.gl.uniform1i(this.gl.getUniformLocation(this.skyboxProgram, "uVolumetricSampler"), 1)
+
     this.gl.drawArrays(this.gl.TRIANGLES, 0, 6)
 
 
 
 
+    // ---------------- FINAL RENDER ---------------- //
+
+    this.gl.useProgram(this.program);
 
 
     let vSize = 3;
 
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointsBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.points), this.gl.DYNAMIC_DRAW);
 
     let posAttribLocation = this.gl.getAttribLocation(this.program, "vertPosition");
     this.gl.vertexAttribPointer(posAttribLocation, vSize, this.gl.FLOAT, false, vSize * Float32Array.BYTES_PER_ELEMENT, 0);
@@ -795,94 +1126,8 @@ var webgl = {
     this.gl.enableVertexAttribArray(texCoordAttribLocation);
 
 
-    this.gl.useProgram(this.program);
-
-
-    // ---------- // Matrices
-
-    let tMatrix = mat4.create();
-
-    //angleX += Math.PI / 12
-
-    //let cameraDistance = 8
-    //let cameraPositionY = (playerPosition.y + 1) - Math.sin(angleX) * -cameraDistance
-    //let ratio = 1
-    //if (cameraPositionY < 0) ratio = Math.pow((playerPosition.y + 1) / (Math.sin(angleX) * -cameraDistance), 1.5)
-
-
-    camera.lastPosition.x = playerPosition.x
-    camera.lastPosition.y = playerPosition.y + 1
-    camera.lastPosition.z = playerPosition.z
-
-    let cameraX = 2
-    let cameraY = 1
-    let cameraZ = 8
-
-    let cameraRY = Math.cos(-camera.position.lean) * cameraY - Math.sin(-camera.position.lean) * cameraZ
-    let cameraRZ = Math.sin(-camera.position.lean) * cameraY + Math.cos(-camera.position.lean) * cameraZ
-    let cameraRX = cameraX
-
-    camera.position.z = Math.cos(-camera.position.yaw) * cameraRZ - Math.sin(-camera.position.yaw) * cameraRX + playerPosition.z
-    camera.position.x = Math.sin(-camera.position.yaw) * cameraRZ + Math.cos(-camera.position.yaw) * cameraRX + playerPosition.x
-    camera.position.y = cameraRY + playerPosition.y
-
-
-    for (let i = 0; i < camera.collidableObjects.length; i++) {
-      for (let j in camera.collidableObjects[i]) {
-        if (camera.collidableObjects[i][j] == null) continue
-        let movement = camera.calculateSlopes()
-        let collision = camera.collidableObjects[i][j].collision(camera.lastPosition, camera.position, movement, camera.dimensions)
-
-        if (collision.mx.intersects) {
-          camera.position.x = collision.mx.x
-          camera.position.y = collision.mx.y
-          camera.position.z = collision.mx.z
-        }
-        if (collision.px.intersects) {
-          camera.position.x = collision.px.x
-          camera.position.y = collision.px.y
-          camera.position.z = collision.px.z
-        }
-
-        if (collision.my.intersects) {
-          camera.position.x = collision.my.x
-          camera.position.y = collision.my.y
-          camera.position.z = collision.my.z
-        }
-        if (collision.py.intersects) {
-          camera.position.x = collision.py.x
-          camera.position.y = collision.py.y
-          camera.position.z = collision.py.z
-        }
-
-        if (collision.mz.intersects) {
-          camera.position.x = collision.mz.x
-          camera.position.y = collision.mz.y
-          camera.position.z = collision.mz.z
-        }
-        if (collision.pz.intersects) {
-          camera.position.x = collision.pz.x
-          camera.position.y = collision.pz.y
-          camera.position.z = collision.pz.z
-        }
-
-      }
-    }
-
-
-
-    //mat4.translate(tMatrix, tMatrix, [-2, -1, -cameraDistance * ratio]);
-    mat4.rotateX(tMatrix, tMatrix, camera.position.lean);
-    mat4.rotateY(tMatrix, tMatrix, camera.position.yaw);
-    mat4.translate(tMatrix, tMatrix, [-camera.position.x, -camera.position.y, -camera.position.z]);
-
     let tMatrixLocation = this.gl.getUniformLocation(this.program, "tMatrix");
     this.gl.uniformMatrix4fv(tMatrixLocation, false, tMatrix);
-
-    let pMatrix = mat4.create();
-
-    //                        fov        , aspect, near, far
-    mat4.perspective(pMatrix, this.fov, this.aspect, .1, 1000);
 
 
     let pMatrixLocation = this.gl.getUniformLocation(this.program, "pMatrix");
@@ -898,24 +1143,15 @@ var webgl = {
     let nMatrixLocation = this.gl.getUniformLocation(this.program, "nMatrix");
     this.gl.uniformMatrix4fv(nMatrixLocation, false, nMatrix);
 
-    let shadowMatrix = mat4.create()
-    mat4.scale(shadowMatrix, shadowMatrix, [0.5, 0.5, 0.5])
-    mat4.translate(shadowMatrix, shadowMatrix, [1, 1, 1])
-    mat4.multiply(shadowMatrix, shadowMatrix, shadowPMatrix)
-    mat4.multiply(shadowMatrix, shadowMatrix, shadowTMatrix)
-
     let shadowMatrixLocation = this.gl.getUniformLocation(this.program, "shadowMatrix")
     this.gl.uniformMatrix4fv(shadowMatrixLocation, false, shadowMatrix)
 
 
 
-    let lPosition = vec3.fromValues(0, 75, 100)
     let lPositionLocation = this.gl.getUniformLocation(this.program, "lPosition")
-    this.gl.uniform3fv(lPositionLocation, lPosition)
+    this.gl.uniform3fv(lPositionLocation, new Float32Array(this.settings.sunPosition))
 
-    let cPosition = vec3.fromValues(camera.position.x, camera.position.y, camera.position.z)
-    let cPositionLocation = this.gl.getUniformLocation(this.program, "cPosition")
-    this.gl.uniform3fv(cPositionLocation, cPosition)
+    this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "cPosition"), new Float32Array([camera.position.x, camera.position.y, camera.position.z]))
 
     this.gl.activeTexture(this.gl.TEXTURE0)
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureMap)
@@ -929,28 +1165,40 @@ var webgl = {
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.depthTexture)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uShadowSampler"), 2)
 
+    this.gl.activeTexture(this.gl.TEXTURE3)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
+    this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uVolumetricSampler"), 3)
 
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA)
+    this.drawModels({
+      mMatrix: this.gl.getUniformLocation(this.program, "mMatrix"),
+      mnMatrix: this.gl.getUniformLocation(this.program, "mnMatrix"),
+      walkCycle: this.gl.getUniformLocation(this.program, "uWalkCycle"),
+      crouchValue: this.gl.getUniformLocation(this.program, "uCrouchValue"),
+      lean: this.gl.getUniformLocation(this.program, "uLean"),
+      scale: this.gl.getUniformLocation(this.program, "uScale"),
+      offset: this.gl.getUniformLocation(this.program, "uOffset"),
+      glossValue: this.gl.getUniformLocation(this.program, "uGlossValue"),
+      shadowable: this.gl.getUniformLocation(this.program, "uShadowable")
+    }, {
+      endWithTransparent: true
+    })
 
-    let mMatrixLocation = this.gl.getUniformLocation(this.program, "mMatrix");
-    let mnMatrixLocation = this.gl.getUniformLocation(this.program, "mnMatrix");
-    let walkCycleLocation = this.gl.getUniformLocation(this.program, "uWalkCycle")
-    let crouchValueLocation = this.gl.getUniformLocation(this.program, "uCrouchValue")
-    let leanLocation = this.gl.getUniformLocation(this.program, "uLean")
-    let scaleLocation = this.gl.getUniformLocation(this.program, "uScale")
-    let offsetLocation = this.gl.getUniformLocation(this.program, "uOffset")
-    let glossValueLocation = this.gl.getUniformLocation(this.program, "uGlossValue")
-    let shadowableLocation = this.gl.getUniformLocation(this.program, "uShadowable")
+
+
+
+
+
+  },
+
+  drawModels(locations, options) {
 
     let transparentModels = []
-
-    this.gl.disable(this.gl.BLEND)
 
     for (let i in Model.allModels) {
 
       // all of these: yaw, lean, pitch, roll, x, y, z, walkCycle, crouchValue, slideValue, scale
 
-      if (Model.allModels[i].transparent) {
+      if (options.endWithTransparent && Model.allModels[i].transparent) {
         transparentModels.push(Model.allModels[i])
       }
       else {
@@ -970,20 +1218,18 @@ var webgl = {
           mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch);
           mat4.rotateZ(mnMatrix, mnMatrix, parent.position.roll);
         }
-        //mat4.translate(mMatrix, mMatrix, [Model.allModels[i].offsetX, Model.allModels[i].offsetY, Model.allModels[i].offsetZ]);
-        //mat4.scale(mMatrix, mMatrix, [Model.allModels[i].scale, Model.allModels[i].scale, Model.allModels[i].scale])
-        this.gl.uniformMatrix4fv(mMatrixLocation, false, mMatrix);
-        this.gl.uniformMatrix4fv(mnMatrixLocation, false, mnMatrix);
+        if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
+        if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
 
-        this.gl.uniform1f(walkCycleLocation, parent.state ? parent.state.walkCycle : 0)
-        this.gl.uniform1f(crouchValueLocation, parent.state ? parent.state.crouchValue : 0)
-        this.gl.uniform1f(leanLocation, parent.position ? parent.position.lean : 0)
+        if (locations.walkCycle) this.gl.uniform1f(locations.walkCycle, parent.state ? parent.state.walkCycle : 0)
+        if (locations.crouchValue) this.gl.uniform1f(locations.crouchValue, parent.state ? parent.state.crouchValue : 0)
+        if (locations.lean) this.gl.uniform1f(locations.lean, parent.position ? parent.position.lean : 0)
 
-        this.gl.uniform1f(scaleLocation, Model.allModels[i].scale)
-        this.gl.uniform3fv(offsetLocation, new Float32Array([Model.allModels[i].offsetX, Model.allModels[i].offsetY, Model.allModels[i].offsetZ]))
+        if (locations.scale) this.gl.uniform1f(locations.scale, Model.allModels[i].scale)
+        if (locations.offset) this.gl.uniform3fv(locations.offset, new Float32Array([Model.allModels[i].offsetX, Model.allModels[i].offsetY, Model.allModels[i].offsetZ]))
 
-        this.gl.uniform1f(glossValueLocation, Model.allModels[i].texture.gloss)
-        this.gl.uniform1f(shadowableLocation, Model.allModels[i].shadowable)
+        if (locations.glossValue) this.gl.uniform1f(locations.glossValue, Model.allModels[i].texture.gloss)
+        if (locations.shadowable) this.gl.uniform1f(locations.shadowable, Model.allModels[i].shadowable)
 
 
         this.gl.drawArrays(
@@ -997,8 +1243,6 @@ var webgl = {
     }
 
     // draw transparent stuff
-
-    this.gl.enable(this.gl.BLEND)
 
     for (let i in transparentModels) {
 
@@ -1019,18 +1263,18 @@ var webgl = {
         mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch);
         mat4.rotateZ(mnMatrix, mnMatrix, parent.position.roll);
       }
-      this.gl.uniformMatrix4fv(mMatrixLocation, false, mMatrix);
-      this.gl.uniformMatrix4fv(mnMatrixLocation, false, mnMatrix);
+      if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
+      if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
 
-      this.gl.uniform1f(walkCycleLocation, parent.state ? parent.state.walkCycle : 0)
-      this.gl.uniform1f(crouchValueLocation, parent.state ? parent.state.crouchValue : 0)
-      this.gl.uniform1f(leanLocation, parent.position ? parent.position.lean : 0)
+      if (locations.walkCycle) this.gl.uniform1f(locations.walkCycle, parent.state ? parent.state.walkCycle : 0)
+      if (locations.crouchValue) this.gl.uniform1f(locations.crouchValue, parent.state ? parent.state.crouchValue : 0)
+      if (locations.lean) this.gl.uniform1f(locations.lean, parent.position ? parent.position.lean : 0)
 
-      this.gl.uniform1f(scaleLocation, transparentModels[i].scale)
-      this.gl.uniform3fv(offsetLocation, new Float32Array([transparentModels[i].offsetX, transparentModels[i].offsetY, transparentModels[i].offsetZ]))
+      if (locations.scale) this.gl.uniform1f(locations.scale, transparentModels[i].scale)
+      if (locations.offset) this.gl.uniform3fv(locations.offset, new Float32Array([transparentModels[i].offsetX, transparentModels[i].offsetY, transparentModels[i].offsetZ]))
 
-      this.gl.uniform1f(glossValueLocation, transparentModels[i].texture.gloss)
-      this.gl.uniform1f(shadowableLocation, transparentModels[i].shadowable)
+      if (locations.glossValue) this.gl.uniform1f(locations.glossValue, transparentModels[i].texture.gloss)
+      if (locations.shadowable) this.gl.uniform1f(locations.shadowable, transparentModels[i].shadowable)
 
 
       this.gl.drawArrays(
@@ -1040,11 +1284,6 @@ var webgl = {
       )
 
     }
-
-    this.gl.disable(this.gl.BLEND)
-
-
-
 
 
   }
