@@ -613,6 +613,7 @@ socket.on("respawn", (data) => {
     player.position = data.position
     player.health = data.health
     player.state = data.state
+    console.log(player)
 })
 
 socket.on("tooManyPlayers", () => {

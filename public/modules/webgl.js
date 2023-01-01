@@ -113,6 +113,9 @@ var webgl = {
   squareWidth: null,
   textureResolution: 64,
   normalMapResolution: 64,
+  
+  fogOpacity: 1, // decreases outside, increases inside
+  pastFogOpacities: [],
 
   settings: {
     shadowMapResolution: 2048,
@@ -122,15 +125,15 @@ var webgl = {
     directionalLighting: true,
 
     volumetricMapResolution: 512,
-    volumetricSampleResolution: 100,
+    volumetricSampleResolution: 150,
 
-    volumetricMapSmoothing: 4,
+    volumetricMapSmoothing: 2,
 
-    fogIntensity: .03,
+    fogIntensity: .02,
 
-    fogColorR: .45,
-    fogColorG: .4,
-    fogColorB: .35,
+    fogColorR: 1.2,
+    fogColorG: 1.1,
+    fogColorB: 1.05,
 
     sunPosition: [-75, 100, 25],
     sunAnglePitch: Math.PI / 4,
@@ -226,6 +229,7 @@ var webgl = {
     uniform vec3 lPosition;
     uniform float uGlossValue;
     uniform bool uShadowable;
+    uniform float uFogOpacity;
 
     uniform mat4 nMatrix;
   
@@ -253,7 +257,7 @@ var webgl = {
       for (int i = -${this.settings.shadowMapSmoothing}; i <= ${this.settings.shadowMapSmoothing}; i++) {
         for (int j = -${this.settings.shadowMapSmoothing}; j <= ${this.settings.shadowMapSmoothing}; j++) {
           bool inShadow = texture2D(uShadowSampler, vProjectedCoord.xy + vec2(i, j) * shadowTexelSize).r < vProjectedCoord.z - .0015;
-          inShadowValue  += ((!inShadow && inRange) || !uShadowable) ? 1.0 : 0.5;
+          inShadowValue += ((!inShadow && inRange) || !uShadowable) ? 1.0 : 0.5;
         }
       }
 
@@ -273,9 +277,9 @@ var webgl = {
       
 
       gl_FragColor = vec4(
-        (texelColor.r * lighting.x + specularLight * 0.5) * inShadowValue + fogColor.r * ${this.settings.fogColorR}, 
-        (texelColor.g * lighting.y + specularLight * 0.5) * inShadowValue + fogColor.g * ${this.settings.fogColorG}, 
-        (texelColor.b * lighting.z + specularLight * 0.5) * inShadowValue + fogColor.b * ${this.settings.fogColorB}, 
+        (texelColor.r * lighting.x + specularLight * 0.5) * inShadowValue + fogColor.r * ${this.settings.fogColorR} * uFogOpacity, 
+        (texelColor.g * lighting.y + specularLight * 0.5) * inShadowValue + fogColor.g * ${this.settings.fogColorG} * uFogOpacity, 
+        (texelColor.b * lighting.z + specularLight * 0.5) * inShadowValue + fogColor.b * ${this.settings.fogColorB} * uFogOpacity, 
         texelColor.a
       );
     }
@@ -388,6 +392,8 @@ var webgl = {
     uniform mat4 matrix;
 
     uniform sampler2D uVolumetricSampler;
+
+    uniform float uFogOpacity;
   
     varying lowp vec4 vPosition;
   
@@ -409,9 +415,9 @@ var webgl = {
 
       vec4 color = textureCube(skybox, texcoord.xyz);
       gl_FragColor = vec4(
-        color.r + fogColor.r * ${this.settings.fogColorR},
-        color.g + fogColor.g * ${this.settings.fogColorG},
-        color.b + fogColor.b * ${this.settings.fogColorB},
+        color.r * 0.75 + fogColor.r * ${this.settings.fogColorR} * uFogOpacity,
+        color.g * 0.75 + fogColor.g * ${this.settings.fogColorG} * uFogOpacity,
+        color.b * 0.75 + fogColor.b * ${this.settings.fogColorB} * uFogOpacity,
         1.0
       );
     }
@@ -504,7 +510,7 @@ var webgl = {
       this.gl.generateMipmap(this.gl.TEXTURE_CUBE_MAP)
 
     }
-    skyboxImage.src = "https://miro.medium.com/max/1400/1*1XbggjOprfuQ5JfBEeR-pQ.png"
+    skyboxImage.src = "https://i.imgur.com/fAyaLtu.png"
 
 
 
@@ -727,9 +733,7 @@ var webgl = {
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
     this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
 
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR)
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
+    this.gl.generateMipmap(this.gl.TEXTURE_2D)
 
     this.volumetricFramebuffer = this.gl.createFramebuffer()
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.volumetricFramebuffer)
@@ -745,7 +749,7 @@ var webgl = {
     if (!this.gl.getProgramParameter(this.volumetricProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the volumetric shader program: ${this.gl.getProgramInfoLog(this.volumetricProgram)}`)
   
 
-    
+
     // collision pipeline:
 
     /*
@@ -1045,8 +1049,34 @@ var webgl = {
       scale: this.gl.getUniformLocation(this.volumetricProgram, "uScale"),
       offset: this.gl.getUniformLocation(this.volumetricProgram, "uOffset")
     }, {
-      endWithTransparent: true
+      endWithTransparent: true,
+      excludeTransparentModels: true
     })
+
+
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
+    let averageColorPixels = new Uint8Array(Math.pow(this.settings.volumetricMapResolution, 2) * 4)
+    this.gl.readPixels(0, 0, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution, this.gl.RGBA, this.gl.UNSIGNED_BYTE, averageColorPixels)
+
+    let sampleResolution = 32
+
+    let brightness = 0
+    for (let i = sampleResolution - 1; i >= sampleResolution / 2; i--) {
+      for (let j = 0; j < sampleResolution; j++) {
+        let xIndex = i * this.settings.volumetricMapResolution / sampleResolution
+        let yIndex = j * this.settings.volumetricMapResolution / sampleResolution
+        let index = 4 * Math.round(xIndex * this.settings.volumetricMapResolution + yIndex)
+        brightness += averageColorPixels.at(index) + averageColorPixels.at(index + 1) + averageColorPixels.at(index + 2)
+      }
+    }
+
+    brightness /= 3 * sampleResolution * (sampleResolution / 2)
+
+    this.pastFogOpacities.splice(0, 0, Math.pow(1 - brightness / 255, 1.5))
+    this.pastFogOpacities.splice(150)
+    this.fogOpacity = 0
+    for (let i in this.pastFogOpacities) this.fogOpacity += this.pastFogOpacities[i] / this.pastFogOpacities.length
+    this.fogOpacity = (this.fogOpacity + .2) * (10 / 12)
 
     // ---------------- SKYBOX RENDER ---------------- //
 
@@ -1086,6 +1116,8 @@ var webgl = {
     this.gl.activeTexture(this.gl.TEXTURE1)
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
     this.gl.uniform1i(this.gl.getUniformLocation(this.skyboxProgram, "uVolumetricSampler"), 1)
+
+    this.gl.uniform1f(this.gl.getUniformLocation(this.skyboxProgram, "uFogOpacity"), this.fogOpacity)
 
     this.gl.drawArrays(this.gl.TRIANGLES, 0, 6)
 
@@ -1153,6 +1185,8 @@ var webgl = {
 
     this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "cPosition"), new Float32Array([camera.position.x, camera.position.y, camera.position.z]))
 
+    this.gl.uniform1f(this.gl.getUniformLocation(this.program, "uFogOpacity"), this.fogOpacity)
+
     this.gl.activeTexture(this.gl.TEXTURE0)
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureMap)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uSampler"), 0)
@@ -1186,8 +1220,6 @@ var webgl = {
 
 
 
-
-
   },
 
   drawModels(locations, options) {
@@ -1198,7 +1230,7 @@ var webgl = {
 
       // all of these: yaw, lean, pitch, roll, x, y, z, walkCycle, crouchValue, slideValue, scale
 
-      if (options.endWithTransparent && Model.allModels[i].transparent) {
+      if ((options.endWithTransparent || options.excludeTransparentModels) && Model.allModels[i].transparent) {
         transparentModels.push(Model.allModels[i])
       }
       else {
@@ -1210,13 +1242,13 @@ var webgl = {
 
         if (parent.position) {
           mat4.translate(mMatrix, mMatrix, [parent.position.x, parent.position.y, parent.position.z]);
-          mat4.rotateY(mMatrix, mMatrix, -parent.position.yaw);
-          mat4.rotateX(mMatrix, mMatrix, -parent.position.pitch);
-          mat4.rotateZ(mMatrix, mMatrix, parent.position.roll);
+          mat4.rotateY(mMatrix, mMatrix, parent.position.yaw ? -parent.position.yaw : 0);
+          mat4.rotateX(mMatrix, mMatrix, parent.position.pitch ? -parent.position.pitch : 0);
+          mat4.rotateZ(mMatrix, mMatrix, parent.position.roll ? parent.position.roll : 0);
 
-          mat4.rotateY(mnMatrix, mnMatrix, -parent.position.yaw);
-          mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch);
-          mat4.rotateZ(mnMatrix, mnMatrix, parent.position.roll);
+          mat4.rotateY(mnMatrix, mnMatrix, parent.position.yaw ? -parent.position.yaw : 0);
+          mat4.rotateX(mnMatrix, mnMatrix, parent.position.pitch ? -parent.position.pitch : 0);
+          mat4.rotateZ(mnMatrix, mnMatrix, parent.position.roll ? parent.position.roll : 0);
         }
         if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
         if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
@@ -1244,7 +1276,7 @@ var webgl = {
 
     // draw transparent stuff
 
-    for (let i in transparentModels) {
+    if (!options.excludeTransparentModels) for (let i in transparentModels) {
 
       // all of these: yaw, lean, pitch, roll, x, y, z, walkCycle, crouchValue, slideValue, scale
 
@@ -1255,13 +1287,13 @@ var webgl = {
 
       if (parent.position) {
         mat4.translate(mMatrix, mMatrix, [parent.position.x, parent.position.y, parent.position.z]);
-        mat4.rotateY(mMatrix, mMatrix, -parent.position.yaw);
-        mat4.rotateX(mMatrix, mMatrix, -parent.position.pitch);
-        mat4.rotateZ(mMatrix, mMatrix, parent.position.roll);
+        mat4.rotateY(mMatrix, mMatrix, parent.position.yaw ? -parent.position.yaw : 0);
+        mat4.rotateX(mMatrix, mMatrix, parent.position.pitch ? -parent.position.pitch : 0);
+        mat4.rotateZ(mMatrix, mMatrix, parent.position.roll ? parent.position.roll : 0);
 
-        mat4.rotateY(mnMatrix, mnMatrix, -parent.position.yaw);
-        mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch);
-        mat4.rotateZ(mnMatrix, mnMatrix, parent.position.roll);
+        mat4.rotateY(mnMatrix, mnMatrix, parent.position.yaw ? -parent.position.yaw : 0);
+        mat4.rotateX(mnMatrix, mnMatrix, parent.position.pitch ? -parent.position.pitch : 0);
+        mat4.rotateZ(mnMatrix, mnMatrix, parent.position.roll ? parent.position.roll : 0);
       }
       if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
       if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
