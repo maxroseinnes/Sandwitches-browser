@@ -746,7 +746,7 @@ function update(now) {
     camera.position.yaw = player ? player.position.yaw : 0
     camera.position.lean = player ? player.position.lean : 0
 
-    webgl.renderFrame(player ? player.position : {x: 0, y: 0, z: 0}, camera);
+    webgl.renderFrame(player ? player.position : {x: 0, y: 0, z: 0}, camera, deltaTime);
     if (running) requestAnimationFrame(update)
 }
 update()
