@@ -122,7 +122,7 @@ var obj = {
             if (identifier == "vt") texcoords.push(this.parseFloats(this.parseWords(currentLine)))
 
             if (identifier == "s") {
-                if (currentLine == "0") smooth = false
+                if (Number(currentLine) == 0) smooth = false
                 else smooth = true
             }
 

@@ -122,7 +122,7 @@ var webgl = {
 
     particlesEffects: true,
 
-    shadowMapResolution: 2048,
+    shadowMapResolution: 4096,
     shadowMapSmoothing: 0,
 
     specularLighting: true,
@@ -245,7 +245,7 @@ var webgl = {
 
       highp vec3 toCameraDir = normalize(cPosition - vPosition);
       highp vec3 reflectedLightDir = reflect(-toLight, normal);
-      highp float specularLight = pow(dot(reflectedLightDir, toCameraDir), uGlossValue) * uGlossValue * .1;
+      highp float specularLight = clamp(pow(dot(reflectedLightDir, toCameraDir), uGlossValue) * uGlossValue * .1, 0.0, 1.0);
       
       highp vec3 directionalVector = normalize(vec3(0.0, 0.5, 1.0));
       highp vec4 transformedNormal = nMatrix * vec4(normal, 1.0);
