@@ -122,7 +122,7 @@ var webgl = {
 
     particlesEffects: true,
 
-    shadowMapResolution: 4096,
+    shadowMapResolution: 2048,
     shadowMapSmoothing: 0,
 
     specularLighting: true,
@@ -1335,7 +1335,7 @@ class Point {
     webgl.texCoords.push(tx1, tx2)
 
     webgl.pointCount++
-  }
+  }f
 
 
   delete() {
@@ -1441,6 +1441,10 @@ class Model {
   setPosition(yaw, lean, pitch, roll, x, y, z, walkCycle, crouchValue, slideValue) {
     // lean is used only for player models leaning
 
+
+
+    let geometryInfo = this.geometryInfo
+    let indices = geometryInfo.indices
 
     let matrix = mat4.create()
     mat4.translate(matrix, matrix, [x, y, z])
@@ -2164,6 +2168,7 @@ class Player extends PhysicalObject {
 class Weapon extends PhysicalObject {
   static gravity = 0.00001
   constructor(geometryInfos, type, collidableObjects, owner) {
+    console.log(geometryInfos)
     super(0, 0, 0, 0, 0, { mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25 }, collidableObjects)
 
     this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
