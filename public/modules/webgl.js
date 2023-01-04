@@ -122,7 +122,7 @@ var webgl = {
 
     particlesEffects: true,
 
-    shadowMapResolution: 2048,
+    shadowMapResolution: 8192,
     shadowMapSmoothing: 0,
 
     specularLighting: true,
@@ -1335,7 +1335,7 @@ class Point {
     webgl.texCoords.push(tx1, tx2)
 
     webgl.pointCount++
-  }
+  }f
 
 
   delete() {

@@ -62,7 +62,7 @@ async function getModelData(name, out, seperateObjects) {
     for (let i in weaponGeometry) if (weaponGeometry[i].modelInfo == null) return
 
     for (let i in weaponGeometry) weaponGeometry[i] = weaponGeometry[i].modelInfo
-    console.log(weaponGeometry)
+    //console.log(weaponGeometry)
   })
 }
 
@@ -493,7 +493,7 @@ class Room {
       let newHealth = this.players[hitInfo.target].health - hitInfo.damage
       if (newHealth > 0) {
         this.players[hitInfo.target].health = newHealth
-        console.log(newHealth)
+        //console.log("health: " + newHealth)
       } else {
         let deathMessage = this.players[hitInfo.target].name + " was killed by " + this.players[hitInfo.from].name
         this.broadcast("chatMessage", deathMessage, null)
@@ -558,7 +558,7 @@ class Room {
         deathMessage = deathInfo.name + " died."
       }
       console.log(deathMessage)
-      this.broadcast("chatMessage", deathMessage, false)
+      this.broadcast("chatMessage", deathMessage, null)
     })
 
     socket.on("disconnect", () => {

@@ -904,7 +904,7 @@ function fixedUpdate() {
         if (otherWeapons[id].shooted) {
             otherWeapons[id].calculatePosition(deltaTime, socket)
 
-            if (Math.abs(otherWeapons[id].position.x) > 50 || Math.abs(otherWeapons[id].position.z) > 50) {
+            if (Math.abs(otherWeapons[id].position.x) > 50 || Math.abs(otherWeapons[id].position.z) > 50 || Math.abs(otherWeapons[id].position.y) > 1000) {
                 otherWeapons[id].remove()
                 otherWeapons[id] = null
             }
