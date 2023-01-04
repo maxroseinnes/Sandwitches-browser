@@ -95,7 +95,7 @@ input[type=text] {
     color: white;
     
     font-size: 75px;
-    font-family: monospace;
+    font-family: "VT323", sans-serif;
     
 }
 
@@ -204,11 +204,25 @@ input[type=text] {
     top: 20px;
     left: 20px;
 
-    border-style: solid;
     padding: 20px;
 
     background-color: rgba(0, 0, 0, .1);
 
+    font-size: 17px;
+    color: white;
+}
+
+#roomInfo {
+    position: absolute;
+    top: 0px;
+    right: 20px;
+
+    padding: 20px;
+    padding-left: 50px;
+
+    background-color: rgba(0, 0, 0, .1);
+
+    font-size: 17px;
     color: white;
 }
 

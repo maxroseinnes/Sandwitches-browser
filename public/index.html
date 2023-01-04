@@ -6,6 +6,7 @@
     <meta name = "viewport" content = "width=device-width">
     <title>Sandwitches!</title>
     <link href = "./style.css" rel = "stylesheet" type = "text/css" />
+    <link href="https://fonts.googleapis.com/css?family=VT323" rel="stylesheet">
     <script
         src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.8.1/gl-matrix-min.js"
         integrity="sha512-zhHQR0/H5SEBL3Wn6yYSaTTZej12z0hVZKOv3TwCUXT1z5qeqGcXJLLrbERYRScEDDpYIJhPC1fk31gqR783iQ=="
@@ -43,26 +44,37 @@
             <tr>
                 <th>Mouse Settings</th>
                 <th>Key Bindings</th>
+                <th>Audio</th>
+                <th>Graphics</th>
             </tr>
             <tr>
                 <td>Sensitivity: <input type = "range" min = "1" max = "10" id = "sensitivitySlider"></td>
                 <td>W: <t><input type = "text" readOnly id = "w" class = "keyBindInput"></td>
+                <td>Volume: <input type = "range" id = "volumeSlider" class = "slider" min = "0" max = "100"></td>
             </tr>
             <tr>
                 <td></td>
                 <td>A: <t><input type = "text" readOnly id = "a" class = "keyBindInput"></td>
+                <td></td>
+                <td>Lighting</td>
             </tr>
             <tr>
                 <td></td>
                 <td>S: <t><input type = "text" readOnly id = "s" class = "keyBindInput"></td>
+                <td></td>
+                <td>Pretty Lighting</td>
             </tr>
             <tr>
                 <td></td>
                 <td>D: <t><input type = "text" readOnly id = "d" class = "keyBindInput"></td>
+                <td></td>
+                <td>Shadows</td>
             </tr>
             <tr>
                 <td></td>
                 <td>open chat: <t><input type = "text" readOnly id = "openChat" class = "keyBindInput"></td>
+                <td></td>
+                <td>Particles</td>
             </tr>
             
             
@@ -74,6 +86,9 @@
 
     <div id = "hud">
         <div id = "info"></div>
+
+        <ol id = "roomInfo"></ol>
+        <div id = "leaderboard"></div>
 
         <div id = "chatbox"></div>
         <div id = "chatboxInput"></div>

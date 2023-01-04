@@ -6,6 +6,7 @@ const server = http.createServer(app);
 const socketio = require("socket.io");
 const socketServer = new socketio.Server(server);
 const ipv4 = require("ip").address();
+const fs = require("fs")
 const localhost = false;
 const port = 3000;
 
@@ -51,6 +52,221 @@ const availableNames = [
 ];
 
 
+
+
+
+async function getModelData(name, out, seperateObjects) {
+  fs.readFile("./public/assets/models/" + name, (err, data) => {
+    out.modelInfo = obj.parseWavefront(data.toString(), seperateObjects)
+    
+    for (let i in weaponGeometry) if (weaponGeometry[i].modelInfo == null) return
+
+    for (let i in weaponGeometry) weaponGeometry[i] = weaponGeometry[i].modelInfo
+    console.log(weaponGeometry)
+  })
+}
+
+var weaponGeometry = {
+  tomato: {path: "weapons/tomato.obj"},
+  olive: {path: "weapons/low_poly_olive.obj"},
+  pickle: {path: "weapons/small_horizontal_cylinder.obj"},
+  sausage: {path: "weapons/sausage.obj"},
+  pan: {path: "weapons/fryingpan.obj"},
+  anchovy: {path: "weapons/anchovy_terrible.obj"},
+  meatball: {path: "weapons/meatball.obj"}
+}
+
+for (let i in weaponGeometry) getModelData(weaponGeometry[i].path, weaponGeometry[i], false)
+
+
+
+
+var obj = {
+
+parseWords: function(string) {
+  let words = []
+  let currentWord = ""
+  for (let i = 0; i < string.length; i++) {
+      if (string[i] != " ") currentWord += string[i]
+      else {
+          words.push(currentWord)
+          currentWord = ""
+      }
+  } words.push(currentWord)
+  return words
+},
+
+parseLines: function(string) {
+  let lines = []
+  let currentLine = ""
+  for (let i = 0; i < string.length; i++) {
+      if (string[i] != "\n") currentLine += string[i]
+      else {
+          lines.push(currentLine)
+          currentLine = ""
+      }
+  } lines.push(currentLine)
+  return lines
+},
+
+parseFloats: function(words) {
+  let floats = []
+  for (let i = 0; i < words.length; i++) {
+      floats.push(parseFloat(words[i]))
+  }
+  return floats
+},
+
+triangulate: function(indices) {
+  let newIndices = []
+  for (let i = 0; i < indices.length; i++) {
+      let currentIndices = indices[i]
+
+      for (let j = 0; j < currentIndices.vertexes.length - 2; j++) {
+          newIndices.push({
+              vertexes: [currentIndices.vertexes[0], currentIndices.vertexes[j+1], currentIndices.vertexes[j+2]],
+              texcoords: [currentIndices.texcoords[0], currentIndices.texcoords[j+1], currentIndices.texcoords[j+2]],
+              normals: [currentIndices.normals[0], currentIndices.normals[j+1], currentIndices.normals[j+2]]
+          })
+      }
+
+  }
+  return newIndices
+},
+
+
+
+
+
+parseWavefront: function(fileText, seperateObjects) {
+  let lines = this.parseLines(fileText)
+
+  // find all objects
+  let objectStartIndices = []
+  if (seperateObjects) {
+      for (let i = 0; i < lines.length; i++) {
+          if (lines[i].slice(0, lines[i].indexOf(" ")) == "o") {
+              objectStartIndices.push(i)
+          }
+      } objectStartIndices.push(lines.length)
+  }
+  else objectStartIndices = [0, lines.length]
+
+  let objects = {}
+  let material // string
+  for (let o = 0; o < objectStartIndices.length - 1; o++) {
+
+      let totalBeforeVertices = 0
+      for (let object in objects) totalBeforeVertices += objects[object].positions.length
+
+      let totalBeforeTexcords = 0
+      for (let object in objects) totalBeforeTexcords += objects[object].texcoords.length
+
+      let totalBeforeNormals = 0
+      for (let object in objects) totalBeforeNormals += objects[object].normals.length
+
+
+      let name
+      let smooth // boolean
+      let positions = []
+      let normals = []
+      let texcoords = []
+      let indices = []
+
+
+      for (let i = objectStartIndices[o]; i < objectStartIndices[o+1]; i++) {
+
+          // find first word in line
+          let identifier = lines[i].slice(0, lines[i].indexOf(" "))
+
+          // get line after identifier
+          let currentLine = lines[i].slice(lines[i].indexOf(" ") + 1)
+
+          if (identifier == "o") {
+              if (currentLine.indexOf(String.fromCharCode([13])) == -1) name = currentLine
+              else name = currentLine.slice(0, -1)
+          }
+
+          if (identifier == "v") positions.push(this.parseFloats(this.parseWords(currentLine)))
+
+          if (identifier == "vn") normals.push(this.parseFloats(this.parseWords(currentLine)))
+
+          if (identifier == "vt") texcoords.push(this.parseFloats(this.parseWords(currentLine)))
+
+          if (identifier == "s") {
+              if (currentLine == "0") smooth = false
+              else smooth = true
+          }
+
+          if (identifier == "usemtl") material = currentLine
+
+          if (identifier == "f") {
+              let v = []
+              let t = []
+              let n = []
+
+              let words = this.parseWords(currentLine)
+              for (let j = 0; j < words.length; j++) {
+                  v.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1 - totalBeforeVertices)
+                  words[j] = words[j].slice(words[j].indexOf("/") + 1)
+
+                  t.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1 - totalBeforeTexcords)
+                  words[j] = words[j].slice(words[j].indexOf("/") + 1)
+
+                  n.push(parseInt(words[j], 10) - 1 - totalBeforeNormals)
+              }
+
+              indices.push({
+                  vertexes: v,
+                  texcoords: t,
+                  normals: n
+              })
+          }
+      }
+
+      objects[name] = {
+          positions: positions,
+          normals: normals,
+          texcoords: texcoords,
+          smooth: smooth,
+          material: material,
+          indices: this.triangulate(indices)
+      }
+  }
+
+  for (let i in objects) if (objects[i].smooth) {
+      // make a normal for every point
+      let newNormals = []
+      for (let j in objects[i].positions) {
+          let connectedNormals = []
+          for (let k in objects[i].indices) {
+              for (let l in objects[i].indices[k].vertexes) {
+                  if (objects[i].indices[k].vertexes[l] == j) {
+                      connectedNormals.push(objects[i].normals[objects[i].indices[k].normals[l]])
+                  }
+              }
+          }
+          let averageNormal = [0, 0, 0]
+          for (let k = 0; k < connectedNormals.length; k++) {
+              for (let l in averageNormal) averageNormal[l] += connectedNormals[k][l] / connectedNormals.length
+          }
+          newNormals.push(averageNormal)
+      }
+      objects[i].normals = newNormals
+
+      for (let j in objects[i].indices) {
+          for (let k in objects[i].indices[j].vertexes) {
+              objects[i].indices[j].normals[k] = objects[i].indices[j].vertexes[k]
+          }
+      }
+  }
+
+  if (seperateObjects) return objects
+  else return Object.values(objects)[0]
+
+},
+
+}
 
 
 var maps = {
@@ -118,7 +334,7 @@ var maps = {
     floorTexture: "sub",
 
     platforms: [
-      {
+      /*{
         type: "crate",
         scale: 1,
         x: -15,
@@ -167,7 +383,7 @@ var maps = {
       { type: "basic", x: 2, y: 21, z: 8, scale: 1 },
       { type: "basic", x: -5, y: 23.5, z: 5, scale: 1 }
 
-
+*/
 
     ]
 
@@ -176,7 +392,7 @@ var maps = {
   testMap: {
     floorTexture: "",
     platforms: [],
-    mapFile: "full_starting_map.obj"
+    mapFile: "full_starting_map (3).obj"
   }
 
 
@@ -201,19 +417,19 @@ class Room {
   constructor(mapData) {
     this.mapData = mapData
 
-    this.tickInterval = setInterval(this.tick, 1000 / TPS, this)
+    this.tickInterval = setInterval(() => { this.tick() }, 1000 / TPS)
   }
 
-  addPlayer(socket, assignedId) {
+  addPlayer(socket, assignedId) { // this gets called when a player joins this room
     socket.emit("map", this.mapData);
 
-    let otherPlayersInfo = {};
+    let otherPlayersInfo = {}; // compile other players info into an object to send to the new player
     for (let id in this.players) {
       if (this.players[id] != null) otherPlayersInfo[id] = { name: this.players[id].name, position: this.players[id].position, state: this.players[id].state, currentWeaponType: this.players[id].currentWeaponType };
     }
     socket.emit("otherPlayers", otherPlayersInfo);
 
-    socket.broadcast.emit("weaponStatesRequest", assignedId)
+    this.broadcast("weaponStatesRequest", assignedId, null)
 
     let nameIndex = Math.floor(Math.random() * availableNames.length)
     let name = availableNames[nameIndex]
@@ -327,7 +543,7 @@ class Room {
         }
       }
       
-      this.players[data.recipientId].socket.emit("weaponStates", {
+      if (this.players[data.recipientId] != null) this.players[data.recipientId].socket.emit("weaponStates", {
         ownerId: data.ownerId, 
         weaponData: weaponInfo})
     })
@@ -403,21 +619,21 @@ class Room {
   }
 
   timeOfLastTick
-  tick(room) {
+  tick() {
     // Compile player data into an array
     let playersData = {}
-    for (let id in room.players) {
-      if (room.players[id] != null) playersData[id] = room.genPlayerPacket(id)
+    for (let id in this.players) {
+      if (this.players[id] != null) playersData[id] = this.genPlayerPacket(id)
     }
 
     // Send array to each connected player
-    room.broadcast("playerUpdate", playersData, null)
+    this.broadcast("playerUpdate", playersData, null)
 
-    if (room.timeOfLastTick != undefined) {
+    if (this.timeOfLastTick != undefined) {
       //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
     }
 
-    room.timeOfLastTick = new Date().getTime();
+    this.timeOfLastTick = new Date().getTime();
   }
 
 }
@@ -439,29 +655,38 @@ socketServer.on("connection", (socket) => {
     setTimeout(() => { setInterval(tick, 1000 / TPS) }, ping / 2);
   })*/
 
-  socket.on("joinRoom", (roomId) => {
-    for (let i in rooms) {
-      if (Object.keys(rooms[i].players).indexOf(String(nextId)) != -1) { // if joining player is in this room
-        rooms[i].broadcast("playerLeave", nextId, null);
-        console.log(rooms[i].players[nextId].name + " left. 😭😭😭😭😭😭😭");
+  socket.emit("weaponGeometry", weaponGeometry)
 
-        let listeners = socket.eventNames()
-        for (let j in listeners) {
-          if (listeners[j] == "joinRoom") continue
-          socket.removeAllListeners(listeners[j])
+  socket.on("joinRoom", (data) => {
+
+    if (data.playerId != null) { // delete this player from their room
+      for (let i in rooms) {
+        if (Object.keys(rooms[i].players).indexOf(String(data.playerId)) != -1) { // if joining player is in this room
+          rooms[i].broadcast("playerLeave", data.playerId, null);
+          console.log(rooms[i].players[data.playerId].name + " left. 😭😭😭😭😭😭😭");
+
+          let listeners = socket.eventNames()
+          for (let j in listeners) {
+            if (listeners[j] == "joinRoom") continue
+            socket.removeAllListeners(listeners[j])
+          }
+
+          socket.emit("stopTicking")
+
+          availableNames.push(rooms[i].players[data.playerId].name);
+          delete rooms[i].players[data.playerId];
         }
-
-        socket.emit("stopTicking")
-
-        availableNames.push(rooms[i].players[nextId].name);
-        delete rooms[i].players[nextId];
       }
     }
-    rooms[roomId].addPlayer(socket, nextId)
-    console.log("room: " + roomId)
+
+
+
+    
+    rooms[data.roomId].addPlayer(socket, nextId)
+    console.log("room: " + data.roomId)
     console.log("id: " + nextId)
+    nextId++
   })
-  nextId++
 
 });
 
