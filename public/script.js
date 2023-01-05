@@ -1170,6 +1170,42 @@ for (let i = 0; i < keyBindSelectors.length; i++) {
     keyBindSelectors[i].onmouseleave = () => { keyBinds[keyBind].selecting = false }
 }
 
+var overallGraphicsSelector = document.getElementById("overallGraphics")
+overallGraphicsSelector.onchange = () => {
+    switch (overallGraphicsSelector.value) {
+        case "low":
+            webgl.settings.skybox = true
+            webgl.settings.specularLighting = false
+            webgl.settings.shadows = false
+            webgl.settings.particles = false
+            webgl.settings.volumetricLighting = false
+            break
+        case "medium":
+            webgl.settings.skybox = true
+            webgl.settings.specularLighting = true
+            webgl.settings.shadows = true
+            webgl.settings.particles = true
+            webgl.settings.volumetricLighting = false
+            break
+        case "high":
+            webgl.settings.skybox = true
+            webgl.settings.specularLighting = true
+            webgl.settings.shadows = true
+            webgl.settings.particles = true
+            webgl.settings.volumetricLighting = true
+            break
+    }
+    webgl.initializeShaders()
+}
+
+var settingsCheckboxes = document.getElementsByClassName("settingsCheckbox")
+for (let i = 0; i < settingsCheckboxes.length; i++) {
+    settingsCheckboxes[i].onchange = () => {
+        webgl.settings[settingsCheckboxes[i].id] = settingsCheckboxes[i].checked
+        webgl.initializeShaders()
+    }
+}
+
 
 document.addEventListener("mousedown", function (event) {
     if (running && event.which == 1) leftClicking = true

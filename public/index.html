@@ -51,28 +51,45 @@
                 <td>Sensitivity: <input type = "range" min = "1" max = "10" id = "sensitivitySlider"></td>
                 <td>W: <t><input type = "text" readOnly id = "w" class = "keyBindInput"></td>
                 <td>Volume: <input type = "range" id = "volumeSlider" class = "slider" min = "0" max = "100"></td>
+                <td>Overall <select id = "overallGraphics">
+                    <option value = "low">low</option>
+                    <option value = "medium">medium</option>
+                    <option value = "high" selected>high</option>
+                </select></td>
             </tr>
             <tr>
                 <td></td>
                 <td>A: <t><input type = "text" readOnly id = "a" class = "keyBindInput"></td>
                 <td></td>
-                <td>Lighting</td>
+                <td>Skybox <input type = "checkbox" id = "skybox" class = "settingsCheckbox" checked></td>
             </tr>
             <tr>
                 <td></td>
                 <td>S: <t><input type = "text" readOnly id = "s" class = "keyBindInput"></td>
                 <td></td>
-                <td>Pretty Lighting</td>
+                <td>Specular Lighting <input type = "checkbox" id = "specularLighting" class = "settingsCheckbox" checked></td>
             </tr>
             <tr>
                 <td></td>
                 <td>D: <t><input type = "text" readOnly id = "d" class = "keyBindInput"></td>
                 <td></td>
-                <td>Shadows</td>
+                <td>Shadows <input type = "checkbox" id = "shadows" class = "settingsCheckbox" checked></td>
             </tr>
             <tr>
                 <td></td>
                 <td>open chat: <t><input type = "text" readOnly id = "openChat" class = "keyBindInput"></td>
+                <td></td>
+                <td>Particles <input type = "checkbox" id = "particles" class = "settingsCheckbox" checked></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>Atmospherics <input type = "checkbox" id = "volumetricLighting" class = "settingsCheckbox" checked></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
                 <td></td>
                 <td>Particles</td>
             </tr>

@@ -120,14 +120,16 @@ var webgl = {
 
   settings: {
 
-    particlesEffects: true,
+    particles: true,
 
+    shadows: true,
     shadowMapResolution: 2048,
     shadowMapSmoothing: 0,
 
     specularLighting: true,
     directionalLighting: true,
 
+    volumetricLighting: true,
     volumetricMapResolution: 512,
     volumetricSampleResolution: 150,
 
@@ -142,6 +144,10 @@ var webgl = {
     sunPosition: [-75, 100, 25],
     sunAnglePitch: Math.PI / 4,
     sunAngleYaw: Math.PI / 3,
+
+    heaven: false,
+
+    skybox: true,
 
   },
 
@@ -158,159 +164,6 @@ var webgl = {
     document.getElementById("effectsCanvas").height = window.innerHeight
     this.aspect = canvas.width / canvas.height
     this.gl = this.canvas.getContext("webgl")
-
-    this.vertexShaderText = `
-    precision mediump float;
-  
-    attribute vec4 vertPosition;
-    attribute vec3 aVertNormal;
-    attribute vec2 aTexCoord;
-  
-    uniform float uScale;
-    uniform vec3 uOffset;
-    uniform float uWalkCycle;
-    uniform float uCrouchValue;
-    uniform float uLean;
-    uniform mat4 mMatrix;
-    uniform mat4 mnMatrix;
-
-    uniform mat4 pMatrix;
-    uniform mat4 tMatrix;
-    uniform mat4 shadowMatrix;
-
-    varying lowp vec2 vTextureCoord;
-    varying lowp vec3 vNormal;
-    varying lowp vec3 vPosition;
-    varying lowp vec4 vProjectedCoord;
-  
-    void main() {
-
-      vec4 modelPosition = vec4(vertPosition.xyz * uScale + uOffset, 1.0);
-
-      vec4 position = modelPosition;
-      vec3 normal = aVertNormal;
-
-      if (uWalkCycle != 0.0 || uCrouchValue != 0.0 || uLean != 0.0) {
-          
-        float walk = sin(uWalkCycle) * (2.0 - modelPosition.y) * sin(modelPosition.x * 2.0);
-        float walkY = modelPosition.y * (1.0 - (uCrouchValue / 2.0)) + modelPosition.y * sin(modelPosition.x * 2.0) * sin(uWalkCycle) * 0.025;
-        float walkZ = modelPosition.z + 0.2 * walk;
-
-        position.z = walkZ * cos(uLean * modelPosition.y / 3.0) - walkY * sin(uLean * modelPosition.y / 3.0);
-        position.y = walkZ * sin(uLean * modelPosition.y / 3.0) + walkY * cos(uLean * modelPosition.y / 3.0);
-
-        normal.z = aVertNormal.z * cos(uLean * modelPosition.y / 3.0) - aVertNormal.y * sin(uLean * modelPosition.y / 3.0);
-        normal.y = aVertNormal.z * sin(uLean * modelPosition.y / 3.0) + aVertNormal.y * cos(uLean * modelPosition.y / 3.0);
-
-      }
-      position = mMatrix * position;
-      normal = vec4(mnMatrix * vec4(normal, 1.0)).xyz;
-
-      gl_Position = pMatrix * tMatrix * position;
-
-  
-      vTextureCoord = aTexCoord;
-      vNormal = normal;
-      vPosition = position.xyz;
-      vProjectedCoord = shadowMatrix * position;
-    }
-    `
-
-    this.fragmentShaderText = `
-    precision mediump float;
-  
-    varying lowp vec2 vTextureCoord;
-    varying lowp vec3 vNormal;
-    varying lowp vec3 vPosition;
-    varying lowp vec4 vProjectedCoord;
-
-    uniform sampler2D uSampler;
-    uniform sampler2D uNormalMapSampler;
-    uniform sampler2D uShadowSampler;
-    uniform sampler2D uVolumetricSampler;
-    uniform vec3 cPosition;
-    uniform vec3 lPosition;
-    uniform float uGlossValue;
-    uniform bool uShadowable;
-    uniform float uFogOpacity;
-
-    uniform mat4 nMatrix;
-  
-    void main() {
-      lowp vec4 normalMapTexelColor = texture2D(uNormalMapSampler, vTextureCoord);
-
-      highp vec3 normal = normalize(vNormal - 0.5 + normalMapTexelColor.rgb * 0.5);
-      highp vec3 toLight = normalize(lPosition - vPosition);
-      highp float light = dot(normal, toLight);
-
-      highp vec3 toCameraDir = normalize(cPosition - vPosition);
-      highp vec3 reflectedLightDir = reflect(-toLight, normal);
-      highp float specularLight = clamp(pow(dot(reflectedLightDir, toCameraDir), uGlossValue) * uGlossValue * .1, 0.0, 1.0);
-      
-      highp vec3 directionalVector = normalize(vec3(0.0, 0.5, 1.0));
-      highp vec4 transformedNormal = nMatrix * vec4(normal, 1.0);
-  
-      highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
-      highp vec3 lighting = vec3(0.75, 0.75, 0.75) + (vec3(0.5, 0.5, 0.5) * directional);
-
-      bool inRange = (vProjectedCoord.x >= 0.0 && vProjectedCoord.x <= 1.0 && vProjectedCoord.y >= 0.0 && vProjectedCoord.y <= 1.0 && vProjectedCoord.z >= 0.0 && vProjectedCoord.z <= 1.0);
-      float inShadowValue = 0.0;
-
-      float shadowTexelSize = 1.0 / ${this.settings.shadowMapResolution}.0;
-      for (int i = -${this.settings.shadowMapSmoothing}; i <= ${this.settings.shadowMapSmoothing}; i++) {
-        for (int j = -${this.settings.shadowMapSmoothing}; j <= ${this.settings.shadowMapSmoothing}; j++) {
-          bool inShadow = texture2D(uShadowSampler, vProjectedCoord.xy + vec2(i, j) * shadowTexelSize).r < vProjectedCoord.z - .0015;
-          inShadowValue += ((!inShadow && inRange) || !uShadowable) ? 1.0 : 0.625;
-        }
-      }
-
-      inShadowValue /= ${Math.pow(this.settings.shadowMapSmoothing * 2 + 1, 2)}.0;
-      
-      lowp vec4 texelColor = texture2D(uSampler, vTextureCoord);
-
-      vec3 fogColor = vec3(0.0, 0.0, 0.0);
-      float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
-      for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
-        for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
-          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / ${this.gl.canvas.width}.0, gl_FragCoord.y / ${this.gl.canvas.height}.0) + vec2(i, j) * volumetricTexelSize).rgb;
-        }
-      }
-
-      fogColor /= ${Math.pow(this.settings.volumetricMapSmoothing * 2 + 1, 2)}.0;
-      
-
-      gl_FragColor = vec4(
-        (texelColor.r * lighting.x + specularLight * 0.5) * inShadowValue + fogColor.r * ${this.settings.fogColorR} * uFogOpacity, 
-        (texelColor.g * lighting.y + specularLight * 0.5) * inShadowValue + fogColor.g * ${this.settings.fogColorG} * uFogOpacity, 
-        (texelColor.b * lighting.z + specularLight * 0.5) * inShadowValue + fogColor.b * ${this.settings.fogColorB} * uFogOpacity, 
-        texelColor.a
-      );
-    }
-    `
-
-    // shaders //
-    this.vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
-    this.fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
-
-    // program //
-    this.program = this.gl.createProgram()
-
-    // buffers //
-    this.pointsBuffer = this.gl.createBuffer()
-    this.normalsBuffer = this.gl.createBuffer()
-    this.texCoordsBuffer = this.gl.createBuffer()
-
-
-    this.gl.shaderSource(this.vertexShader, this.vertexShaderText)
-    this.gl.shaderSource(this.fragmentShader, this.fragmentShaderText)
-
-    this.gl.compileShader(this.vertexShader)
-    this.gl.compileShader(this.fragmentShader)
-
-    this.gl.attachShader(this.program, this.vertexShader)
-    this.gl.attachShader(this.program, this.fragmentShader)
-    this.gl.linkProgram(this.program)
-    this.gl.validateProgram(this.program)
 
     // load textures //
 
@@ -365,129 +218,9 @@ var webgl = {
     }
 
 
-    if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) console.log(`Unable to initialize the shader program: ${this.gl.getProgramInfoLog(this.program)}`)
   
 
-    let vSize = 3;
 
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointsBuffer);
-
-    let posAttribLocation = this.gl.getAttribLocation(this.program, "vertPosition");
-    this.gl.vertexAttribPointer(posAttribLocation, vSize, this.gl.FLOAT, false, vSize * Float32Array.BYTES_PER_ELEMENT, 0);
-    this.gl.enableVertexAttribArray(posAttribLocation);
-
-
-    let nSize = 3;
-
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalsBuffer);
-
-    let pointNormalAttribLocation = this.gl.getAttribLocation(this.program, "aVertNormal");
-    this.gl.vertexAttribPointer(pointNormalAttribLocation, nSize, this.gl.FLOAT, false, nSize * Float32Array.BYTES_PER_ELEMENT, 0);
-    this.gl.enableVertexAttribArray(pointNormalAttribLocation);
-
-
-    let txSize = 2;
-
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texCoordsBuffer);
-
-    let texCoordAttribLocation = this.gl.getAttribLocation(this.program, "aTexCoord");
-    this.gl.vertexAttribPointer(texCoordAttribLocation, txSize, this.gl.FLOAT, false, txSize * Float32Array.BYTES_PER_ELEMENT, 0);
-    this.gl.enableVertexAttribArray(texCoordAttribLocation);
-
-  
-
-    // Make skybox program
-
-
-    this.skyboxVertexShaderText = `
-    precision mediump float;
-  
-    attribute vec4 vertPosition;
-
-    varying lowp vec4 vPosition;
-  
-    void main() {
-      
-      gl_Position = vertPosition;
-      gl_Position.z = 1.0;
-
-      vPosition = vertPosition;
-    }
-    `
-
-    this.skyboxFragmentShaderText = `
-    precision mediump float;
-
-    uniform samplerCube skybox;
-    uniform mat4 matrix;
-
-    uniform sampler2D uVolumetricSampler;
-
-    uniform float uFogOpacity;
-  
-    varying lowp vec4 vPosition;
-  
-    void main() {
-
-      vec4 texcoord = vPosition * matrix;
-
-
-      vec3 fogColor = vec3(0.0, 0.0, 0.0);
-      float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
-      for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
-        for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
-          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / ${this.gl.canvas.width}.0, gl_FragCoord.y / ${this.gl.canvas.height}.0) + vec2(i, j) * volumetricTexelSize).rgb;
-        }
-      }
-
-      fogColor /= ${Math.pow(this.settings.volumetricMapSmoothing * 2 + 1, 2)}.0;
-      
-
-      vec4 color = textureCube(skybox, texcoord.xyz);
-      gl_FragColor = vec4(
-        color.r * 0.8 + fogColor.r * ${this.settings.fogColorR} * uFogOpacity,
-        color.g * 0.8 + fogColor.g * ${this.settings.fogColorG} * uFogOpacity,
-        color.b * 0.8 + fogColor.b * ${this.settings.fogColorB} * uFogOpacity,
-        1.0
-      );
-    }
-    `
-
-    // shaders //
-    this.skyboxVertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
-    this.skyboxFragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
-
-    // program //
-    this.skyboxProgram = this.gl.createProgram()
-
-    // buffers //
-    this.skyboxPointsBuffer = this.gl.createBuffer()
-
-
-    this.gl.shaderSource(this.skyboxVertexShader, this.skyboxVertexShaderText)
-    this.gl.shaderSource(this.skyboxFragmentShader, this.skyboxFragmentShaderText)
-
-    this.gl.compileShader(this.skyboxVertexShader)
-    this.gl.compileShader(this.skyboxFragmentShader)
-
-    this.gl.attachShader(this.skyboxProgram, this.skyboxVertexShader)
-    this.gl.attachShader(this.skyboxProgram, this.skyboxFragmentShader)
-    this.gl.linkProgram(this.skyboxProgram)
-    this.gl.validateProgram(this.skyboxProgram)
-
-    // set positions of skybox points (four corners of the screen)
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.skyboxPointsBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([
-      -1, -1,
-       1, -1,
-       1,  1,
-       1,  1,
-       1, -1,
-      -1, -1
-    ]), this.gl.STATIC_DRAW);
-
-    this.gl.vertexAttribPointer(posAttribLocation, 2, this.gl.FLOAT, false, 0, 0);
-      
     let resolution = 1024
 
     this.skyboxCanvas = document.createElement("canvas")
@@ -548,23 +281,379 @@ var webgl = {
 
 
 
+
+    
+
+
+    // make framebuffer for shadow map
+
+    if (!this.gl.getExtension("WEBGL_depth_texture")) throw("no depth texture")
+
+    this.depthTexture = this.gl.createTexture()
+
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.depthTexture)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.DEPTH_COMPONENT, this.settings.shadowMapResolution, this.settings.shadowMapResolution, 0, this.gl.DEPTH_COMPONENT, this.gl.UNSIGNED_INT, null)
+
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
+
+    this.unusedTexture = this.gl.createTexture()
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.unusedTexture)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.shadowMapResolution, this.settings.shadowMapResolution, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
+
+    this.depthFramebuffer = this.gl.createFramebuffer()
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.depthFramebuffer)
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.TEXTURE_2D, this.depthTexture, 0)
+
+
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.unusedTexture, 0)
+
+
+
+    // make framebuffer for volumetric map
+
+    this.volumetricMap = this.gl.createTexture()
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+
+    this.gl.generateMipmap(this.gl.TEXTURE_2D)
+
+    this.volumetricFramebuffer = this.gl.createFramebuffer()
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.volumetricFramebuffer)
+
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.volumetricMap, 0)
+
+    this.volumetricMapDepthBuffer = this.gl.createRenderbuffer()
+    this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.volumetricMapDepthBuffer)
+
+    this.gl.renderbufferStorage(this.gl.RENDERBUFFER, this.gl.DEPTH_COMPONENT16, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution)
+    this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.RENDERBUFFER, this.volumetricMapDepthBuffer)
+
+
+    this.gl.clearDepth(1);
+    this.gl.depthFunc(this.gl.LEQUAL);
+
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA)
+    this.gl.enable(this.gl.BLEND)
+
+    this.gl.enable(this.gl.CULL_FACE)
+    this.gl.enable(this.gl.DEPTH_TEST)
+
+    this.initializeShaders()
+
+
+    // collision pipeline:
+
+    /*
+    create a 3D texture with collision voxels for each physical object:
+      - vertex shader runs twice with model data, once with front faces, once with back faces
+      
+      - run another shader that iterates through grid by rendering layered triangle strips at the correct resolution
+        - the output is a 3d texture of collision voxels (booleans as alpha values)
+
+
+    */
+   
+
+    // volumetric lighting pipeline
+    /*
+      before running fragment shader, take a low resolution picture of the scene with depth values
+    */
+  
+  
+  },
+
+  initializeShaders() {
+
+    this.vertexShaderText = `
+    precision mediump float;
+  
+    attribute vec4 vertPosition;
+    attribute vec3 aVertNormal;
+    attribute vec2 aTexCoord;
+  
+    uniform float uScale;
+    uniform vec3 uOffset;
+    uniform float uWalkCycle;
+    uniform float uCrouchValue;
+    uniform float uLean;
+    uniform mat4 mMatrix;
+    uniform mat4 mnMatrix;
+
+    uniform mat4 pMatrix;
+    uniform mat4 tMatrix;
+    uniform mat4 shadowMatrix;
+
+    varying lowp vec2 vTextureCoord;
+    varying lowp vec3 vNormal;
+    varying lowp vec3 vPosition;
+    ${this.settings.shadows ? `varying lowp vec4 vProjectedCoord;` : ``}
+  
+    void main() {
+
+      vec4 modelPosition = vec4(vertPosition.xyz * uScale + uOffset, 1.0);
+
+      vec4 position = modelPosition;
+      vec3 normal = aVertNormal;
+
+      if (uWalkCycle != 0.0 || uCrouchValue != 0.0 || uLean != 0.0) {
+          
+        float walk = sin(uWalkCycle) * (2.0 - modelPosition.y) * sin(modelPosition.x * 2.0);
+        float walkY = modelPosition.y * (1.0 - (uCrouchValue / 2.0)) + modelPosition.y * sin(modelPosition.x * 2.0) * sin(uWalkCycle) * 0.025;
+        float walkZ = modelPosition.z + 0.2 * walk;
+
+        position.z = walkZ * cos(uLean * modelPosition.y / 3.0) - walkY * sin(uLean * modelPosition.y / 3.0);
+        position.y = walkZ * sin(uLean * modelPosition.y / 3.0) + walkY * cos(uLean * modelPosition.y / 3.0);
+
+        normal.z = aVertNormal.z * cos(uLean * modelPosition.y / 3.0) - aVertNormal.y * sin(uLean * modelPosition.y / 3.0);
+        normal.y = aVertNormal.z * sin(uLean * modelPosition.y / 3.0) + aVertNormal.y * cos(uLean * modelPosition.y / 3.0);
+
+      }
+      position = mMatrix * position;
+      normal = vec4(mnMatrix * vec4(normal, 1.0)).xyz;
+
+      gl_Position = pMatrix * tMatrix * position;
+
+  
+      vTextureCoord = aTexCoord;
+      vNormal = normal;
+      vPosition = position.xyz;
+      ${this.settings.shadows ? `vProjectedCoord = shadowMatrix * position;` : ``}
+    }
+    `
+
+    this.fragmentShaderText = `
+    precision mediump float;
+  
+    varying lowp vec2 vTextureCoord;
+    varying lowp vec3 vNormal;
+    varying lowp vec3 vPosition;
+    ${this.settings.shadows ? `varying lowp vec4 vProjectedCoord;` : ``}
+
+    uniform sampler2D uSampler;
+    uniform sampler2D uNormalMapSampler;
+    uniform sampler2D uShadowSampler;
+    uniform sampler2D uVolumetricSampler;
+    uniform vec3 cPosition;
+    uniform vec3 lPosition;
+    uniform float uGlossValue;
+    uniform bool uShadowable;
+    uniform float uFogOpacity;
+
+    uniform mat4 nMatrix;
+  
+    void main() {
+      lowp vec4 normalMapTexelColor = texture2D(uNormalMapSampler, vTextureCoord);
+
+      highp vec3 normal = normalize(vNormal${this.settings.specularLighting ? ` - 0.5 + normalMapTexelColor.rgb * 0.5` : ``});
+      ${this.settings.specularLighting ? `
+      highp vec3 toLight = normalize(lPosition - vPosition);
+      highp float light = dot(normal, toLight);
+
+      highp vec3 toCameraDir = normalize(cPosition - vPosition);
+      highp vec3 reflectedLightDir = reflect(-toLight, normal);
+      highp float specularLight = clamp(pow(dot(reflectedLightDir, toCameraDir), uGlossValue) * uGlossValue * .1, 0.0, 1.0);
+      ` : ``}
+      
+      highp vec3 directionalVector = normalize(vec3(0.0, 0.5, 1.0));
+      highp vec4 transformedNormal = nMatrix * vec4(normal, 1.0);
+  
+      highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
+      highp vec3 lighting = vec3(0.75, 0.75, 0.75) + (vec3(0.5, 0.5, 0.5) * directional);
+      ${this.settings.shadows ? `
+      bool inRange = (vProjectedCoord.x >= 0.0 && vProjectedCoord.x <= 1.0 && vProjectedCoord.y >= 0.0 && vProjectedCoord.y <= 1.0 && vProjectedCoord.z >= 0.0 && vProjectedCoord.z <= 1.0);
+      float inShadowValue = 0.0;
+
+      float shadowTexelSize = 1.0 / ${this.settings.shadowMapResolution}.0;
+      for (int i = -${this.settings.shadowMapSmoothing}; i <= ${this.settings.shadowMapSmoothing}; i++) {
+        for (int j = -${this.settings.shadowMapSmoothing}; j <= ${this.settings.shadowMapSmoothing}; j++) {
+          bool inShadow = texture2D(uShadowSampler, vProjectedCoord.xy + vec2(i, j) * shadowTexelSize).r < vProjectedCoord.z - .0015;
+          inShadowValue += ((!inShadow && inRange) || !uShadowable) ? 1.0 : 0.625;
+        }
+      }
+
+      inShadowValue /= ${Math.pow(this.settings.shadowMapSmoothing * 2 + 1, 2)}.0;
+      ` : ``}
+      ${this.settings.volumetricLighting ? `
+      vec3 fogColor = vec3(0.0, 0.0, 0.0);
+      float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
+      for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
+        for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
+          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / ${this.gl.canvas.width}.0, gl_FragCoord.y / ${this.gl.canvas.height}.0) + vec2(i, j) * volumetricTexelSize).rgb;
+        }
+      }
+
+      fogColor /= ${Math.pow(this.settings.volumetricMapSmoothing * 2 + 1, 2)}.0;
+      ` : ``}
+
+      lowp vec4 texelColor = texture2D(uSampler, vTextureCoord);
+
+      gl_FragColor = vec4(
+        (texelColor.r * lighting.x${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.r * ${this.settings.fogColorR} * uFogOpacity` : ``}, 
+        (texelColor.g * lighting.y${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.g * ${this.settings.fogColorG} * uFogOpacity` : ``}, 
+        (texelColor.b * lighting.z${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.b * ${this.settings.fogColorB} * uFogOpacity` : ``}, 
+        texelColor.a
+      );
+    }
+    `
+
+    // shaders //
+    this.vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
+    this.fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
+
+    // program //
+    this.program = this.gl.createProgram()
+
+    // buffers //
+    this.pointsBuffer = this.gl.createBuffer()
+    this.normalsBuffer = this.gl.createBuffer()
+    this.texCoordsBuffer = this.gl.createBuffer()
+
+
+    this.gl.shaderSource(this.vertexShader, this.vertexShaderText)
+    this.gl.shaderSource(this.fragmentShader, this.fragmentShaderText)
+
+    this.gl.compileShader(this.vertexShader)
+    this.gl.compileShader(this.fragmentShader)
+
+    this.gl.attachShader(this.program, this.vertexShader)
+    this.gl.attachShader(this.program, this.fragmentShader)
+    this.gl.linkProgram(this.program)
+    this.gl.validateProgram(this.program)
+
+    if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) console.log(`Unable to initialize the shader program: ${this.gl.getProgramInfoLog(this.program)}`)
+  
+
+    let vSize = 3;
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointsBuffer);
+
+    let posAttribLocation = this.gl.getAttribLocation(this.program, "vertPosition");
+    this.gl.vertexAttribPointer(posAttribLocation, vSize, this.gl.FLOAT, false, vSize * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(posAttribLocation);
+
+
+    let nSize = 3;
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.normalsBuffer);
+
+    let pointNormalAttribLocation = this.gl.getAttribLocation(this.program, "aVertNormal");
+    this.gl.vertexAttribPointer(pointNormalAttribLocation, nSize, this.gl.FLOAT, false, nSize * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(pointNormalAttribLocation);
+
+
+    let txSize = 2;
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texCoordsBuffer);
+
+    let texCoordAttribLocation = this.gl.getAttribLocation(this.program, "aTexCoord");
+    this.gl.vertexAttribPointer(texCoordAttribLocation, txSize, this.gl.FLOAT, false, txSize * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(texCoordAttribLocation);
+
+
+    
+    this.skyboxVertexShaderText = `
+    precision mediump float;
+  
+    attribute vec4 vertPosition;
+
+    varying lowp vec4 vPosition;
+  
+    void main() {
+      
+      gl_Position = vertPosition;
+      gl_Position.z = 1.0;
+
+      vPosition = vertPosition;
+    }
+    `
+
+    this.skyboxFragmentShaderText = `
+    precision mediump float;
+
+    uniform samplerCube skybox;
+    uniform mat4 matrix;
+
+    uniform sampler2D uVolumetricSampler;
+
+    uniform float uFogOpacity;
+  
+    varying lowp vec4 vPosition;
+  
+    void main() {
+
+      vec4 texcoord = vPosition * matrix;
+
+
+      vec3 fogColor = vec3(0.0, 0.0, 0.0);
+      float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
+      for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
+        for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
+          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / ${this.gl.canvas.width}.0, gl_FragCoord.y / ${this.gl.canvas.height}.0) + vec2(i, j) * volumetricTexelSize).rgb;
+        }
+      }
+
+      fogColor /= ${Math.pow(this.settings.volumetricMapSmoothing * 2 + 1, 2)}.0;
+      
+
+      vec4 color = textureCube(skybox, texcoord.xyz);
+      gl_FragColor = vec4(
+        color.r${this.settings.volumetricLighting ? ` * 0.8 + fogColor.r * ${this.settings.fogColorR} * uFogOpacity` : ``},
+        color.g${this.settings.volumetricLighting ? ` * 0.8 + fogColor.g * ${this.settings.fogColorG} * uFogOpacity` : ``},
+        color.b${this.settings.volumetricLighting ? ` * 0.8 + fogColor.b * ${this.settings.fogColorB} * uFogOpacity` : ``},
+        1.0
+      );
+    }
+    `
+    
+    // Make skybox program
+
+
+    // shaders //
+    this.skyboxVertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
+    this.skyboxFragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
+
+    // program //
+    this.skyboxProgram = this.gl.createProgram()
+
+    // buffers //
+    this.skyboxPointsBuffer = this.gl.createBuffer()
+
+    this.gl.shaderSource(this.skyboxVertexShader, this.skyboxVertexShaderText)
+    this.gl.shaderSource(this.skyboxFragmentShader, this.skyboxFragmentShaderText)
+
+    this.gl.compileShader(this.skyboxVertexShader)
+    this.gl.compileShader(this.skyboxFragmentShader)
+
+    this.gl.attachShader(this.skyboxProgram, this.skyboxVertexShader)
+    this.gl.attachShader(this.skyboxProgram, this.skyboxFragmentShader)
+    this.gl.linkProgram(this.skyboxProgram)
+    this.gl.validateProgram(this.skyboxProgram)
+
+
     if (!this.gl.getProgramParameter(this.skyboxProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the skybox shader program: ${this.gl.getProgramInfoLog(this.skyboxProgram)}`)
   
+    // set positions of skybox points (four corners of the screen)
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.skyboxPointsBuffer);
     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([
       -1, -1,
        1, -1,
-      -1,  1,
-      -1,  1,
+       1,  1,
+       1,  1,
        1, -1,
-       1,  1
+      -1, -1
     ]), this.gl.STATIC_DRAW);
 
-
-    let sPosAttribLocation = this.gl.getAttribLocation(this.skyboxProgram, "vertPosition");
-    this.gl.vertexAttribPointer(sPosAttribLocation, 2, this.gl.FLOAT, false, 0, 0);
-    this.gl.enableVertexAttribArray(sPosAttribLocation);
-    
+    //let sPosAttribLocation = this.gl.getAttribLocation(this.skyboxProgram, "vertPosition");
+    //this.gl.vertexAttribPointer(sPosAttribLocation, 2, this.gl.FLOAT, false, 0, 0);
+    //this.gl.enableVertexAttribArray(sPosAttribLocation);
     
 
     // Make shadow map program
@@ -635,41 +724,6 @@ var webgl = {
     this.gl.linkProgram(this.shadowProgram)
     this.gl.validateProgram(this.shadowProgram)
 
-
-    // make framebuffer for shadow map
-
-    if (!this.gl.getExtension("WEBGL_depth_texture")) throw("no depth texture")
-
-    this.depthTexture = this.gl.createTexture()
-
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.depthTexture)
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.DEPTH_COMPONENT, this.settings.shadowMapResolution, this.settings.shadowMapResolution, 0, this.gl.DEPTH_COMPONENT, this.gl.UNSIGNED_INT, null)
-
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
-
-    this.unusedTexture = this.gl.createTexture()
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.unusedTexture)
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.shadowMapResolution, this.settings.shadowMapResolution, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
-
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
-    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
-
-    this.depthFramebuffer = this.gl.createFramebuffer()
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.depthFramebuffer)
-    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.TEXTURE_2D, this.depthTexture, 0)
-
-
-    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.unusedTexture, 0)
-
-
-
-    
-  
     if (!this.gl.getProgramParameter(this.shadowProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the shadow shader program: ${this.gl.getProgramInfoLog(this.shadowProgram)}`)
   
     let shadowVSize = 3;
@@ -680,6 +734,7 @@ var webgl = {
     this.gl.vertexAttribPointer(shadowPosAttribLocation, shadowVSize, this.gl.FLOAT, false, shadowVSize * Float32Array.BYTES_PER_ELEMENT, 0);
     this.gl.enableVertexAttribArray(shadowPosAttribLocation);
 
+    
     // draw an extra square at the 
   
     this.volumetricVertexShaderText = `
@@ -736,7 +791,7 @@ var webgl = {
       float brightness = 0.0;
 
       float distance = length(vPosition - cPosition);
-
+      ${this.settings.shadows ? `
       for (float z = 0.0; z < 1.0; z += 1.0 / ${this.settings.volumetricSampleResolution}.0) {
         vec4 realWorldPosition = vec4(mix(vPosition, cPosition, z), 1.0);
   
@@ -744,8 +799,10 @@ var webgl = {
         bool inShadow = texture2D(uShadowSampler, projectedCoord.xy).r < projectedCoord.z - .0015;
         if (!inShadow) brightness += distance * ${this.settings.fogIntensity} / ${this.settings.volumetricSampleResolution}.0;
       }
-
-      brightness = pow(brightness, 1.0);
+      ` : `
+        brightness = distance * ${this.settings.fogIntensity};
+      `}
+      //brightness = pow(brightness, 1.0);
 
       //vec3 color = vec3(brightness * .75, brightness * .5, brightness * .25);
       vec3 color = vec3(brightness, brightness, brightness);
@@ -777,65 +834,9 @@ var webgl = {
     this.gl.validateProgram(this.volumetricProgram)
 
 
-    // make framebuffer for volumetric map
-
-    this.volumetricMap = this.gl.createTexture()
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
-
-    this.gl.generateMipmap(this.gl.TEXTURE_2D)
-
-    this.volumetricFramebuffer = this.gl.createFramebuffer()
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.volumetricFramebuffer)
-
-    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.volumetricMap, 0)
-
-    this.volumetricMapDepthBuffer = this.gl.createRenderbuffer()
-    this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.volumetricMapDepthBuffer)
-
-    this.gl.renderbufferStorage(this.gl.RENDERBUFFER, this.gl.DEPTH_COMPONENT16, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution)
-    this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.RENDERBUFFER, this.volumetricMapDepthBuffer)
-
     if (!this.gl.getProgramParameter(this.volumetricProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the volumetric shader program: ${this.gl.getProgramInfoLog(this.volumetricProgram)}`)
   
-    let volumetricVSize = 3;
-    
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointsBuffer);
-    
-    let volumetricPosAttribLocation = this.gl.getAttribLocation(this.shadowProgram, "vertPosition");
-    this.gl.vertexAttribPointer(volumetricPosAttribLocation, volumetricVSize, this.gl.FLOAT, false, volumetricVSize * Float32Array.BYTES_PER_ELEMENT, 0);
-    this.gl.enableVertexAttribArray(volumetricPosAttribLocation);
 
-
-    this.gl.clearDepth(1);
-    this.gl.depthFunc(this.gl.LEQUAL);
-
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA)
-    this.gl.enable(this.gl.BLEND)
-
-    this.gl.enable(this.gl.CULL_FACE)
-    this.gl.enable(this.gl.DEPTH_TEST)
-
-
-    // collision pipeline:
-
-    /*
-    create a 3D texture with collision voxels for each physical object:
-      - vertex shader runs twice with model data, once with front faces, once with back faces
-      
-      - run another shader that iterates through grid by rendering layered triangle strips at the correct resolution
-        - the output is a 3d texture of collision voxels (booleans as alpha values)
-
-
-    */
-   
-
-    // volumetric lighting pipeline
-    /*
-      before running fragment shader, take a low resolution picture of the scene with depth values
-    */
-  
-  
   },
 
   loadTexture: (gl, texture, canvas) => {
@@ -1039,87 +1040,103 @@ var webgl = {
 
     // ---------------- RENDER SHADOW TEXTURE ---------------- //
 
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.depthFramebuffer)
-    this.gl.viewport(0, 0, this.settings.shadowMapResolution, this.settings.shadowMapResolution)
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+    if (this.settings.shadows) {
+      
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.depthFramebuffer)
+      this.gl.viewport(0, 0, this.settings.shadowMapResolution, this.settings.shadowMapResolution)
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
 
-    this.gl.useProgram(this.shadowProgram);
+      this.gl.useProgram(this.shadowProgram);
 
 
-    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.shadowProgram, "tMatrix"), false, shadowTMatrix);
-    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.shadowProgram, "pMatrix"), false, shadowPMatrix);
+      this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.shadowProgram, "tMatrix"), false, shadowTMatrix);
+      this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.shadowProgram, "pMatrix"), false, shadowPMatrix);
 
-    this.drawModels({
-      mMatrix: this.gl.getUniformLocation(this.shadowProgram, "mMatrix"),
-      walkCycle: this.gl.getUniformLocation(this.shadowProgram, "uWalkCycle"),
-      crouchValue: this.gl.getUniformLocation(this.shadowProgram, "uCrouchValue"),
-      lean: this.gl.getUniformLocation(this.shadowProgram, "uLean"),
-      scale: this.gl.getUniformLocation(this.shadowProgram, "uScale"),
-      offset: this.gl.getUniformLocation(this.shadowProgram, "uOffset")
-    }, {
-      endWithTransparent: true
-    })
-
+      this.drawModels({
+        mMatrix: this.gl.getUniformLocation(this.shadowProgram, "mMatrix"),
+        walkCycle: this.gl.getUniformLocation(this.shadowProgram, "uWalkCycle"),
+        crouchValue: this.gl.getUniformLocation(this.shadowProgram, "uCrouchValue"),
+        lean: this.gl.getUniformLocation(this.shadowProgram, "uLean"),
+        scale: this.gl.getUniformLocation(this.shadowProgram, "uScale"),
+        offset: this.gl.getUniformLocation(this.shadowProgram, "uOffset")
+      }, {
+        endWithTransparent: true
+      })
+      
+    }
 
 
 
     // ---------------- RENDER VOLUMETRIC TEXTURE ---------------- //
 
 
-    this.gl.clearColor(1, 1, 1, 1);
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.volumetricFramebuffer)
-    this.gl.viewport(0, 0, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution)
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-    
+    if (this.settings.volumetricLighting) {
+      
+      this.gl.clearColor(1, 1, 1, 1);
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.volumetricFramebuffer)
+      this.gl.viewport(0, 0, this.settings.volumetricMapResolution, this.settings.volumetricMapResolution)
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+      
 
-    this.gl.useProgram(this.volumetricProgram);
+      this.gl.useProgram(this.volumetricProgram);
 
 
-    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "tMatrix"), false, tMatrix);
-    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "pMatrix"), false, pMatrix);
-    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "shadowMatrix"), false, shadowMatrix);
-    this.gl.uniform3fv(this.gl.getUniformLocation(this.volumetricProgram, "cPosition"), new Float32Array([camera.position.x, camera.position.y, camera.position.z]));
+      this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "tMatrix"), false, tMatrix);
+      this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "pMatrix"), false, pMatrix);
+      this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "shadowMatrix"), false, shadowMatrix);
+      this.gl.uniform3fv(this.gl.getUniformLocation(this.volumetricProgram, "cPosition"), new Float32Array([camera.position.x, camera.position.y, camera.position.z]));
 
-    this.gl.activeTexture(this.gl.TEXTURE0)
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.depthTexture)
-    this.gl.uniform1i(this.gl.getUniformLocation(this.volumetricProgram, "uShadowSampler"), 0)
+      this.gl.activeTexture(this.gl.TEXTURE0)
+      this.gl.bindTexture(this.gl.TEXTURE_2D, this.depthTexture)
+      this.gl.uniform1i(this.gl.getUniformLocation(this.volumetricProgram, "uShadowSampler"), 0)
 
-    this.drawModels({
-      mMatrix: this.gl.getUniformLocation(this.volumetricProgram, "mMatrix"),
-      walkCycle: this.gl.getUniformLocation(this.volumetricProgram, "uWalkCycle"),
-      crouchValue: this.gl.getUniformLocation(this.volumetricProgram, "uCrouchValue"),
-      lean: this.gl.getUniformLocation(this.volumetricProgram, "uLean"),
-      scale: this.gl.getUniformLocation(this.volumetricProgram, "uScale"),
-      offset: this.gl.getUniformLocation(this.volumetricProgram, "uOffset")
-    }, {
-      endWithTransparent: true,
-      excludeTransparentModels: true
-    })
+      this.drawModels({
+        mMatrix: this.gl.getUniformLocation(this.volumetricProgram, "mMatrix"),
+        walkCycle: this.gl.getUniformLocation(this.volumetricProgram, "uWalkCycle"),
+        crouchValue: this.gl.getUniformLocation(this.volumetricProgram, "uCrouchValue"),
+        lean: this.gl.getUniformLocation(this.volumetricProgram, "uLean"),
+        scale: this.gl.getUniformLocation(this.volumetricProgram, "uScale"),
+        offset: this.gl.getUniformLocation(this.volumetricProgram, "uOffset")
+      }, {
+        endWithTransparent: true,
+        excludeTransparentModels: true
+      })
 
-    this.calculateFogOpacity(deltaTime)
+      this.calculateFogOpacity(deltaTime)
+
+    }
     
     // ---------------- SKYBOX RENDER ---------------- //
 
-    this.gl.clearColor(0.75, 0.8, 1, 1);
+    if (!this.settings.volumetricLighting) this.gl.clearColor(0.75, 0.8, 1, 1);
+    else this.gl.clearColor(
+      0.75 + .6 * this.settings.fogColorR * this.fogOpacity, 
+      0.8 + .6 * this.settings.fogColorG * this.fogOpacity, 
+      1 + .6 * this.settings.fogColorB * this.fogOpacity, 
+      1
+    );
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null)
     this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
 
+    if (this.settings.skybox) {
+      
+      this.gl.useProgram(this.skyboxProgram);
 
-    this.gl.useProgram(this.skyboxProgram);
 
+      this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.skyboxTexture)
+      this.gl.uniform1i(this.gl.getUniformLocation(this.skyboxProgram, "skybox"), 0)
 
-    this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.skyboxTexture)
-    this.gl.uniform1i(this.gl.getUniformLocation(this.skyboxProgram, "skybox"), 0)
+      this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.skyboxProgram, "matrix"), false, sMatrix);
+      this.gl.activeTexture(this.gl.TEXTURE1)
+      this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
+      this.gl.uniform1i(this.gl.getUniformLocation(this.skyboxProgram, "uVolumetricSampler"), 1)
+      this.gl.uniform1f(this.gl.getUniformLocation(this.skyboxProgram, "uFogOpacity"), this.fogOpacity)
 
-    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.skyboxProgram, "matrix"), false, sMatrix);
-    this.gl.activeTexture(this.gl.TEXTURE1)
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
-    this.gl.uniform1i(this.gl.getUniformLocation(this.skyboxProgram, "uVolumetricSampler"), 1)
-    this.gl.uniform1f(this.gl.getUniformLocation(this.skyboxProgram, "uFogOpacity"), this.fogOpacity)
+      this.gl.drawArrays(this.gl.TRIANGLES, 0, 6)
 
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, 6)
+    }
 
 
 
@@ -1162,7 +1179,7 @@ var webgl = {
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uVolumetricSampler"), 3)
 
-    this.drawModels({
+    if (!this.settings.heaven) this.drawModels({
       mMatrix: this.gl.getUniformLocation(this.program, "mMatrix"),
       mnMatrix: this.gl.getUniformLocation(this.program, "mnMatrix"),
       walkCycle: this.gl.getUniformLocation(this.program, "uWalkCycle"),
@@ -2168,7 +2185,6 @@ class Player extends PhysicalObject {
 class Weapon extends PhysicalObject {
   static gravity = 0.00001
   constructor(geometryInfos, type, collidableObjects, owner) {
-    console.log(geometryInfos)
     super(0, 0, 0, 0, 0, { mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25 }, collidableObjects)
 
     this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
@@ -2348,7 +2364,7 @@ class Weapon extends PhysicalObject {
       }
     }
     this.particleSpawnCounter++
-    if (webgl.settings.particlesEffects && this.particleSpawnCounter % 1 == 0 && this.shooted) for (let i = 0; i < 2; i++) new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
+    if (webgl.settings.particles && this.particleSpawnCounter % 1 == 0 && this.shooted) for (let i = 0; i < 2; i++) new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
   }
 
 
