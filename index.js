@@ -71,7 +71,7 @@ var weaponGeometry = {
   olive: {path: "weapons/low_poly_olive.obj"},
   pickle: {path: "weapons/small_horizontal_cylinder.obj"},
   sausage: {path: "weapons/sausage.obj"},
-  pan: {path: "weapons/fryingpan.obj"},
+  pan: {path: "weapons/lowpolyfryingpanwith_meat_.obj"},
   anchovy: {path: "weapons/anchovy_terrible.obj"},
   meatball: {path: "weapons/meatball.obj"}
 }
