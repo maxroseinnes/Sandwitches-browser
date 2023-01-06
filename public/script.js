@@ -497,15 +497,17 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 })
 
 socket.on("weaponStatesRequest", (recipientId) => {
-    console.log("weapon states")
     var weaponStates = {}
     for (var id in player.weapons) {
         if (player.weapons[id].shooted) {
+            console.log(player.weapons[id].position)
             weaponStates[id] = {
                 position: {
                     x: player.weapons[id].position.x,
                     y: player.weapons[id].position.y,
-                    z: player.weapons[id].position.z
+                    z: player.weapons[id].position.z,
+                    yaw: player.weapons[id].yaw,
+                    pitch: player.weapons[id].pitch
                 },
                 velocity: {
                     x: player.weapons[id].velocity.x,
@@ -527,12 +529,14 @@ socket.on("weaponStatesRequest", (recipientId) => {
 socket.on("weaponStates", (data) => {
     console.log("test")
     for (let id in data.weaponData) {
+        console.log(weaponGeometry)
         otherWeapons[id] = new Weapon(weaponGeometry, data.weaponData[id].type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId])
         otherWeapons[id].position = data.weaponData[id].position
         otherWeapons[id].velocity = data.weaponData[id].velocity
         otherWeapons[id].shooted = true
         otherWeapons[id].shootSoundEffect.play()
         otherPlayers[data.ownerId].weapons.push(otherWeapons[id])
+        otherPlayers[data.ownerId].cooldownTimer = otherPlayers[data.ownerId].currentCooldown
     }
 })
 
@@ -900,7 +904,7 @@ function fixedUpdate() {
         if (otherWeapons[id].shooted) {
             otherWeapons[id].calculatePosition(deltaTime, socket)
 
-            if (Math.abs(otherWeapons[id].position.x) > 50 || Math.abs(otherWeapons[id].position.z) > 50) {
+            if (Math.abs(otherWeapons[id].position.x) > 50 || Math.abs(otherWeapons[id].position.z) > 50 || Math.abs(otherWeapons[id].position.y) > 1000) {
                 otherWeapons[id].remove()
                 otherWeapons[id] = null
             }
@@ -1164,6 +1168,42 @@ for (let i = 0; i < keyBindSelectors.length; i++) {
     keyBindSelectors[i].value = keyBinds[keyBind].code
     keyBindSelectors[i].onmouseenter = () => { keyBinds[keyBind].selecting = true }
     keyBindSelectors[i].onmouseleave = () => { keyBinds[keyBind].selecting = false }
+}
+
+var overallGraphicsSelector = document.getElementById("overallGraphics")
+overallGraphicsSelector.onchange = () => {
+    switch (overallGraphicsSelector.value) {
+        case "low":
+            webgl.settings.skybox = true
+            webgl.settings.specularLighting = false
+            webgl.settings.shadows = false
+            webgl.settings.particles = false
+            webgl.settings.volumetricLighting = false
+            break
+        case "medium":
+            webgl.settings.skybox = true
+            webgl.settings.specularLighting = true
+            webgl.settings.shadows = true
+            webgl.settings.particles = true
+            webgl.settings.volumetricLighting = false
+            break
+        case "high":
+            webgl.settings.skybox = true
+            webgl.settings.specularLighting = true
+            webgl.settings.shadows = true
+            webgl.settings.particles = true
+            webgl.settings.volumetricLighting = true
+            break
+    }
+    webgl.initializeShaders()
+}
+
+var settingsCheckboxes = document.getElementsByClassName("settingsCheckbox")
+for (let i = 0; i < settingsCheckboxes.length; i++) {
+    settingsCheckboxes[i].onchange = () => {
+        webgl.settings[settingsCheckboxes[i].id] = settingsCheckboxes[i].checked
+        webgl.initializeShaders()
+    }
 }
 
 

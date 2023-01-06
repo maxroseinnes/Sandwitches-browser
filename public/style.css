@@ -166,11 +166,11 @@ input[type=text] {
 }
 
 #settings {
-    top: calc(50% + 150px);
+    top: calc(50% + 50px);
     left: calc(50% - 500px);
 
     width: 1000px;
-    height: 200px;
+    height: 300px;
 
     display: none;
 }
@@ -206,7 +206,7 @@ input[type=text] {
 
     padding: 20px;
 
-    background-color: rgba(0, 0, 0, .1);
+    background-color: rgba(0, 0, 0, 0.5);
 
     font-size: 17px;
     color: white;
