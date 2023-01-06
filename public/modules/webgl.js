@@ -2058,6 +2058,7 @@ class Player extends PhysicalObject {
     this.weapons = []
     this.currentWeaponType
     this.inventory = {}
+    this.killCount = 0
 
     this.cooldownTimer = 0
     this.currentCooldown = 1
@@ -2101,7 +2102,7 @@ class Player extends PhysicalObject {
 
   }
 
-  calculatePosition(deltaTime) {
+  calculatePosition(deltaTime, headBumpNoise) {
     this.lastVelocity = { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z}
 
     this.velocity.y -= Player.gravity * deltaTime // subtract by gravitational constant (units/frames^2)
@@ -2111,7 +2112,6 @@ class Player extends PhysicalObject {
 
 
     this.onGround = false
-    this.hittingHead = false
 
     if (this.movementState == "walking" || this.movementState == "sprinting") this.dimensions = {
       mx: -.75,
@@ -2145,7 +2145,12 @@ class Player extends PhysicalObject {
         if (collision.my.intersects) {
           this.position.y = collision.my.y
           this.velocity.y = 0
+          if (!this.hittingHead) {
+            headBumpNoise.play()
+          }
           this.hittingHead = true
+        } else {
+          this.hittingHead = false
         }
         if (collision.mx.intersects) {
           this.position.x = collision.mx.x
@@ -2314,8 +2319,6 @@ class Weapon extends PhysicalObject {
   }
 
   calculatePosition(deltaTime, socket) {
-
-
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((this.owner.currentCooldown - this.owner.cooldownTimer) / this.owner.currentCooldown - 1)) + 1) / 2
     if (!this.shooted) {
       this.models.main.scale = this.scale * distanceFromPlayer / 2

@@ -137,6 +137,7 @@ const splatNoise = new Audio("./assets/wet_wriggling_noises/cartoon-splat-6086.m
 const jumpNoise = new Audio("./assets/wet_wriggling_noises/smb_jump-super.wav")
 const pauseNoise = new Audio("./assets/wet_wriggling_noises/smb_pause.wav")
 const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
+const headBumpNoise = new Audio("./assets/wet_wriggling_noises/head_bump.wav")
 
 var setVolume = () => {
     backgroundNoises.volume = .5 * volume
@@ -494,6 +495,10 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 
         addPlayerToHUD(id, otherPlayersInfo[id].name)
     }
+})
+
+socket.on("leaderboard", (leaderboard) => {
+    console.log(leaderboard)
 })
 
 socket.on("weaponStatesRequest", (recipientId) => {
@@ -881,7 +886,7 @@ function fixedUpdate() {
     }
 
 
-    player.calculatePosition(deltaTime)
+    player.calculatePosition(deltaTime, headBumpNoise)
 
     if (!player.lastOnGround && player.onGround) {
         let splatVolume = Math.abs(player.lastVelocity.y) * 50 - .75
