@@ -1,4 +1,4 @@
-
+// npm install express, http, socket.io, ip, fs
 const express = require("express");
 const app = express();
 const http = require("http");
@@ -11,7 +11,6 @@ const localhost = false;
 const port = 3000;
 
 const DEFAULT_PLAYER_HEALTH = 100
-
 
 
 
@@ -71,7 +70,7 @@ var weaponGeometry = {
   olive: {path: "weapons/low_poly_olive.obj"},
   pickle: {path: "weapons/small_horizontal_cylinder.obj"},
   sausage: {path: "weapons/sausage.obj"},
-  pan: {path: "weapons/fryingpan.obj"},
+  pan: {path: "weapons/lowpolyfryingpanwith_meat_.obj"},
   anchovy: {path: "weapons/anchovy_terrible.obj"},
   meatball: {path: "weapons/meatball.obj"}
 }
@@ -414,6 +413,8 @@ class Room {
   mapData = {}
   players = {}
   weapons = {}
+  leaderboard = []
+
   constructor(mapData) {
     this.mapData = mapData
 
@@ -423,6 +424,11 @@ class Room {
   addPlayer(socket, assignedId) { // this gets called when a player joins this room
     socket.emit("map", this.mapData);
 
+    this.leaderboard.push({
+      id: assignedId, 
+      killCount: 0
+    })
+
     let otherPlayersInfo = {}; // compile other players info into an object to send to the new player
     for (let id in this.players) {
       if (this.players[id] != null) otherPlayersInfo[id] = { name: this.players[id].name, position: this.players[id].position, state: this.players[id].state, currentWeaponType: this.players[id].currentWeaponType };
@@ -430,6 +436,7 @@ class Room {
     socket.emit("otherPlayers", otherPlayersInfo);
 
     this.broadcast("weaponStatesRequest", assignedId, null)
+    this.sendLeaderboard()
 
     let nameIndex = Math.floor(Math.random() * availableNames.length)
     let name = availableNames[nameIndex]
@@ -495,6 +502,7 @@ class Room {
         this.players[hitInfo.target].health = newHealth
         //console.log("health: " + newHealth)
       } else {
+        this.players[hitInfo.from].killCount++
         let deathMessage = this.players[hitInfo.target].name + " was killed by " + this.players[hitInfo.from].name
         this.broadcast("chatMessage", deathMessage, null)
         this.respawnPlayer(hitInfo.target)
@@ -618,7 +626,45 @@ class Room {
     }
   }
 
-  timeOfLastTick
+  sendLeaderboard() {
+    let killCounts = [this.players.length]
+    var ids = Object.keys(this.players)
+    for (let i = 0; i < killCounts.length; i++) {
+      killCounts[i] = {
+        id: ids[i],
+        killCount: this.players[ids[i]].killCount
+      }
+    }
+  
+    function quickSort(arr) {
+      if (arr.length <= 1) { 
+        return arr;
+      } else {
+        var left = [];
+        var right = [];
+        var newArr = [];
+        var pivot = arr.pop();
+    
+        for (var i = 0; i < arr.length; i++) {
+          if (arr[i].killCount <= pivot.killCount) {
+            left.push(arr[i]);
+          } else {
+            right.push(arr[i]);
+          }
+        }
+    
+        return newArr.concat(quickSort(left), pivot, quickSort(right));
+      }
+    }
+
+    killCounts = quickSort(killCounts)
+    console.log(killCounts)
+  
+    this.broadcast("leaderboard", killCounts, null)
+  }
+
+
+
   tick() {
     // Compile player data into an array
     let playersData = {}
