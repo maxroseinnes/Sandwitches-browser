@@ -1170,7 +1170,17 @@ for (let i = 0; i < keyBindSelectors.length; i++) {
     keyBindSelectors[i].onmouseleave = () => { keyBinds[keyBind].selecting = false }
 }
 
+var settingsCheckboxes = document.getElementsByClassName("settingsCheckbox")
 var overallGraphicsSelector = document.getElementById("overallGraphics")
+
+for (let i = 0; i < settingsCheckboxes.length; i++) {
+    settingsCheckboxes[i].onchange = () => {
+        webgl.settings[settingsCheckboxes[i].id] = settingsCheckboxes[i].checked
+        webgl.initializeShaders()
+        overallGraphicsSelector.value = "custom"
+    }
+}
+
 overallGraphicsSelector.onchange = () => {
     switch (overallGraphicsSelector.value) {
         case "low":
@@ -1195,15 +1205,14 @@ overallGraphicsSelector.onchange = () => {
             webgl.settings.volumetricLighting = true
             break
     }
-    webgl.initializeShaders()
-}
 
-var settingsCheckboxes = document.getElementsByClassName("settingsCheckbox")
-for (let i = 0; i < settingsCheckboxes.length; i++) {
-    settingsCheckboxes[i].onchange = () => {
-        webgl.settings[settingsCheckboxes[i].id] = settingsCheckboxes[i].checked
-        webgl.initializeShaders()
+    for(let i = 0; i < settingsCheckboxes.length; i++) {
+        for (let setting in webgl.settings) {
+            if (settingsCheckboxes[i].id == setting) settingsCheckboxes[i].checked = webgl.settings[setting]
+        }
     }
+
+    webgl.initializeShaders()
 }
 
 
