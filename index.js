@@ -632,7 +632,7 @@ class Room {
     for (let i = 0; i < killCounts.length; i++) {
       killCounts[i] = {
         id: ids[i],
-        killCount: this.players[ids[i]].killCount
+        //killCount: this.players[ids[i]].killCount
       }
     }
   
