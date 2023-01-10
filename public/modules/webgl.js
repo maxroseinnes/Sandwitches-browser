@@ -1596,7 +1596,7 @@ class Model {
 
 
 class PhysicalObject {
-  constructor(x, y, z, yaw, lean, dimensions, collidableObjects) {
+  constructor(x, y, z, yaw, lean, dimensions, collisionType, collidableObjects) {
     this.position = { // world position
       x: x,
       y: y,
@@ -1637,6 +1637,8 @@ class PhysicalObject {
     ]
     // dimensions used for collision
     this.dimensions = dimensions
+
+    this.collisionType = collisionType
 
     this.models = {}
 
@@ -1836,6 +1838,61 @@ class PhysicalObject {
     return collision
   }
 
+  newCollision(parent) {
+    let dimensions = parent.dimensions
+
+    if (parent.collisionType == "sphere" && this.collisionType == "orientedBox") {
+      if (dimensions == null) dimensions = {
+        center: [0, 0, 0],
+        radius: 1
+      }
+      console.log(dimensions)
+
+      return
+    }
+
+
+    if (dimensions == null) dimensions = {
+      mx: 0,
+      px: 0,
+      my: 0,
+      py: 0,
+      mz: 0,
+      pz: 0
+    }
+
+    let mx = this.position.x + this.dimensions.mx - dimensions.px
+    let px = this.position.x + this.dimensions.px - dimensions.mx
+    let my = this.position.y + this.dimensions.my - dimensions.py
+    let py = this.position.y + this.dimensions.py - dimensions.my
+    let mz = this.position.z + this.dimensions.mz - dimensions.pz
+    let pz = this.position.z + this.dimensions.pz - dimensions.mz
+
+    if (
+      mx < parent.position.x && parent.position.x < px && 
+      my < parent.position.y && parent.position.y < py && 
+      mz < parent.position.z && parent.position.z < pz
+    ) {
+
+      let closestSideDistance = Math.abs(parent.position.x - mx)
+      let closestSideName = "mx"
+      if (Math.abs(parent.position.x - px) < closestSideDistance) {closestSideDistance = Math.abs(parent.position.x - px); closestSideName = "px"}
+      if (Math.abs(parent.position.y - my) < closestSideDistance) {closestSideDistance = Math.abs(parent.position.y - my); closestSideName = "my"}
+      if (Math.abs(parent.position.y - py) < closestSideDistance) {closestSideDistance = Math.abs(parent.position.y - py); closestSideName = "py"}
+      if (Math.abs(parent.position.z - mz) < closestSideDistance) {closestSideDistance = Math.abs(parent.position.z - mz); closestSideName = "mz"}
+      if (Math.abs(parent.position.z - pz) < closestSideDistance) {closestSideDistance = Math.abs(parent.position.z - pz); closestSideName = "pz"}
+      
+      if (closestSideName == "mx") {parent.position.x = mx; parent.velocity.x = 0; headBumpNoise.play()}
+      if (closestSideName == "px") {parent.position.x = px; parent.velocity.x = 0}
+      if (closestSideName == "my") {parent.position.y = my; parent.velocity.y = 0}
+      if (closestSideName == "py") {parent.position.y = py; parent.velocity.y = 0}
+      if (closestSideName == "mz") {parent.position.z = mz; parent.velocity.z = 0}
+      if (closestSideName == "pz") {parent.position.z = pz; parent.velocity.z = 0}
+
+    }
+    
+  }
+
   remove() {
     for (let modelName in this.models) {
       this.models[modelName].delete()
@@ -1952,7 +2009,7 @@ class GamerTag {
 class Particle extends PhysicalObject {
   static allParticles = []
   constructor(texture, x, y, z, movementVector, lifeSpan, collidableObjects) {
-    super(x, y, z, 0, 0, { mx: -.1, px: .1, my: -.1, py: .1, mz: -.1, pz: .1 }, collidableObjects)
+    super(x, y, z, 0, 0, { mx: -.1, px: .1, my: -.1, py: .1, mz: -.1, pz: .1 }, "none", collidableObjects)
     Particle.allParticles.push(this)
 
     this.texture = texture
@@ -2043,7 +2100,7 @@ class Player extends PhysicalObject {
   static jumpForce = 0.015
 
   constructor(geometries, x, y, z, yaw, lean, health, id, name, collidableObjects) {
-    super(x, y, z, yaw, lean, { mx: -.75, px: .75, my: 0, py: 2, mz: -.75, pz: .75 }, collidableObjects)
+    super(x, y, z, yaw, lean, {center: [0, 1, 0], radius: .75}, "sphere", collidableObjects)
 
     this.gamerTag = new GamerTag(name)
 
@@ -2113,6 +2170,7 @@ class Player extends PhysicalObject {
 
     this.onGround = false
 
+    /*
     if (this.movementState == "walking" || this.movementState == "sprinting") this.dimensions = {
       mx: -.75,
       px: .75,
@@ -2129,14 +2187,15 @@ class Player extends PhysicalObject {
       mz: -.75,
       pz: .75
     }
-
+*/
 
     // calculate collisions
     let movement = this.calculateSlopes()
     for (let i = 0; i < this.collidableObjects.length; i++) {
       for (let j in this.collidableObjects[i]) {
         if (this.collidableObjects[i][j] == null) continue
-        let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
+        if (this.collidableObjects[i][j] instanceof PhysicalObject) this.collidableObjects[i][j].newCollision(this)
+        /*let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
         if (collision.py.intersects) {
           this.position.y = collision.py.y
           this.velocity.y = 0
@@ -2167,7 +2226,7 @@ class Player extends PhysicalObject {
         if (collision.pz.intersects) {
           this.position.z = collision.pz.z
           if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
-        }
+        }*/
       }
     }
 
@@ -2196,7 +2255,7 @@ class Player extends PhysicalObject {
 class Weapon extends PhysicalObject {
   static gravity = 0.00001
   constructor(geometryInfos, type, collidableObjects, owner) {
-    super(0, 0, 0, 0, 0, { mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25 }, collidableObjects)
+    super(0, 0, 0, 0, 0, { mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25 }, "sphere", collidableObjects)
 
     this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
     this.shootSoundEffect.currentTime = 0.25
@@ -2419,7 +2478,7 @@ class Weapon extends PhysicalObject {
 
 class Platform extends PhysicalObject {
   constructor(geometryInfo, type, x, y, z, scale) {
-    super(x, y, z, 0, 0, { mx: 0, px: 0, my: 0, py: 0, mz: 0, pz: 0 })
+    super(x, y, z, 0, 0, { mx: 0, px: 0, my: 0, py: 0, mz: 0, pz: 0 }, "orientedBox")
     this.scale = scale || 1
 
     if (geometryInfo) {
