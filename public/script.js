@@ -500,14 +500,20 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 
 
 
-socket.on("leaderboard", (leaderboard_) => {
-    var leaderboardList = document.getElementById("roomInfo").getElementsByTagName("ol")
+socket.on("leaderboard", (leaderboardInfo) => {
+    var leaderboardList = document.getElementById("leaderboard")
+    console.log(leaderboard)
    
+    console.log(leaderboardInfo)
     // Need to make the list order itself every time
-    for (let i = 0; i < leaderboard_.length; i++) {
-        if (otherPlayers[leaderboard_[i].id].name && leaderboard[leaderboard_[i].id]) {
-            leaderboard[leaderboard_[i].id].textContent = otherPlayers[leaderboard_[i].id].name + ": " + leaderboard_[i].killCount + " 💀"
-        }
+    for (let i = 0; i < leaderboardInfo.length; i++) {
+        let playerInfo = leaderboardInfo[i]
+            console.log("test")
+
+        if (!otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) continue
+        console.log("test")
+        console.log(playerInfo.id)
+        changePlayerStringInHUD(playerInfo.id, otherPlayers[playerInfo.id].name + ": " + playerInfo.killCount + " 💀")
     }
 })
 
@@ -558,6 +564,7 @@ socket.on("weaponStates", (data) => {
 socket.on("newPlayer", (player) => {
     displayChatMessage(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
+    console.log((otherPlayers[player.id] ? "true" : "false") + " :ALKSJFD:KLDJSGf")
     console.log(otherPlayers[player.id])
     addPlayerToHUD(player.id, player.name)
 })

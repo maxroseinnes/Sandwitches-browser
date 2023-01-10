@@ -391,7 +391,7 @@ var maps = {
   testMap: {
     floorTexture: "",
     platforms: [],
-    mapFile: "full starting map extra cool version.obj"
+    mapFile: "full_starting_map (3).obj"
   }
 
 
@@ -424,19 +424,23 @@ class Room {
   addPlayer(socket, assignedId) { // this gets called when a player joins this room
     socket.emit("map", this.mapData);
 
-    /*this.leaderboard.push({
+    /* this.leaderboard.push({
       id: assignedId, 
       killCount: 0
-    })*/
+    }) */
 
     let otherPlayersInfo = {}; // compile other players info into an object to send to the new player
     for (let id in this.players) {
-      if (this.players[id] != null) otherPlayersInfo[id] = { name: this.players[id].name, position: this.players[id].position, state: this.players[id].state, currentWeaponType: this.players[id].currentWeaponType };
+      if (this.players[id] != null) otherPlayersInfo[id] = { 
+        name: this.players[id].name, 
+        position: this.players[id].position, 
+        state: this.players[id].state, 
+        currentWeaponType: this.players[id].currentWeaponType 
+      };
     }
     socket.emit("otherPlayers", otherPlayersInfo);
 
     this.broadcast("weaponStatesRequest", assignedId, null)
-    
 
     let nameIndex = Math.floor(Math.random() * availableNames.length)
     let name = availableNames[nameIndex]
@@ -456,7 +460,7 @@ class Room {
       socket: socket
     }
 
-    this.sendLeaderboard()
+    //this.sendLeaderboard()
 
     // Send the needed info for the new client to generate their player
     socket.emit("assignPlayer", {
@@ -466,7 +470,6 @@ class Room {
       health: DEFAULT_PLAYER_HEALTH,
       state: state
     });
-
 
     socket.emit("startTicking", TPS)
 
@@ -509,7 +512,6 @@ class Room {
         this.players[hitInfo.from].killCount++
         let deathMessage = this.players[hitInfo.target].name + " was killed by " + this.players[hitInfo.from].name
         this.broadcast("chatMessage", deathMessage, null)
-        this.sendLeaderboard()
         this.respawnPlayer(hitInfo.target)
       }
     })
@@ -632,17 +634,19 @@ class Room {
   }
 
   sendLeaderboard() {
-    let killCounts = [this.players.length]
-    var ids = Object.keys(this.players)
-    for (let i = 0; i < killCounts.length; i++) {
-      killCounts[i] = {
+    let ids = Object.keys(this.players)
+    let killCounts = []
+
+    for (let i = 0; i < ids.length; i++) {
+      console.log(ids[i])
+      killCounts.push({
         id: ids[i],
-        name: this.players[ids[i]].name,
         killCount: this.players[ids[i]].killCount
-      }
+      })
     }
+
+    console.log(killCounts)
   
-    // probably inefficient to do this every time but whatever
     function quickSort(arr) {
       if (arr.length <= 1) { 
         return arr;
@@ -665,14 +669,13 @@ class Room {
     }
 
     killCounts = quickSort(killCounts)
-    console.log(killCounts)
+    //console.log(killCounts.length)
   
     this.broadcast("leaderboard", killCounts, null)
-    //console.log("send leaderboard")
   }
 
 
-
+  ticks = 0
   tick() {
     // Compile player data into an array
     let playersData = {}
@@ -682,12 +685,16 @@ class Room {
 
     // Send array to each connected player
     this.broadcast("playerUpdate", playersData, null)
+    if (this.ticks % TPS == 0) {
+      this.sendLeaderboard()
+    }
 
     if (this.timeOfLastTick != undefined) {
       //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
     }
 
     this.timeOfLastTick = new Date().getTime();
+    this.ticks++
   }
 
 }
