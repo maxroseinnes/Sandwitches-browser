@@ -127,7 +127,7 @@ input[type=text] {
     font-size: 15px;
 
     width: 300px;
-    //height: 250px;
+    /*height: 250px;*/
 
     background-color: rgba(255, 255, 255, .875);
     box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, .15);
@@ -214,15 +214,17 @@ input[type=text] {
 
 #roomInfo {
     position: absolute;
-    top: 0px;
+    top: 20px;
     right: 20px;
 
     padding: 20px;
     padding-left: 50px;
+    padding-right: 50px;
 
-    background-color: rgba(0, 0, 0, .1);
+    background-color: rgba(0, 0, 0, .5);
 
     font-size: 17px;
+    text-align: left;
     color: white;
 }
 

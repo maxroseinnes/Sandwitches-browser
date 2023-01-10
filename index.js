@@ -424,10 +424,10 @@ class Room {
   addPlayer(socket, assignedId) { // this gets called when a player joins this room
     socket.emit("map", this.mapData);
 
-    this.leaderboard.push({
+    /*this.leaderboard.push({
       id: assignedId, 
       killCount: 0
-    })
+    })*/
 
     let otherPlayersInfo = {}; // compile other players info into an object to send to the new player
     for (let id in this.players) {
@@ -436,7 +436,7 @@ class Room {
     socket.emit("otherPlayers", otherPlayersInfo);
 
     this.broadcast("weaponStatesRequest", assignedId, null)
-    this.sendLeaderboard()
+    
 
     let nameIndex = Math.floor(Math.random() * availableNames.length)
     let name = availableNames[nameIndex]
@@ -452,8 +452,11 @@ class Room {
       position: position,
       health: DEFAULT_PLAYER_HEALTH,
       state: state,
+      killCount: 0,
       socket: socket
     }
+
+    this.sendLeaderboard()
 
     // Send the needed info for the new client to generate their player
     socket.emit("assignPlayer", {
@@ -463,6 +466,7 @@ class Room {
       health: DEFAULT_PLAYER_HEALTH,
       state: state
     });
+
 
     socket.emit("startTicking", TPS)
 
@@ -505,6 +509,7 @@ class Room {
         this.players[hitInfo.from].killCount++
         let deathMessage = this.players[hitInfo.target].name + " was killed by " + this.players[hitInfo.from].name
         this.broadcast("chatMessage", deathMessage, null)
+        this.sendLeaderboard()
         this.respawnPlayer(hitInfo.target)
       }
     })
@@ -632,10 +637,12 @@ class Room {
     for (let i = 0; i < killCounts.length; i++) {
       killCounts[i] = {
         id: ids[i],
-        //killCount: this.players[ids[i]].killCount
+        name: this.players[ids[i]].name,
+        killCount: this.players[ids[i]].killCount
       }
     }
   
+    // probably inefficient to do this every time but whatever
     function quickSort(arr) {
       if (arr.length <= 1) { 
         return arr;
@@ -661,6 +668,7 @@ class Room {
     console.log(killCounts)
   
     this.broadcast("leaderboard", killCounts, null)
+    //console.log("send leaderboard")
   }
 
 

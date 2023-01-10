@@ -72,6 +72,7 @@ var lobbyId
 var socket = io();
 var otherPlayers = {};
 var otherWeapons = {}
+var leaderboard = {}
 
 
 // Local global variables //
@@ -279,23 +280,23 @@ function closeChatbox() {
 
 
 
-var playerInfo = document.getElementById("roomInfo")
-var playerInfos = {}
+var leaderboardList = document.getElementById("leaderboard")
+//var playerInfos = {}
 
 function addPlayerToHUD(id, name) {
-    playerInfos[id] = document.createElement("li")
+    leaderboard[id] = document.createElement("li")
 
-    playerInfos[id].textContent = name
-    playerInfo.appendChild(playerInfos[id])
+    leaderboard[id].textContent = name
+    leaderboardList.appendChild(leaderboard[id])
 }
 
-function changePlayerNameInHUD(id, newName) {
-    playerInfos[id].textContent = newName
+function changePlayerStringInHUD(id, string) {
+    leaderboard[id].textContent = string
 }
 
 function removePlayerFromHUD(id) {
-    playerInfos[id].remove()
-    delete playerInfos[id]
+    leaderboard[id].remove()
+    delete leaderboard[id]
 }
 
 
@@ -497,8 +498,17 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
     }
 })
 
-socket.on("leaderboard", (leaderboard) => {
-    console.log(leaderboard)
+
+
+socket.on("leaderboard", (leaderboard_) => {
+    var leaderboardList = document.getElementById("roomInfo").getElementsByTagName("ol")
+   
+    // Need to make the list order itself every time
+    for (let i = 0; i < leaderboard_.length; i++) {
+        if (otherPlayers[leaderboard_[i].id].name && leaderboard[leaderboard_[i].id]) {
+            leaderboard[leaderboard_[i].id].textContent = otherPlayers[leaderboard_[i].id].name + ": " + leaderboard_[i].killCount + " 💀"
+        }
+    }
 })
 
 socket.on("weaponStatesRequest", (recipientId) => {
@@ -611,7 +621,7 @@ socket.on("nameChange", (data) => {
     otherPlayers[data.id].name = data.newName
     otherPlayers[data.id].gamerTag.changeName(data.newName)
 
-    changePlayerNameInHUD(data.id, data.newName)
+    changePlayerStringInHUD(data.id, data.newName)
 
 })
 
@@ -1137,7 +1147,7 @@ startButton.onclick = () => {
         player.gamerTag.changeName(player.name)
         player.lastName = player.name
 
-        changePlayerNameInHUD(player.id, player.name)
+        changePlayerStringInHUD(player.id, player.name)
 
         socket.emit("nameChange", { id: player.id, newName: player.name })
     }
