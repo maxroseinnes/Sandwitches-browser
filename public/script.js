@@ -290,7 +290,7 @@ function addPlayerToHUD(id, name) {
     leaderboardList.appendChild(leaderboard[id])
 }
 
-function changePlayerStringInHUD(id, string) {
+function changePlayerNameInHUD(id, string) {
     leaderboard[id].textContent = string
 }
 
@@ -502,18 +502,41 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 
 socket.on("leaderboard", (leaderboardInfo) => {
     var leaderboardList = document.getElementById("leaderboard")
-    console.log(leaderboard)
+    leaderboardList.innerHTML = ""
    
-    console.log(leaderboardInfo)
+    //console.log(leaderboardInfo)
     // Need to make the list order itself every time
+    /*for (let i = 0; i < leaderboardInfo.length; i++) {
+        let playerInfo = leaderboardInfo[i]
+        
+        if (otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) continue
+
+        console.log(otherPlayers[playerInfo.id]  ? true : false)
+        let name
+        if (playerInfo.id == player.id) {
+            name = player.name
+        } else if (!otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) {
+            continue
+        } else {
+            console.log("test")
+            name = otherPlayers[playerInfo.id].name
+        }
+
+        changePlayerStringInHUD(playerInfo.id, name + ": " + playerInfo.killCount + " 💀")
+    }*/
     for (let i = 0; i < leaderboardInfo.length; i++) {
         let playerInfo = leaderboardInfo[i]
-            console.log("test")
+        let listItem = document.createElement("li")
+        let name
+        console.log(playerInfo.id == player.id)
+        if (playerInfo.id == player.id) {
+            name = player.name
+        } else if (otherPlayers[playerInfo.id] != null) {
+            name = otherPlayers[playerInfo.id].name
+        }
 
-        if (!otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) continue
-        console.log("test")
-        console.log(playerInfo.id)
-        changePlayerStringInHUD(playerInfo.id, otherPlayers[playerInfo.id].name + ": " + playerInfo.killCount + " 💀")
+        listItem.textContent = name + ": " + playerInfo.killCount + " kills 💀💀💀💀💀"
+        leaderboardList.appendChild(listItem)
     }
 })
 
@@ -628,7 +651,7 @@ socket.on("nameChange", (data) => {
     otherPlayers[data.id].name = data.newName
     otherPlayers[data.id].gamerTag.changeName(data.newName)
 
-    changePlayerStringInHUD(data.id, data.newName)
+    changePlayerNameInHUD(data.id, data.newName)
 
 })
 
@@ -1154,7 +1177,7 @@ startButton.onclick = () => {
         player.gamerTag.changeName(player.name)
         player.lastName = player.name
 
-        changePlayerStringInHUD(player.id, player.name)
+        changePlayerNameInHUD(player.id, player.name)
 
         socket.emit("nameChange", { id: player.id, newName: player.name })
     }

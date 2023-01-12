@@ -638,14 +638,14 @@ class Room {
     let killCounts = []
 
     for (let i = 0; i < ids.length; i++) {
-      console.log(ids[i])
+      let id_ = ids[i]
       killCounts.push({
-        id: ids[i],
-        killCount: this.players[ids[i]].killCount
+        id: id_,
+        killCount: this.players[id_].killCount
       })
     }
 
-    console.log(killCounts)
+    //console.log(killCounts)
   
     function quickSort(arr) {
       if (arr.length <= 1) { 
