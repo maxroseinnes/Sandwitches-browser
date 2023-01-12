@@ -314,10 +314,7 @@ var playerGeometry = {
     backSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
     cheese: playerIdleInfo["Cheese"],
     meat: playerIdleInfo["Meat"],
-    tomato1: playerIdleInfo["Tomato"],
-    tomato2: playerIdleInfo["Tomato.001"],
-    tomato3: playerIdleInfo["Tomato.002"],
-    tomato4: playerIdleInfo["Tomato.003"]
+    tomato: obj.parseWavefront(fetchObj("player/playerTomato.obj"), false),
 }
 
 var weaponGeometry = {}

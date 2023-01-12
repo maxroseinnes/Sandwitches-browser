@@ -106,6 +106,12 @@ var webgl = {
       normalMap: "./assets/normalMaps/13060-normal.jpg",
       gloss: 5,
       index: 11
+    },
+    playerTomato: {
+      url: "./assets/textures/PlayerTomatoTex.png",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 5,
+      index: 12
     }
 
 
@@ -1945,7 +1951,12 @@ class PhysicalObject {
 
         parent.velocity[toLetter(closestSide)] = 0
       }
-      else { // corner collision
+      else if (boundedAxes == 1) { // edge collision
+        // find other 2 colliding coordinates
+        
+      }
+      else if (boundedAxes == 0) { // corner collision
+        // find 
       }
 
       
@@ -2196,8 +2207,9 @@ class Player extends PhysicalObject {
 
     this.geometries = geometries
 
-    this.models.frontSlice = new Model(this, geometries.frontSlice, 1, "bread", 0, 1, .15, 0.0)
-    this.models.backSlice = new Model(this, geometries.backSlice, 1, "bread", 0, 1, -.15, 0.0)
+    this.models.frontSlice = new Model(this, geometries.frontSlice, 1, "bread", 0, 1, .5, 0.0)
+    this.models.tomato = new Model(this, geometries.tomato, 1, "playerTomato", 0, 1, 0, 0.0)
+    this.models.backSlice = new Model(this, geometries.backSlice, 1, "bread", 0, 1, -.5, 0.0)
 
     // Stores this player's currently active weapons
     this.weapons = []
