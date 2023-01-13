@@ -1935,12 +1935,16 @@ class PhysicalObject {
         }
       }
 
-      let boundedAxes = 0
+      let boundedAxes = [false, false, false]
+      let boundedAxesCount = 0
       for (let i = 0; i < 3; i++) {
-        if (boxDimensions[0][i] <= sphereCenter[i] && sphereCenter[i] < boxDimensions[1][i]) boundedAxes++
+        if (boxDimensions[0][i] <= sphereCenter[i] && sphereCenter[i] < boxDimensions[1][i]) {
+          boundedAxes[i] = true
+          boundedAxesCount++
+        }
       }
 
-      if (boundedAxes >= 2) {
+      if (boundedAxesCount >= 2) {
         // determine if sphere center is closer to m or p
         if (sphereCenter[closestSide] < centerPointPosition[closestSide]) {
           parent.position[toLetter(closestSide)] = boxDimensions[0][closestSide] - parent.dimensions.center[closestSide] - parent.dimensions.radius
@@ -1951,12 +1955,31 @@ class PhysicalObject {
 
         parent.velocity[toLetter(closestSide)] = 0
       }
-      else if (boundedAxes == 1) { // edge collision
+      else if (boundedAxesCount == 1) { // edge collision
         // find other 2 colliding coordinates
+        console.log("on edge")
+        let correctionCoord = []
+        for (let i = 0; i < 3; i++) {
+          if (boundedAxes[i]) {
+            correctionCoord[i] = sphereCenter[i]
+          }
+          else { // the sphere is not bounded by this axis
+            // calculate where the 
+
+            let direction // determine if sphere center is closer to m or p
+            if (sphereCenter[closestSide] < centerPointPosition[closestSide]) direction = 0
+            else direction = 1
+
+            console.log(toLetter(i), Math.sqrt(1 - Math.pow(boxDimensions[direction][i] - sphereCenter[i], 2)))
+
+            correctionCoord[i] = sphereCenter[i] - Math.sqrt(1 - Math.pow(boxDimensions[direction][i] - sphereCenter[i], 2))
+            parent.position[toLetter(i)] = correctionCoord[i]
+          }
+        }
         
       }
-      else if (boundedAxes == 0) { // corner collision
-        // find 
+      else if (boundedAxesCount == 0) { // corner collision
+        // find closest corner
       }
 
       
