@@ -50,7 +50,7 @@ var webgl = {
     bread: {
       url: "./assets/textures/PlayerBreadTex (1).png",
       normalMap: "./assets/normalMaps/flat.jpeg",
-      gloss: 2,
+      gloss: 0,
       index: 2
     },
     wood: {
@@ -112,6 +112,12 @@ var webgl = {
       normalMap: "./assets/normalMaps/13060-normal.jpg",
       gloss: 5,
       index: 12
+    },
+    playerMeat: {
+      url: "./assets/textures/PlayerMeatTex.png",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 5,
+      index: 13
     }
 
 
@@ -1240,20 +1246,20 @@ var webgl = {
 
         if (parent.position) {
           mat4.translate(mMatrix, mMatrix, [parent.position.x, parent.position.y, parent.position.z]);
+          mat4.rotateZ(mMatrix, mMatrix, -parent.position.roll || 0);
           mat4.rotateY(mMatrix, mMatrix, -parent.position.yaw || 0);
           mat4.rotateX(mMatrix, mMatrix, -parent.position.pitch || 0);
-          mat4.rotateZ(mMatrix, mMatrix, parent.position.roll || 0);
 
+          mat4.rotateZ(mnMatrix, mnMatrix, -parent.position.roll || 0);
           mat4.rotateY(mnMatrix, mnMatrix, -parent.position.yaw || 0);
           mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch || 0);
-          mat4.rotateZ(mnMatrix, mnMatrix, parent.position.roll || 0);
         }
         if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
         if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
 
         if (locations.walkCycle) this.gl.uniform1f(locations.walkCycle, parent.state ? parent.state.walkCycle : 0)
         if (locations.crouchValue) this.gl.uniform1f(locations.crouchValue, parent.state ? parent.state.crouchValue : 0)
-        if (locations.lean) this.gl.uniform1f(locations.lean, parent.position ? parent.position.lean : 0)
+        if (locations.lean) this.gl.uniform1f(locations.lean, parent.position ? parent.position.lean / 2 : 0)
 
         if (locations.scale) this.gl.uniform1f(locations.scale, Model.allModels[i].scale)
         if (locations.offset) this.gl.uniform3fv(locations.offset, new Float32Array([Model.allModels[i].offsetX, Model.allModels[i].offsetY, Model.allModels[i].offsetZ]))
@@ -1285,20 +1291,20 @@ var webgl = {
 
       if (parent.position) {
         mat4.translate(mMatrix, mMatrix, [parent.position.x, parent.position.y, parent.position.z]);
+        mat4.rotateZ(mMatrix, mMatrix, -parent.position.roll || 0);
         mat4.rotateY(mMatrix, mMatrix, -parent.position.yaw || 0);
         mat4.rotateX(mMatrix, mMatrix, -parent.position.pitch || 0);
-        mat4.rotateZ(mMatrix, mMatrix, parent.position.roll || 0);
 
+        mat4.rotateZ(mnMatrix, mnMatrix, -parent.position.roll || 0);
         mat4.rotateY(mnMatrix, mnMatrix, -parent.position.yaw || 0);
         mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch || 0);
-        mat4.rotateZ(mnMatrix, mnMatrix, parent.position.roll || 0);
       }
       if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
       if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
 
       if (locations.walkCycle) this.gl.uniform1f(locations.walkCycle, parent.state ? parent.state.walkCycle : 0)
       if (locations.crouchValue) this.gl.uniform1f(locations.crouchValue, parent.state ? parent.state.crouchValue : 0)
-      if (locations.lean) this.gl.uniform1f(locations.lean, parent.position ? parent.position.lean : 0)
+      if (locations.lean) this.gl.uniform1f(locations.lean, parent.position ? parent.position.lean / 2 : 0)
 
       if (locations.scale) this.gl.uniform1f(locations.scale, transparentModels[i].scale)
       if (locations.offset) this.gl.uniform3fv(locations.offset, new Float32Array([transparentModels[i].offsetX, transparentModels[i].offsetY, transparentModels[i].offsetZ]))
@@ -1340,7 +1346,7 @@ var webgl = {
     brightness /= 3 * sampleResolution * (sampleResolution / 2)
 
     let timeToChange = 1000
-    if (!isNaN(deltaTime)) this.fogOpacity = this.fogOpacity * (timeToChange - deltaTime) / timeToChange + (Math.pow(1 - brightness / 255, 1.5) + .1) * (10 / 11) * deltaTime / timeToChange
+    if (!isNaN(deltaTime)) this.fogOpacity = this.fogOpacity * (timeToChange - deltaTime) / timeToChange + (Math.pow(1 - brightness / 255, 1.5) + .2) * (10 / 12) * deltaTime / timeToChange
 
   }
 
@@ -1847,6 +1853,16 @@ class PhysicalObject {
   newCollision(parent, headBumpNoise) {
     let toLetter = (x) => {if (x == 0) return "x"; if (x == 1) return "y"; if (x == 2) return "z"}
 
+    if (this.collisionType == "sphere" && parent.collisionType == "sphere") {
+      // if distance between centers < radii combined, return colliding
+      let distance = Math.sqrt(
+        Math.pow((parent.position.x + parent.dimensions.center[0]) - (this.position.x + this.dimensions.center[0]), 2) + 
+        Math.pow((parent.position.y + parent.dimensions.center[1]) - (this.position.y + this.dimensions.center[1]), 2) + 
+        Math.pow((parent.position.z + parent.dimensions.center[2]) - (this.position.z + this.dimensions.center[2]), 2)
+      )
+      return distance < (parent.dimensions.radius + this.dimensions.radius)
+    }
+
     // this.collisionType can only be box
 
     let boxDimensions = [[], []]
@@ -1854,32 +1870,6 @@ class PhysicalObject {
 
     // this.dimensions should have: mx, px..., pitch, yaw, roll
     
-    // rotate centerpoint about sphere center
-    let rotateMatrix = mat4.create()
-    mat4.rotateX(rotateMatrix, rotateMatrix, -this.dimensions.pitch || 0)
-    mat4.rotateY(rotateMatrix, rotateMatrix, -this.dimensions.yaw || 0)
-    mat4.rotateZ(rotateMatrix, rotateMatrix, -this.dimensions.roll || 0)
-
-    let centerPointPosition = [
-      this.position.x - (parent.position.x + parent.dimensions.center[0]), 
-      this.position.y - (parent.position.y + parent.dimensions.center[1]), 
-      this.position.z - (parent.position.z + parent.dimensions.center[2]), 
-      1
-    ]
-    vec4.transformMat4(centerPointPosition, centerPointPosition, rotateMatrix)
-    vec4.add(centerPointPosition, centerPointPosition, [
-      parent.position.x + parent.dimensions.center[0], 
-      parent.position.y + parent.dimensions.center[1], 
-      parent.position.z + parent.dimensions.center[2], 
-      1
-    ])
-
-    boxDimensions[0][0] = centerPointPosition[0] + this.dimensions.mx
-    boxDimensions[1][0] = centerPointPosition[0] + this.dimensions.px
-    boxDimensions[0][1] = centerPointPosition[1] + this.dimensions.my
-    boxDimensions[1][1] = centerPointPosition[1] + this.dimensions.py
-    boxDimensions[0][2] = centerPointPosition[2] + this.dimensions.mz
-    boxDimensions[1][2] = centerPointPosition[2] + this.dimensions.pz
 
     // sphere vs box collision
 
@@ -1888,6 +1878,24 @@ class PhysicalObject {
       parent.position.y + parent.dimensions.center[1],
       parent.position.z + parent.dimensions.center[2]
     ]
+    
+    // rotate centerpoint about sphere center
+    let centerPointPosition = [
+      this.position.x, 
+      this.position.y, 
+      this.position.z
+    ]
+    vec3.rotateZ(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.roll || 0)
+    vec3.rotateY(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.yaw || 0)
+    vec3.rotateX(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.pitch || 0)
+
+
+    boxDimensions[0][0] = centerPointPosition[0] + this.dimensions.mx
+    boxDimensions[1][0] = centerPointPosition[0] + this.dimensions.px
+    boxDimensions[0][1] = centerPointPosition[1] + this.dimensions.my
+    boxDimensions[1][1] = centerPointPosition[1] + this.dimensions.py
+    boxDimensions[0][2] = centerPointPosition[2] + this.dimensions.mz
+    boxDimensions[1][2] = centerPointPosition[2] + this.dimensions.pz
 
     let closestPoint = [
       Math.max(boxDimensions[0][0], Math.min(sphereCenter[0], boxDimensions[1][0])),
@@ -1895,41 +1903,23 @@ class PhysicalObject {
       Math.max(boxDimensions[0][2], Math.min(sphereCenter[2], boxDimensions[1][2]))
     ]
 
-    let distance = Math.sqrt(
+    colliding = Math.sqrt(
       Math.pow(closestPoint[0] - sphereCenter[0], 2) + 
       Math.pow(closestPoint[1] - sphereCenter[1], 2) + 
       Math.pow(closestPoint[2] - sphereCenter[2], 2)
-    )
+    ) < parent.dimensions.radius
 
-    if (distance < parent.dimensions.radius) colliding = true
-
-
-    
-    if (parent.collisionType == "box") {
-      mx = centerPointPosition[0] + this.dimensions.mx - parent.dimensions.px
-      px = centerPointPosition[0] + this.dimensions.px - parent.dimensions.mx
-      my = centerPointPosition[1] + this.dimensions.my - parent.dimensions.py
-      py = centerPointPosition[1] + this.dimensions.py - parent.dimensions.my
-      mz = centerPointPosition[2] + this.dimensions.mz - parent.dimensions.pz
-      pz = centerPointPosition[2] + this.dimensions.pz - parent.dimensions.mz
-
-      if (
-        mx < parent.position.x && parent.position.x < px && 
-        my < parent.position.y && parent.position.y < py && 
-        mz < parent.position.z && parent.position.z < pz
-      ) colliding = true
-
-    }
 
     if (colliding) {
 
 
       let closestSideDistance = 9999999999999999999
       let closestSide = 0
-      for (let i in boxDimensions) {
+      for (let i = 0; i < 2; i++) {
         for (let j in boxDimensions[i]) {
-          if (Math.abs(sphereCenter[j] - boxDimensions[i][j]) < closestSideDistance) {
-            closestSideDistance = Math.abs(sphereCenter[j] - boxDimensions[i][j])
+          let distance = Math.abs(sphereCenter[j] - boxDimensions[i][j] + (-i*2+1) * parent.dimensions.radius)
+          if (distance < closestSideDistance) {
+            closestSideDistance = distance
             closestSide = j
           }
         }
@@ -1944,74 +1934,90 @@ class PhysicalObject {
         }
       }
 
+      let pointOnCircle = (radius, value) => {
+        return Math.sqrt(Math.max(0, Math.min(Math.pow(radius, 2) - Math.pow(value, 2), Math.pow(radius, 2))))
+      }
+
+      let correctionVector = [0, 0, 0]
+
       if (boundedAxesCount >= 2) {
         // determine if sphere center is closer to m or p
-        if (sphereCenter[closestSide] < centerPointPosition[closestSide]) {
-          parent.position[toLetter(closestSide)] = boxDimensions[0][closestSide] - parent.dimensions.center[closestSide] - parent.dimensions.radius
-        }
-        else { // sphereCenter is on p
-          parent.position[toLetter(closestSide)] = boxDimensions[1][closestSide] - parent.dimensions.center[closestSide] + parent.dimensions.radius
-        }
+        let direction
+        if (sphereCenter[closestSide] < (boxDimensions[0][closestSide] + boxDimensions[1][closestSide]) / 2) direction = 0
+        else direction = 1
 
-        parent.velocity[toLetter(closestSide)] = 0
+        correctionVector[closestSide] = boxDimensions[direction][closestSide] + (direction*2-1) * parent.dimensions.radius - sphereCenter[closestSide]
+
       }
       else if (boundedAxesCount == 1) { // edge collision
         // find other 2 colliding coordinates
-        console.log("on edge")
-        let correctionCoord = []
-        for (let i = 0; i < 3; i++) {
-          if (boundedAxes[i]) {
-            correctionCoord[i] = sphereCenter[i]
-          }
-          else { // the sphere is not bounded by this axis
-            // calculate where the 
+        let boundedAxis
+        let unboundAxes = []
+        for (let i = 0; i < 3; i++) if (!boundedAxes[i]) unboundAxes.push(i); else boundedAxis = i
 
-            let direction // determine if sphere center is closer to m or p
-            if (sphereCenter[closestSide] < centerPointPosition[closestSide]) direction = 0
-            else direction = 1
+        for (let i = 0; i < 2; i++) {
+          let currentAxis = unboundAxes[i]
+          let otherAxis = i ? unboundAxes[0] : unboundAxes[1]
 
-            console.log(toLetter(i), Math.sqrt(1 - Math.pow(boxDimensions[direction][i] - sphereCenter[i], 2)))
+          let direction // determine if sphere center is closer to m or p
+          if (sphereCenter[currentAxis] < (boxDimensions[0][currentAxis] + boxDimensions[1][currentAxis]) / 2) direction = 0
+          else direction = 1
+          
+          let otherDirection // determine if sphere center is closer to m or p
+          if (sphereCenter[otherAxis] < (boxDimensions[0][otherAxis] + boxDimensions[1][otherAxis]) / 2) otherDirection = 0
+          else otherDirection = 1
 
-            correctionCoord[i] = sphereCenter[i] - Math.sqrt(1 - Math.pow(boxDimensions[direction][i] - sphereCenter[i], 2))
-            parent.position[toLetter(i)] = correctionCoord[i]
-          }
+
+          if (otherAxis == closestSide) correctionVector[otherAxis] = (otherDirection*2-1) * pointOnCircle(parent.dimensions.radius, boxDimensions[direction][currentAxis] - sphereCenter[currentAxis]) - (sphereCenter[otherAxis] - boxDimensions[otherDirection][otherAxis])
+
         }
         
       }
       else if (boundedAxesCount == 0) { // corner collision
         // find closest corner
+
+        let edgeDistances = []
+
+        let direction // determine if sphere center is closer to m or p
+        if (sphereCenter[closestSide] < (boxDimensions[0][closestSide] + boxDimensions[1][closestSide]) / 2) direction = 0
+        else direction = 1
+
+        for (let i = 0; i < 3; i++) {
+          if (i != closestSide) {
+            let direction // determine if sphere center is closer to m or p
+            if (sphereCenter[i] < (boxDimensions[0][i] + boxDimensions[1][i]) / 2) direction = 0
+            else direction = 1
+            edgeDistances.push(boxDimensions[direction][i] - sphereCenter[i])
+          }
+          correctionVector[closestSide] = (direction*2-1) * pointOnCircle(parent.dimensions.radius, Math.sqrt(Math.pow(edgeDistances[0], 2) + Math.pow(edgeDistances[1], 2))) - (sphereCenter[closestSide] - boxDimensions[direction][closestSide])
+
+
+        }
+        
+
+
+
+
       }
 
       
-      /*
-      let correctionVector = [0, 0, 0, 1]
 
-      if (closestSideName == "mx") correctionVector[0] = mx - parent.position.x
-      if (closestSideName == "px") correctionVector[0] = px - parent.position.x
-      if (closestSideName == "my") correctionVector[1] = my - parent.position.y
-      if (closestSideName == "py") correctionVector[1] = py - parent.position.y
-      if (closestSideName == "mz") correctionVector[2] = mz - parent.position.z
-      if (closestSideName == "pz") correctionVector[2] = pz - parent.position.z
+      vec3.rotateX(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.pitch || 0)
+      vec3.rotateY(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.yaw || 0)
+      vec3.rotateZ(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.roll || 0)
       
-      let rotateMatrix = mat4.create()
-      mat4.rotateX(rotateMatrix, rotateMatrix, this.dimensions.pitch || 0)
-      mat4.rotateY(rotateMatrix, rotateMatrix, this.dimensions.yaw || 0)
-      mat4.rotateZ(rotateMatrix, rotateMatrix, this.dimensions.roll || 0)
-      vec4.transformMat4(correctionVector, correctionVector, rotateMatrix)
-      
-      parent.position.x -= correctionVector[0]
-      parent.position.y -= correctionVector[1]
-      parent.position.z -= correctionVector[2]
+      parent.position.x += correctionVector[0]
+      parent.position.y += correctionVector[1]
+      parent.position.z += correctionVector[2]
 
-      console.log(correctionVector)
+      vec3.normalize(correctionVector, correctionVector)
+      parent.velocity.x *= Math.sqrt(1 - Math.abs(correctionVector[0]))
+      parent.velocity.y *= Math.sqrt(1 - Math.abs(correctionVector[1]))
+      parent.velocity.z *= Math.sqrt(1 - Math.abs(correctionVector[2]))
 
-      vec4.normalize(correctionVector, correctionVector)
-      parent.velocity.x *= 1 - Math.abs(correctionVector[0])
-      parent.velocity.y *= 1 - Math.abs(correctionVector[1])
-      parent.velocity.z *= 1 - Math.abs(correctionVector[2])
-*/
-      
     }
+      
+    return colliding
     
   }
 
@@ -2218,8 +2224,8 @@ class Player extends PhysicalObject {
   static sprintingFOV = Math.PI * 0.4
   static slidingFOV = Math.PI * 0.4
   static fovShiftSpeed = .0025
-  static gravity = .00003
-  static jumpForce = 0.015
+  static gravity = .00003//1
+  static jumpForce = 0.015//05
 
   constructor(geometries, x, y, z, yaw, lean, health, id, name, collidableObjects) {
     super(x, y, z, yaw, lean, {center: [0, 1, 0], radius: 1}, "sphere", collidableObjects)
@@ -2230,9 +2236,10 @@ class Player extends PhysicalObject {
 
     this.geometries = geometries
 
-    this.models.frontSlice = new Model(this, geometries.frontSlice, 1, "bread", 0, 1, .5, 0.0)
+    this.models.frontSlice = new Model(this, geometries.frontSlice, 1, "bread", 0, 1, .25, 0.0)
     this.models.tomato = new Model(this, geometries.tomato, 1, "playerTomato", 0, 1, 0, 0.0)
-    this.models.backSlice = new Model(this, geometries.backSlice, 1, "bread", 0, 1, -.5, 0.0)
+    this.models.meat = new Model(this, geometries.meat, 1, "playerMeat", 0, 1, .1, 0.0)
+    this.models.backSlice = new Model(this, geometries.backSlice, 1, "bread", 0, 1, -.25, 0.0)
 
     // Stores this player's currently active weapons
     this.weapons = []
@@ -2284,7 +2291,7 @@ class Player extends PhysicalObject {
 
   calculatePosition(deltaTime, headBumpNoise) {
     this.lastVelocity = { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z}
-    if (deltaTime > 40) return
+    if (deltaTime > 30) return
 
     this.velocity.y -= Player.gravity * deltaTime // subtract by gravitational constant (units/frames^2)
 
@@ -2379,7 +2386,7 @@ class Player extends PhysicalObject {
 class Weapon extends PhysicalObject {
   static gravity = 0.00001
   constructor(geometryInfos, type, collidableObjects, owner) {
-    super(0, 0, 0, 0, 0, { mx: -.25, px: .25, my: -.25, py: .25, mz: -.25, pz: .25 }, "sphere", collidableObjects)
+    super(0, 0, 0, 0, 0, { center: [0, 0, 0], radius: .5 }, "sphere", collidableObjects)
 
     this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
     this.shootSoundEffect.currentTime = 0.25
@@ -2530,8 +2537,21 @@ class Weapon extends PhysicalObject {
 
     for (let i = 0; i < this.collidableObjects.length; i++) {
       for (let j in this.collidableObjects[i]) {
-        if (this.collidableObjects[i][j] == null) continue
-        let movement = this.calculateSlopes()
+        if (!(this.collidableObjects[i][j] instanceof PhysicalObject)) continue
+        let colliding = this.collidableObjects[i][j].newCollision(this)
+        if (colliding) {
+          if (this.collidableObjects[i][j] instanceof Player) {
+            console.log("hit")
+            socket.emit("playerHit", {
+              from: this.owner.id,
+              target: this.collidableObjects[i][j].id,
+              damage: this.damage
+            })
+            this.shooted = false
+            this.remove()
+          }
+        }
+        /*let movement = this.calculateSlopes()
         let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
 
         for (let side in collision) {
@@ -2551,7 +2571,7 @@ class Weapon extends PhysicalObject {
 
             this.remove()
           }
-        }
+        }*/
 
       }
     }

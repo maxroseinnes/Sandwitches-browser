@@ -93,9 +93,9 @@ joinRoomButton.onclick = () => {
     lobbyId = roomKeyInput.value
     changeRoom(lobbyId)
 }
-roomKeyInput.value = 1
-lobbyId = 1
-changeRoom(1) // go to room 1 first
+roomKeyInput.value = 4
+lobbyId = 4
+changeRoom(4) // go to room 4 first
 
 var myWeapons = [
     "olive",
@@ -313,7 +313,7 @@ var playerGeometry = {
     frontSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
     backSlice: obj.parseWavefront(fetchObj("player/LowPolySliceOfBread.obj"), false),
     cheese: playerIdleInfo["Cheese"],
-    meat: playerIdleInfo["Meat"],
+    meat: obj.parseWavefront(fetchObj("player/playerMeat.obj"), false),
     tomato: obj.parseWavefront(fetchObj("player/playerTomato.obj"), false),
 }
 
@@ -408,18 +408,29 @@ socket.on("weaponGeometry", (data) => {
 
 socket.on("map", (mapInfo) => {
     for (let i = 0; i < mapInfo.platforms.length; i++) {
-        platforms.push(new Platform(platformGeometry,
+        let platform = new Platform(platformGeometry,
             mapInfo.platforms[i].type,
             mapInfo.platforms[i].x,
             mapInfo.platforms[i].y,
             mapInfo.platforms[i].z,
             mapInfo.platforms[i].scale
-        ))
+        )
+        let yaw = Math.random() * Math.PI * 2
+        platform.position.yaw = yaw
+        platform.dimensions.yaw = yaw
+        let pitch = Math.random() * Math.PI * 2
+        platform.position.pitch = pitch
+        platform.dimensions.pitch = pitch
+        let roll = Math.random() * Math.PI * 2
+        platform.position.roll = roll
+        platform.dimensions.roll = roll
+        platforms.push(platform)
     }
 
     if (mapInfo.mapFile != undefined) {
-        let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), false)
-        mapModel = new Model({}, mapGeometry, 1, "wood", 0, 0, 0)
+        let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), false, false)
+        console.log(mapGeometry)
+        mapModel = new Model({}, obj.parseWavefront(fetchObj(mapInfo.mapFile), false, true), 1, "wood", 0, 0, 0)
 
         /*
         let mapCollisionData = JSON.parse(fetchObj("collision-data (2).json"))
@@ -435,19 +446,88 @@ socket.on("map", (mapInfo) => {
 
         for (let i in mapGeometry.indices) {
 
-            let platform = new Platform(null, null, 0, 0, 0, 1)
+            // new method: 1. rotate so that one side (vector) is [0, 0, 1] (normalized), 2. rotate other side so that it is flat (pitch)
 
-            for (let j = 0; j < 3; j++) {
+            let points = []
+            for (let j = 0; j < 3; j++) points.push([
+                mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0], 
+                mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1], 
+                mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2]
+            ])
 
-                platform.dimensions = {
-                    mx: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0] < platform.dimensions.mx || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0] : platform.dimensions.mx,
-                    px: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0] > platform.dimensions.px || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0] : platform.dimensions.px,
-                    my: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1] < platform.dimensions.my || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1] : platform.dimensions.my,
-                    py: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1] > platform.dimensions.py || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1] : platform.dimensions.py,
-                    mz: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2] < platform.dimensions.mz || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2] : platform.dimensions.mz,
-                    pz: (mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2] > platform.dimensions.pz || j == 0) ? mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2] : platform.dimensions.pz
+            let vector1 = []
+            vec3.sub(vector1, points[1], points[0])
+            let vector2 = []
+            vec3.sub(vector2, points[2], points[0])
+
+
+
+            let cross = []
+            vec3.cross(cross, vector1, vector2)
+            vec3.normalize(cross, cross)
+
+            console.log(cross)
+
+            // rotate cross to be [0, 1, 0]
+
+            // first yaw so that x value is 0
+
+            let zx = [cross[2], cross[0]]
+            vec2.normalize(zx, zx)
+
+            let yaw = Math.asin(zx[1])
+
+            let rotatedCross = []
+            vec3.rotateY(rotatedCross, cross, [0, 0, 0], -yaw)
+
+            let pitch = Math.asin(rotatedCross[2])
+
+            vec3.rotateX(rotatedCross, rotatedCross, [0, 0, 0], -pitch)
+
+            let testVec = [0, 1, 0]
+            vec3.rotateX(testVec, testVec, [0, 0, 0], pitch)
+            vec3.rotateY(testVec, testVec, [0, 0, 0], yaw)
+
+            let center = [0, 0, 0]
+            for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) center[i] += points[j][i] / 3
+
+            let layedFlatPoints = [[], [], []]
+            for (let i = 0; i < 3; i++) {
+                vec3.rotateX(layedFlatPoints[i], points[i], center, -pitch)
+                vec3.rotateY(layedFlatPoints[i], layedFlatPoints[i], center, -yaw)
+            }
+
+            let dimensions = [[], []]
+            for (let i = 0; i < 3; i++) {
+                let mValue = 999999999
+                let pValue = -999999999
+                for (let k = 0; k < 3; k++) {
+                    if (layedFlatPoints[k][i] - center[i] < mValue) {
+                        dimensions[0][i] = layedFlatPoints[k][i] - center[i]
+                        mValue = layedFlatPoints[k][i] - center[i]
+                    }
+                    if (layedFlatPoints[k][i] - center[i] > pValue) {
+                        dimensions[1][i] = layedFlatPoints[k][i] - center[i]
+                        pValue = layedFlatPoints[k][i] - center[i]
+                    }
                 }
             }
+
+
+            console.log(dimensions)
+
+            let platform = new Platform(null, null, center[0], center[1], center[2], 1)
+            platform.dimensions = {
+                mx: dimensions[0][0],
+                px: dimensions[1][0],
+                my: 0,//dimensions[0][1],
+                py: 0,//dimensions[1][1],
+                mz: dimensions[0][2],
+                pz: dimensions[1][2],
+                pitch: pitch,
+                yaw: yaw
+            }
+
 
             platforms.push(platform)
         }
@@ -710,6 +790,9 @@ new Model({
     ]
 }, 1, null, 0, 0,)
 */
+
+
+
 
 
 

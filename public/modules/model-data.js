@@ -66,7 +66,7 @@ var obj = {
 
 
 
-  parseWavefront: function(fileText, seperateObjects) {
+  parseWavefront: function(fileText, seperateObjects, triangulate) {
     let lines = this.parseLines(fileText)
 
     // find all objects
@@ -158,7 +158,7 @@ var obj = {
             texcoords: texcoords,
             smooth: smooth,
             material: material,
-            indices: this.triangulate(indices)
+            indices: (triangulate == null || triangulate) ? this.triangulate(indices) : indices
         }
     }
 
