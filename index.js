@@ -398,6 +398,18 @@ var maps = {
     floorTexture: "",
     platforms: [],
     mapFile: "collision_test_map.obj"
+  },
+
+  testMap3: {
+    floorTexture: "",
+    platforms: [],
+    mapFile: "full_starting_map (3).obj"
+  },
+
+  testMap4: {
+    floorTexture: "",
+    platforms: [],
+    mapFile: "full_starting_map.obj"
   }
 
 
@@ -709,7 +721,9 @@ var rooms = {
   1: new Room(maps.lobby1),
   2: new Room(maps.lobby2),
   3: new Room(maps.testMap),
-  4: new Room(maps.testMap2)
+  4: new Room(maps.testMap2),
+  5: new Room(maps.testMap3),
+  6: new Room(maps.testMap4)
 }
 
 socketServer.on("connection", (socket) => {

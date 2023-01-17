@@ -417,10 +417,10 @@ for (let i in geometryInfo.indices) {
             geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][1], 
             geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][2]
         ])
-        let getSideVector = (x, normalize) => {
+        let getSideVector = (x, normalize, direction) => {
             let vector = []
             //console.log(x % points.length, points.length)
-            vec3.sub(vector, points[x % points.length], points[(x+1) % points.length])
+            vec3.sub(vector, points[(x + points.length * 3) % points.length], points[(x + points.length * 3 + direction) % points.length])
             if (normalize) vec3.normalize(vector, vector)
             return vector
         }
@@ -428,7 +428,7 @@ for (let i in geometryInfo.indices) {
         let mostAxisAlignedVector = 0
         let mostAxisAlignedVectorValue = 0
         for (let j = 0; j < points.length; j++) {
-            let vector = getSideVector(j, true)
+            let vector = getSideVector(j, true, 1)
             for (let k = 0; k < 3; k++) {
                 if (vector[k] > mostAxisAlignedVectorValue) {
                     mostAxisAlignedVector = j
@@ -439,7 +439,7 @@ for (let i in geometryInfo.indices) {
 
         }
 
-        let vecToAlign = getSideVector(mostAxisAlignedVector, true)
+        let vecToAlign = getSideVector(mostAxisAlignedVector, true, 1)
 
         // roll only affects x and y
         let xy = [vecToAlign[0], vecToAlign[1]]
@@ -455,7 +455,7 @@ for (let i in geometryInfo.indices) {
         vec3.rotateY(vecToAlign, vecToAlign, [0, 0, 0], -yaw)
 
 
-        let otherVecToAlign = getSideVector(mostAxisAlignedVector + 1, true)
+        let otherVecToAlign = getSideVector(mostAxisAlignedVector, true, -1)
         vec3.rotateZ(otherVecToAlign, otherVecToAlign, [0, 0, 0], -roll)
         vec3.rotateY(otherVecToAlign, otherVecToAlign, [0, 0, 0], -yaw)
 
@@ -507,8 +507,8 @@ for (let i in geometryInfo.indices) {
         platform.dimensions = {
             mx: dimensions[0][0],
             px: dimensions[1][0],
-            my: 0,//dimensions[0][1],
-            py: 0,//dimensions[1][1],
+            my: dimensions[0][1],
+            py: dimensions[1][1],
             mz: dimensions[0][2],
             pz: dimensions[1][2],
             pitch: -pitch,
@@ -549,17 +549,6 @@ socket.on("map", (mapInfo) => {
         
         addPlatformsForMesh(mapGeometry)
 
-        /*
-        let mapCollisionData = JSON.parse(fetchObj("collision-data (2).json"))
-        for (let i in mapCollisionData) {
-            let platform = new Platform(null, null, 0, 0, 0, 1)
-            platform.dimensions = mapCollisionData[i]
-            platforms.push(platform)
-
-            console.log(platform.dimensions)
-            
-        }
-        */
 
         
     }
@@ -567,24 +556,6 @@ socket.on("map", (mapInfo) => {
     if (mapInfo.floorTexture != "") {
         ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, true))
         addPlatformsForMesh(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, false))
-        if (camera instanceof PhysicalObject) {
-            for (let i in camera.collidableObjects) if (camera.collidableObjects[i][0] instanceof Ground) {
-                camera.collidableObjects.splice(i, 1)
-                continue
-            }
-            camera.collidableObjects.push([ground])
-        }
-    } else {
-
-        console.log(camera.collidableObjects)
-        for (let i in camera.collidableObjects) {
-            for (let j in camera.collidableObjects[i]) {
-                if (camera.collidableObjects[i][j] instanceof Ground) {
-                    camera.collidableObjects.splice(i, 1)
-                }
-            }
-        }
-
     }
 
 })
@@ -1006,9 +977,9 @@ function fixedUpdate() {
         }
 
         if (space) {
-            //if (player.onGround) {
+            if (player.onGround) {
             player.velocity.y = Player.jumpForce
-            //}
+            }
         }
 
         if (leftClicking) {

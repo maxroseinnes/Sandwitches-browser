@@ -464,6 +464,7 @@ var webgl = {
     uniform float uGlossValue;
     uniform bool uShadowable;
     uniform float uFogOpacity;
+    uniform vec3 uShadowDirection;
 
     uniform mat4 nMatrix;
   
@@ -498,6 +499,9 @@ var webgl = {
       }
 
       inShadowValue /= ${Math.pow(this.settings.shadowMapSmoothing * 2 + 1, 2)}.0;
+
+      if (dot(normal, uShadowDirection) > 0.0 && uShadowable) inShadowValue = 0.625;
+
       ` : ``}
       ${this.settings.volumetricLighting ? `
       vec3 fogColor = vec3(0.0, 0.0, 0.0);
@@ -1180,6 +1184,10 @@ var webgl = {
     this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "lPosition"), new Float32Array(this.settings.sunPosition))
     this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "cPosition"), new Float32Array([camera.position.x, camera.position.y, camera.position.z]))
     this.gl.uniform1f(this.gl.getUniformLocation(this.program, "uFogOpacity"), this.fogOpacity)
+    let shadowDirection = [0, 0, 1]
+    vec3.rotateX(shadowDirection, shadowDirection, [0, 0, 0], this.settings.sunAnglePitch)
+    vec3.rotateY(shadowDirection, shadowDirection, [0, 0, 0], this.settings.sunAngleYaw + Math.PI / 3)
+    this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "uShadowDirection"), new Float32Array(shadowDirection))
 
     this.gl.activeTexture(this.gl.TEXTURE0)
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureMap)
@@ -1346,7 +1354,7 @@ var webgl = {
     brightness /= 3 * sampleResolution * (sampleResolution / 2)
 
     let timeToChange = 1000
-    if (!isNaN(deltaTime)) this.fogOpacity = this.fogOpacity * (timeToChange - deltaTime) / timeToChange + (Math.pow(1 - brightness / 255, 1.5) + .2) * (10 / 12) * deltaTime / timeToChange
+    if (!isNaN(deltaTime)) this.fogOpacity = this.fogOpacity * (timeToChange - deltaTime) / timeToChange + (Math.pow(1 - brightness / 255, 1.5) + .5) * (10 / 15) * deltaTime / timeToChange
 
   }
 
@@ -2014,6 +2022,9 @@ class PhysicalObject {
       parent.velocity.x *= Math.sqrt(1 - Math.abs(correctionVector[0]))
       parent.velocity.y *= Math.sqrt(1 - Math.abs(correctionVector[1]))
       parent.velocity.z *= Math.sqrt(1 - Math.abs(correctionVector[2]))
+
+      if (correctionVector[1] > .1) parent.onGround = true
+      if (correctionVector[1] < -.1) headBumpNoise.play()
 
     }
       
