@@ -1,4 +1,4 @@
-// npm install express, http, socket.io, ip, fs
+// "npm install" to install all dependencies (package.json)
 const express = require("express");
 const app = express();
 const http = require("http");
@@ -740,10 +740,29 @@ socketServer.on("connection", (socket) => {
   socket.emit("weaponGeometry", weaponGeometry)
 
   socket.on("joinRoom", (data) => {
+    var joinNewRoom = true
+    for (let i in rooms) {
+      if (data.roomId == Object.keys(rooms)[i]) {
+        joinNewRoom = false
+        break
+      }
+    }
 
-    if (data.playerId != null) { // delete this player from their room
+
+    console.log("JOIN ROOM:", data)
+    // Create new room and add player to it
+    let newRoom
+    if (joinNewRoom) {
+      rooms[data.roomId] = new Room(maps.testMap)
+      newRoom = rooms[data.roomId]
+      //rooms[data.roomId].addPlayer(this.players[data.playerId].socket, data.playerId)
+    }
+
+    if (data.playerId != null) { 
+      // delete this player from their room
       for (let i in rooms) {
         if (Object.keys(rooms[i].players).indexOf(String(data.playerId)) != -1) { // if joining player is in this room
+          rooms[data.roomId].addPlayer(rooms[i].players[data.playerId].socket, data.playerId)
           rooms[i].broadcast("playerLeave", data.playerId, null);
           console.log(rooms[i].players[data.playerId].name + " left. 😭😭😭😭😭😭😭");
 
@@ -760,6 +779,8 @@ socketServer.on("connection", (socket) => {
         }
       }
     }
+
+
 
 
 

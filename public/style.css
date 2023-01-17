@@ -155,7 +155,7 @@ input[type=text] {
 }
 
 
-#settingsButton {
+#settingsButton, #joinGameButton {
 
     color: white;
     background-color: orange;
