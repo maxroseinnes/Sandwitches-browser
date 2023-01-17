@@ -315,6 +315,7 @@ var playerGeometry = {
     cheese: playerIdleInfo["Cheese"],
     meat: obj.parseWavefront(fetchObj("player/playerMeat.obj"), false),
     tomato: obj.parseWavefront(fetchObj("player/playerTomato.obj"), false),
+    lettuce: obj.parseWavefront(fetchObj("player/playerLettuceWithFlippedNormals.obj"), false),
 }
 
 var weaponGeometry = {}
@@ -473,10 +474,11 @@ for (let i in geometryInfo.indices) {
         //console.log(otherVecToAlign)
 
         let center = [0, 0, 0]
-        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) center[i] += points[j][i] / 3
+        for (let i = 0; i < 3; i++) for (let j = 0; j < points.length; j++) center[i] += points[j][i] / 3
 
-        let layedFlatPoints = [[], [], []]
-        for (let i = 0; i < 3; i++) {
+        let layedFlatPoints = []
+        for (let i = 0; i < points.length; i++) {
+            layedFlatPoints[i] = []
             vec3.rotateZ(layedFlatPoints[i], points[i], center, -roll)
             vec3.rotateY(layedFlatPoints[i], layedFlatPoints[i], center, -yaw)
             vec3.rotateX(layedFlatPoints[i], layedFlatPoints[i], center, -pitch)
@@ -488,7 +490,7 @@ for (let i in geometryInfo.indices) {
         for (let i = 0; i < 3; i++) {
             let mValue = 999999999
             let pValue = -999999999
-            for (let k = 0; k < 3; k++) {
+            for (let k = 0; k < points.length; k++) {
                 if (layedFlatPoints[k][i] - center[i] < mValue) {
                     dimensions[0][i] = layedFlatPoints[k][i] - center[i]
                     mValue = layedFlatPoints[k][i] - center[i]
@@ -708,8 +710,8 @@ socket.on("playerUpdate", (playersData) => {
             otherPlayers[id].lastPosition = playersData[id].position
             otherPlayers[id].lastState = playersData[id].state
         }
-        otherPlayers[id].serverPosition = playersData[id].position
-        otherPlayers[id].serverState = playersData[id].state
+        for (let i in playersData[id].position) otherPlayers[id].serverPosition[i] = playersData[id].position[i]
+        for (let i in playersData[id].state) otherPlayers[id].serverState[i] = playersData[id].state[i]
         if (otherPlayers[id].currentWeaponType != playersData[id].currentWeaponType && playersData[id].currentWeaponType != undefined) {
             otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
             if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
