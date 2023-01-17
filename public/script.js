@@ -406,6 +406,121 @@ socket.on("weaponGeometry", (data) => {
     console.log(weaponGeometry)
 })
 
+function addPlatformsForMesh(geometryInfo) {
+for (let i in geometryInfo.indices) {
+
+        // new method: 1. rotate so that one side (vector) is [0, 0, 1] (normalized), 2. rotate other side so that it is flat (pitch)
+
+        let points = []
+        for (let j = 0; j < geometryInfo.indices[i].vertexes.length; j++) points.push([
+            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][0], 
+            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][1], 
+            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][2]
+        ])
+        let getSideVector = (x, normalize) => {
+            let vector = []
+            //console.log(x % points.length, points.length)
+            vec3.sub(vector, points[x % points.length], points[(x+1) % points.length])
+            if (normalize) vec3.normalize(vector, vector)
+            return vector
+        }
+
+        let mostAxisAlignedVector = 0
+        let mostAxisAlignedVectorValue = 0
+        for (let j = 0; j < points.length; j++) {
+            let vector = getSideVector(j, true)
+            for (let k = 0; k < 3; k++) {
+                if (vector[k] > mostAxisAlignedVectorValue) {
+                    mostAxisAlignedVector = j
+                    mostAxisAlignedVectorValue = vector[k]
+                }
+            }
+            
+
+        }
+
+        let vecToAlign = getSideVector(mostAxisAlignedVector, true)
+
+        // roll only affects x and y
+        let xy = [vecToAlign[0], vecToAlign[1]]
+        vec2.normalize(xy, xy)
+        let roll = (xy[0] > 0) ? Math.asin(xy[1]) : -Math.asin(xy[1])
+
+        vec3.rotateZ(vecToAlign, vecToAlign, [0, 0, 0], -roll)
+
+        let zx = [vecToAlign[2], vecToAlign[0]]
+        vec2.normalize(zx, zx)
+        let yaw = (zx[0] > 0) ? -Math.acos(zx[1]) : Math.acos(zx[1])
+
+        vec3.rotateY(vecToAlign, vecToAlign, [0, 0, 0], -yaw)
+
+
+        let otherVecToAlign = getSideVector(mostAxisAlignedVector + 1, true)
+        vec3.rotateZ(otherVecToAlign, otherVecToAlign, [0, 0, 0], -roll)
+        vec3.rotateY(otherVecToAlign, otherVecToAlign, [0, 0, 0], -yaw)
+
+        // otherVecToAlign should be [0, y, z] -- rotate it's pitch to be [0, 0, 1]
+
+        let yz = [otherVecToAlign[1], otherVecToAlign[2]]
+        vec2.normalize(yz, yz)
+        let pitch = (yz[0] < 0) ? Math.acos(yz[1]) : -Math.acos(yz[1])
+
+        vec3.rotateX(otherVecToAlign, otherVecToAlign, [0, 0, 0], -pitch)
+
+        vec3.scale(otherVecToAlign, otherVecToAlign, 100)
+        vec3.round(otherVecToAlign, otherVecToAlign)
+        vec3.scale(otherVecToAlign, otherVecToAlign, 1/100)
+        //console.log(otherVecToAlign)
+
+        let center = [0, 0, 0]
+        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) center[i] += points[j][i] / 3
+
+        let layedFlatPoints = [[], [], []]
+        for (let i = 0; i < 3; i++) {
+            vec3.rotateZ(layedFlatPoints[i], points[i], center, -roll)
+            vec3.rotateY(layedFlatPoints[i], layedFlatPoints[i], center, -yaw)
+            vec3.rotateX(layedFlatPoints[i], layedFlatPoints[i], center, -pitch)
+        }
+
+        //console.log(layedFlatPoints)
+
+        let dimensions = [[], []]
+        for (let i = 0; i < 3; i++) {
+            let mValue = 999999999
+            let pValue = -999999999
+            for (let k = 0; k < 3; k++) {
+                if (layedFlatPoints[k][i] - center[i] < mValue) {
+                    dimensions[0][i] = layedFlatPoints[k][i] - center[i]
+                    mValue = layedFlatPoints[k][i] - center[i]
+                }
+                if (layedFlatPoints[k][i] - center[i] > pValue) {
+                    dimensions[1][i] = layedFlatPoints[k][i] - center[i]
+                    pValue = layedFlatPoints[k][i] - center[i]
+                }
+            }
+        }
+
+
+        //console.log(dimensions)
+
+        let platform = new Platform(null, null, center[0], center[1], center[2], 1)
+        platform.dimensions = {
+            mx: dimensions[0][0],
+            px: dimensions[1][0],
+            my: 0,//dimensions[0][1],
+            py: 0,//dimensions[1][1],
+            mz: dimensions[0][2],
+            pz: dimensions[1][2],
+            pitch: -pitch,
+            yaw: -yaw,
+            roll: -roll,
+        }
+
+
+        platforms.push(platform)
+    }
+}
+
 socket.on("map", (mapInfo) => {
     for (let i = 0; i < mapInfo.platforms.length; i++) {
         let platform = new Platform(platformGeometry,
@@ -431,6 +546,8 @@ socket.on("map", (mapInfo) => {
         let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), false, false)
         console.log(mapGeometry)
         mapModel = new Model({}, obj.parseWavefront(fetchObj(mapInfo.mapFile), false, true), 1, "wood", 0, 0, 0)
+        
+        addPlatformsForMesh(mapGeometry)
 
         /*
         let mapCollisionData = JSON.parse(fetchObj("collision-data (2).json"))
@@ -444,97 +561,12 @@ socket.on("map", (mapInfo) => {
         }
         */
 
-        for (let i in mapGeometry.indices) {
-
-            // new method: 1. rotate so that one side (vector) is [0, 0, 1] (normalized), 2. rotate other side so that it is flat (pitch)
-
-            let points = []
-            for (let j = 0; j < 3; j++) points.push([
-                mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][0], 
-                mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][1], 
-                mapGeometry.positions[mapGeometry.indices[i].vertexes[j]][2]
-            ])
-
-            let vector1 = []
-            vec3.sub(vector1, points[1], points[0])
-            let vector2 = []
-            vec3.sub(vector2, points[2], points[0])
-
-
-
-            let cross = []
-            vec3.cross(cross, vector1, vector2)
-            vec3.normalize(cross, cross)
-
-            console.log(cross)
-
-            // rotate cross to be [0, 1, 0]
-
-            // first yaw so that x value is 0
-
-            let zx = [cross[2], cross[0]]
-            vec2.normalize(zx, zx)
-
-            let yaw = Math.asin(zx[1])
-
-            let rotatedCross = []
-            vec3.rotateY(rotatedCross, cross, [0, 0, 0], -yaw)
-
-            let pitch = Math.asin(rotatedCross[2])
-
-            vec3.rotateX(rotatedCross, rotatedCross, [0, 0, 0], -pitch)
-
-            let testVec = [0, 1, 0]
-            vec3.rotateX(testVec, testVec, [0, 0, 0], pitch)
-            vec3.rotateY(testVec, testVec, [0, 0, 0], yaw)
-
-            let center = [0, 0, 0]
-            for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) center[i] += points[j][i] / 3
-
-            let layedFlatPoints = [[], [], []]
-            for (let i = 0; i < 3; i++) {
-                vec3.rotateX(layedFlatPoints[i], points[i], center, -pitch)
-                vec3.rotateY(layedFlatPoints[i], layedFlatPoints[i], center, -yaw)
-            }
-
-            let dimensions = [[], []]
-            for (let i = 0; i < 3; i++) {
-                let mValue = 999999999
-                let pValue = -999999999
-                for (let k = 0; k < 3; k++) {
-                    if (layedFlatPoints[k][i] - center[i] < mValue) {
-                        dimensions[0][i] = layedFlatPoints[k][i] - center[i]
-                        mValue = layedFlatPoints[k][i] - center[i]
-                    }
-                    if (layedFlatPoints[k][i] - center[i] > pValue) {
-                        dimensions[1][i] = layedFlatPoints[k][i] - center[i]
-                        pValue = layedFlatPoints[k][i] - center[i]
-                    }
-                }
-            }
-
-
-            console.log(dimensions)
-
-            let platform = new Platform(null, null, center[0], center[1], center[2], 1)
-            platform.dimensions = {
-                mx: dimensions[0][0],
-                px: dimensions[1][0],
-                my: 0,//dimensions[0][1],
-                py: 0,//dimensions[1][1],
-                mz: dimensions[0][2],
-                pz: dimensions[1][2],
-                pitch: pitch,
-                yaw: yaw
-            }
-
-
-            platforms.push(platform)
-        }
+        
     }
 
     if (mapInfo.floorTexture != "") {
-        ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false))
+        ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, true))
+        addPlatformsForMesh(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, false))
         if (camera instanceof PhysicalObject) {
             for (let i in camera.collidableObjects) if (camera.collidableObjects[i][0] instanceof Ground) {
                 camera.collidableObjects.splice(i, 1)
