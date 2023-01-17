@@ -118,6 +118,12 @@ var webgl = {
       normalMap: "./assets/normalMaps/13060-normal.jpg",
       gloss: 5,
       index: 13
+    },
+    playerLettuce: {
+      url: "./assets/textures/PlayerLettuceTex.jpg",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 5,
+      index: 14
     }
 
 
@@ -141,7 +147,7 @@ var webgl = {
     particles: true,
 
     shadows: true,
-    shadowMapResolution: 2048,
+    shadowMapResolution: 4096,
     shadowMapSmoothing: 0,
 
     specularLighting: true,
@@ -2248,8 +2254,9 @@ class Player extends PhysicalObject {
     this.geometries = geometries
 
     this.models.frontSlice = new Model(this, geometries.frontSlice, 1, "bread", 0, 1, .25, 0.0)
+    this.models.lettuce = new Model(this, geometries.lettuce, 1, "playerLettuce", 0, 1, .1, 0.0)
     this.models.tomato = new Model(this, geometries.tomato, 1, "playerTomato", 0, 1, 0, 0.0)
-    this.models.meat = new Model(this, geometries.meat, 1, "playerMeat", 0, 1, .1, 0.0)
+    this.models.meat = new Model(this, geometries.meat, 1, "playerMeat", 0, 1, -.1, 0.0)
     this.models.backSlice = new Model(this, geometries.backSlice, 1, "bread", 0, 1, -.25, 0.0)
 
     // Stores this player's currently active weapons
@@ -2558,9 +2565,9 @@ class Weapon extends PhysicalObject {
               target: this.collidableObjects[i][j].id,
               damage: this.damage
             })
-            this.shooted = false
-            this.remove()
           }
+          this.shooted = false
+          this.remove()
         }
         /*let movement = this.calculateSlopes()
         let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
