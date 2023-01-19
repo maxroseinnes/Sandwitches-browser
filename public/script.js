@@ -93,6 +93,7 @@ joinRoomButton.onclick = () => {
     if (roomKeyInput.value == lobbyId) return
     //lobbyId = roomKeyInput.value
     joinRoom(roomKeyInput.value)
+    
 }
 //lobbyId = 4
 //joinRoom() // go to room 4 first
@@ -214,7 +215,6 @@ var chatLifespan = 10000
 var chatMessageTransition = "opacity 1s"
 
 function displayChatMessage(msg) {
-
     let message = {
         element: document.createElement("div"),
         createdTime: Date.now()
@@ -296,7 +296,6 @@ var leaderboardList = document.getElementById("leaderboard")
 //var playerInfos = {}
 
 function addPlayerToHUD(id, name) {
-    console.log(id)
     leaderboard[id] = document.createElement("li")
 
     leaderboard[id].textContent = id + name
@@ -566,7 +565,7 @@ socket.on("map", (mapInfo) => {
 
     if (mapInfo.mapFile != undefined) {
         let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), false, false)
-        console.log(mapGeometry)
+        //console.log(mapGeometry)
         mapModel = new Model({}, obj.parseWavefront(fetchObj(mapInfo.mapFile), false, true), 1, "wood", 0, 0, 0)
         
         addPlatformsForMesh(mapGeometry)
@@ -626,11 +625,11 @@ socket.on("leaderboard", (leaderboardInfo) => {
 
         changePlayerStringInHUD(playerInfo.id, name + ": " + playerInfo.killCount + " 💀")
     }*/
-    for (let i = 0; i < leaderboardInfo.length; i++) {
+    for (let i = leaderboardInfo.length - 1; i >= 0; i--) {
         let playerInfo = leaderboardInfo[i]
         let listItem = document.createElement("li")
         let name
-        console.log(playerInfo.id == player.id)
+        //console.log(playerInfo.id == player.id)
         if (playerInfo.id == player.id) {
             name = player.name
         } else if (otherPlayers[playerInfo.id] != null) {
@@ -772,12 +771,49 @@ socket.on("tooManyPlayers", () => {
     alert("Sorry, there are too many players connected.");
 })
 
+socket.on("roomCapReached", () => {
+    alert("Server has reached room limit. Cannot join room.")
+})
+
 function joinRoom(id) {
+    console.log("join room")
     socket.emit("joinRoom", {
         roomId: id, 
         playerId: (player != null) ? player.id : null
     })
-    lobbyId = id
+
+    //this moved to when server confirms join room success
+    /*lobbyId = id
+
+    if (player != null) removePlayerFromHUD(player.id, player.name)
+
+    // delete all map geometry
+    if (mapModel) mapModel.delete()
+
+    for (let i = 0; i < platforms.length; i++) {
+        platforms[i].remove()
+    }
+    platforms.splice(0, platforms.length)
+    if (player != undefined) {
+        player.remove()
+        player = undefined
+    }
+
+    if (ground != null) {
+        ground.remove()
+        ground = null
+    }
+
+    for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
+
+    document.getElementById("title").textContent = "Room " + lobbyId*/
+
+}
+
+// Receives this from the server when the player joins the room successfully
+socket.on("roomJoinSuccess", (roomId) => {
+    lobbyId = roomId
+    document.getElementById("title").textContent = "Room " + lobbyId
 
     if (player != null) removePlayerFromHUD(player.id, player.name)
 
@@ -801,8 +837,8 @@ function joinRoom(id) {
     for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
 
     document.getElementById("title").textContent = "Room " + lobbyId
-
-}
+    console.log(lobbyId)
+})
 
 
 // TESTING //
