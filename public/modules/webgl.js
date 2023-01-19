@@ -2588,7 +2588,7 @@ class Weapon extends PhysicalObject {
       }
     }
     this.particleSpawnCounter++
-    if (webgl.settings.particles && this.particleSpawnCounter % 1 == 0 && this.shooted) for (let i = 0; i < 2; i++) new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
+    if (webgl.settings.particles && this.particleSpawnCounter % 2 == 0 && this.shooted) for (let i = 0; i < 1; i++) new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
   }
 
 

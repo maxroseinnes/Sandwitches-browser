@@ -47,6 +47,7 @@ var lastWPress = Date.now()
 
 var lookAngleX = 0.0
 var lookAngleY = 0.0
+var aimState = 0.0
 
 
 
@@ -1002,6 +1003,8 @@ function fixedUpdate() {
                 })
             }
         }
+        if (rightClicking) aimState = Math.min(1, aimState + .01)
+        else aimState = Math.max(0, aimState - .01)
 
 
         // normalize movement vector //
