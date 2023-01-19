@@ -611,7 +611,7 @@ class Room {
 
   respawnPlayer(id) {
     this.players[id].position.x = Math.random() * 10 - 5;
-    this.players[id].position.y = 0;
+    this.players[id].position.y = 2;
     this.players[id].position.z = Math.random() * 10 - 5;
     this.players[id].position.yaw = 0
     this.players[id].position.pitch = 0

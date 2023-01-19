@@ -165,7 +165,7 @@ var webgl = {
     fogColorG: 1.05,
     fogColorB: .8,
 
-    sunPosition: [-75, 100, 25],
+    sunPosition: [-50, 100, 25],
     sunAnglePitch: Math.PI / 4,
     sunAngleYaw: Math.PI / 3,
 
@@ -1049,7 +1049,7 @@ var webgl = {
     let pMatrix = mat4.create();
 
     //                        fov        , aspect, near, far
-    mat4.perspective(pMatrix, this.fov, this.aspect, .1, 1000);
+    mat4.perspective(pMatrix, this.fov, this.aspect, 1, 1000);
 
     let shadowMatrix = mat4.create()
     mat4.scale(shadowMatrix, shadowMatrix, [0.5, 0.5, 0.5])
@@ -1865,16 +1865,23 @@ class PhysicalObject {
   }
 
   newCollision(parent, headBumpNoise) {
-    let toLetter = (x) => {if (x == 0) return "x"; if (x == 1) return "y"; if (x == 2) return "z"}
+    let minDistance = this.dimensions.radius + parent.dimensions.radius
+    if (
+      Math.abs(this.position.x - parent.position.x) > minDistance || 
+      Math.abs(this.position.y - parent.position.y) > minDistance || 
+      Math.abs(this.position.z - parent.position.z) > minDistance
+    ) return false
+
+
 
     if (this.collisionType == "sphere" && parent.collisionType == "sphere") {
       // if distance between centers < radii combined, return colliding
-      let distance = Math.sqrt(
+      let distanceSquared = (
         Math.pow((parent.position.x + parent.dimensions.center[0]) - (this.position.x + this.dimensions.center[0]), 2) + 
         Math.pow((parent.position.y + parent.dimensions.center[1]) - (this.position.y + this.dimensions.center[1]), 2) + 
         Math.pow((parent.position.z + parent.dimensions.center[2]) - (this.position.z + this.dimensions.center[2]), 2)
       )
-      return distance < (parent.dimensions.radius + this.dimensions.radius)
+      return distanceSquared < Math.pow(parent.dimensions.radius + this.dimensions.radius, 2)
     }
 
     // this.collisionType can only be box
@@ -2030,7 +2037,7 @@ class PhysicalObject {
       parent.velocity.z *= Math.sqrt(1 - Math.abs(correctionVector[2]))
 
       if (correctionVector[1] > .1) parent.onGround = true
-      if (correctionVector[1] < -.1) headBumpNoise.play()
+      if (headBumpNoise && correctionVector[1] < -.1) headBumpNoise.play()
 
     }
       
@@ -2309,12 +2316,11 @@ class Player extends PhysicalObject {
 
   calculatePosition(deltaTime, headBumpNoise) {
     this.lastVelocity = { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z}
-    if (deltaTime > 30) return
 
     this.velocity.y -= Player.gravity * deltaTime // subtract by gravitational constant (units/frames^2)
 
 
-    this.position.y += this.velocity.y * deltaTime
+
 
 
     this.onGround = false
@@ -2338,45 +2344,26 @@ class Player extends PhysicalObject {
     }
 */
 
-    // calculate collisions
-    //let movement = this.calculateSlopes()
-    for (let i = 0; i < this.collidableObjects.length; i++) {
-      for (let j in this.collidableObjects[i]) {
-        if (this.collidableObjects[i][j] == null) continue
-        if (this.collidableObjects[i][j] instanceof PhysicalObject) this.collidableObjects[i][j].newCollision(this, headBumpNoise)
-        /*let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
-        if (collision.py.intersects) {
-          this.position.y = collision.py.y
-          this.velocity.y = 0
-          this.onGround = true
+    if (deltaTime > 100) return
+
+    let velocityMagnitude = vec3.length([this.velocity.x, this.velocity.y, this.velocity.z]) * deltaTime
+
+    let intermediateSteps = Math.ceil(velocityMagnitude / 1)
+    for (let i = 0; i < intermediateSteps; i++) {
+
+      this.position.x += this.velocity.x * deltaTime / intermediateSteps
+      this.position.y += this.velocity.y * deltaTime / intermediateSteps
+      this.position.z += this.velocity.z * deltaTime / intermediateSteps
+  
+
+      // calculate collisions
+      for (let i = 0; i < this.collidableObjects.length; i++) {
+        for (let j in this.collidableObjects[i]) {
+          if (this.collidableObjects[i][j] == null) continue
+          if (this.collidableObjects[i][j] instanceof PhysicalObject) this.collidableObjects[i][j].newCollision(this, headBumpNoise)
         }
-        if (collision.my.intersects) {
-          this.position.y = collision.my.y
-          this.velocity.y = 0
-          if (!this.hittingHead) {
-            headBumpNoise.play()
-          }
-          this.hittingHead = true
-        } else {
-          this.hittingHead = false
-        }
-        if (collision.mx.intersects) {
-          this.position.x = collision.mx.x
-          if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
-        }
-        if (collision.px.intersects) {
-          this.position.x = collision.px.x
-          if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
-        }
-        if (collision.mz.intersects) {
-          this.position.z = collision.mz.z
-          if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
-        }
-        if (collision.pz.intersects) {
-          this.position.z = collision.pz.z
-          if (this.movementState == "sprinting" || this.movementState == "sliding") this.movementState = "walking"
-        }*/
       }
+      
     }
 
   }
@@ -2544,53 +2531,60 @@ class Weapon extends PhysicalObject {
 
     this.lastPosition = { x: this.position.x, y: this.position.y, z: this.position.z }
     if (this.shooted) {
-      this.position.x += this.velocity.x * deltaTime
-      this.position.y += this.velocity.y * deltaTime
-      this.position.z += this.velocity.z * deltaTime
 
       if (this.class == "projectile") this.velocity.y -= Weapon.gravity * deltaTime
     } else {
       return
     }
 
-    for (let i = 0; i < this.collidableObjects.length; i++) {
-      for (let j in this.collidableObjects[i]) {
-        if (!(this.collidableObjects[i][j] instanceof PhysicalObject)) continue
-        let colliding = this.collidableObjects[i][j].newCollision(this)
-        if (colliding) {
-          if (this.collidableObjects[i][j] instanceof Player) {
-            console.log("hit")
-            socket.emit("playerHit", {
-              from: this.owner.id,
-              target: this.collidableObjects[i][j].id,
-              damage: this.damage
-            })
-          }
-          this.shooted = false
-          this.remove()
-        }
-        /*let movement = this.calculateSlopes()
-        let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
+    let velocityMagnitude = vec3.length([this.velocity.x, this.velocity.y, this.velocity.z]) * deltaTime
 
-        for (let side in collision) {
-          if (collision[side].intersects) {
-            this.shooted = false
-            this.position.x = collision[side].x
-            this.position.y = collision[side].y
-            this.position.z = collision[side].z
+    let intermediateSteps = Math.ceil(velocityMagnitude / 1)
+    for (let i = 0; i < intermediateSteps; i++) {
 
+      this.position.x += this.velocity.x * deltaTime / intermediateSteps
+      this.position.y += this.velocity.y * deltaTime / intermediateSteps
+      this.position.z += this.velocity.z * deltaTime / intermediateSteps
+      
+      for (let i = 0; i < this.collidableObjects.length; i++) {
+        for (let j in this.collidableObjects[i]) {
+          if (!(this.collidableObjects[i][j] instanceof PhysicalObject)) continue
+          let colliding = this.collidableObjects[i][j].newCollision(this)
+          if (colliding) {
             if (this.collidableObjects[i][j] instanceof Player) {
+              console.log("hit")
               socket.emit("playerHit", {
                 from: this.owner.id,
                 target: this.collidableObjects[i][j].id,
                 damage: this.damage
               })
             }
-
+            this.shooted = false
             this.remove()
           }
-        }*/
+          /*let movement = this.calculateSlopes()
+          let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
 
+          for (let side in collision) {
+            if (collision[side].intersects) {
+              this.shooted = false
+              this.position.x = collision[side].x
+              this.position.y = collision[side].y
+              this.position.z = collision[side].z
+
+              if (this.collidableObjects[i][j] instanceof Player) {
+                socket.emit("playerHit", {
+                  from: this.owner.id,
+                  target: this.collidableObjects[i][j].id,
+                  damage: this.damage
+                })
+              }
+
+              this.remove()
+            }
+          }*/
+
+        }
       }
     }
     this.particleSpawnCounter++

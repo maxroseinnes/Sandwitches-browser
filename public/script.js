@@ -284,14 +284,16 @@ var leaderboardList = document.getElementById("leaderboard")
 //var playerInfos = {}
 
 function addPlayerToHUD(id, name) {
+    console.log(id)
     leaderboard[id] = document.createElement("li")
 
-    leaderboard[id].textContent = name
+    leaderboard[id].textContent = id + name
     leaderboardList.appendChild(leaderboard[id])
 }
 
 function changePlayerNameInHUD(id, string) {
-    leaderboard[id].textContent = string
+    console.log(id)
+    leaderboard[id].textContent = id + string
 }
 
 function removePlayerFromHUD(id) {
@@ -474,7 +476,7 @@ for (let i in geometryInfo.indices) {
         //console.log(otherVecToAlign)
 
         let center = [0, 0, 0]
-        for (let i = 0; i < 3; i++) for (let j = 0; j < points.length; j++) center[i] += points[j][i] / 3
+        for (let i = 0; i < 3; i++) for (let j = 0; j < points.length; j++) center[i] += points[j][i] / points.length
 
         let layedFlatPoints = []
         for (let i = 0; i < points.length; i++) {
@@ -505,6 +507,11 @@ for (let i in geometryInfo.indices) {
 
         //console.log(dimensions)
 
+        //if (Math.abs(dimensions[1][1] - dimensions[0][1]) > .01) continue
+
+        let biggestDimension = 0
+        for (let i in dimensions) for (let j in dimensions[i]) if (Math.abs(dimensions[i][j]) > biggestDimension) biggestDimension = Math.abs(dimensions[i][j])
+
         let platform = new Platform(null, null, center[0], center[1], center[2], 1)
         platform.dimensions = {
             mx: dimensions[0][0],
@@ -516,6 +523,7 @@ for (let i in geometryInfo.indices) {
             pitch: -pitch,
             yaw: -yaw,
             roll: -roll,
+            radius: biggestDimension,
         }
 
 
@@ -1001,8 +1009,6 @@ function fixedUpdate() {
         if (hypotenuse > 0) {
             player.velocity.x = movementVector.x / hypotenuse * speed
             player.velocity.z = movementVector.z / hypotenuse * speed
-            player.position.x += player.velocity.x * deltaTime
-            player.position.z += player.velocity.z * deltaTime
         } else {
             player.velocity.x = 0
             player.velocity.z = 0
