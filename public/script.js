@@ -90,12 +90,11 @@ const joinRoomButton = document.getElementById("joinRoomButton")
 
 joinRoomButton.onclick = () => {
     if (roomKeyInput.value == lobbyId) return
-    lobbyId = roomKeyInput.value
-    changeRoom(lobbyId)
+    //lobbyId = roomKeyInput.value
+    joinRoom(roomKeyInput.value)
 }
-roomKeyInput.value = 4
-lobbyId = 4
-changeRoom(4) // go to room 4 first
+//lobbyId = 4
+//joinRoom() // go to room 4 first
 
 var myWeapons = [
     "olive",
@@ -717,6 +716,7 @@ socket.on("playerUpdate", (playersData) => {
             // if current player just respawned, set "last" variables to be equivalent to current
             otherPlayers[id].lastPosition = playersData[id].position
             otherPlayers[id].lastState = playersData[id].state
+            otherPlayers[id].clearSmoothing()
         }
         for (let i in playersData[id].position) otherPlayers[id].serverPosition[i] = playersData[id].position[i]
         for (let i in playersData[id].state) otherPlayers[id].serverState[i] = playersData[id].state[i]
@@ -759,8 +759,12 @@ socket.on("tooManyPlayers", () => {
     alert("Sorry, there are too many players connected.");
 })
 
-function changeRoom(key) {
-    socket.emit("joinRoom", {roomId: lobbyId, playerId: (player != null) ? player.id : null})
+function joinRoom(id) {
+    socket.emit("joinRoom", {
+        roomId: id, 
+        playerId: (player != null) ? player.id : null
+    })
+    lobbyId = id
 
     if (player != null) removePlayerFromHUD(player.id, player.name)
 

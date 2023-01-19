@@ -440,6 +440,7 @@ class Room {
   }
 
   addPlayer(socket, assignedId) { // this gets called when a player joins this room
+    console.log(assignedId)
     socket.emit("map", this.mapData);
 
     /* this.leaderboard.push({
@@ -740,29 +741,26 @@ socketServer.on("connection", (socket) => {
   socket.emit("weaponGeometry", weaponGeometry)
 
   socket.on("joinRoom", (data) => {
+    console.log(data.roomId)
     var joinNewRoom = true
     for (let i in rooms) {
-      if (data.roomId == Object.keys(rooms)[i]) {
+      if (data.roomId == i) {
         joinNewRoom = false
         break
       }
     }
 
+    // Create new room if this player is creating one
+    //let newRoom
+    if (joinNewRoom) rooms[data.roomId] = new Room(maps.testMap)
 
-    console.log("JOIN ROOM:", data)
-    // Create new room and add player to it
-    let newRoom
-    if (joinNewRoom) {
-      rooms[data.roomId] = new Room(maps.testMap)
-      newRoom = rooms[data.roomId]
-      //rooms[data.roomId].addPlayer(this.players[data.playerId].socket, data.playerId)
-    }
-
-    if (data.playerId != null) { 
+    if (data.playerId != null) { // if this player is joining from another room
       // delete this player from their room
+      let playerSocket
       for (let i in rooms) {
         if (Object.keys(rooms[i].players).indexOf(String(data.playerId)) != -1) { // if joining player is in this room
-          rooms[data.roomId].addPlayer(rooms[i].players[data.playerId].socket, data.playerId)
+          //playerSocket = rooms[i].players[data.playerId].socket
+          //rooms[data.roomId].addPlayer(rooms[i].players[data.playerId].socket, data.playerId)
           rooms[i].broadcast("playerLeave", data.playerId, null);
           console.log(rooms[i].players[data.playerId].name + " left. 😭😭😭😭😭😭😭");
 
@@ -778,17 +776,13 @@ socketServer.on("connection", (socket) => {
           delete rooms[i].players[data.playerId];
         }
       }
+
+      // add this player to the new room
+      rooms[data.roomId].addPlayer(socket, data.playerId)
+    } else {
+      rooms[data.roomId].addPlayer(socket, nextId)
+      nextId++
     }
-
-
-
-
-
-    
-    rooms[data.roomId].addPlayer(socket, nextId)
-    console.log("room: " + data.roomId)
-    console.log("id: " + nextId)
-    nextId++
   })
 
 });
