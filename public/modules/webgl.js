@@ -958,7 +958,7 @@ var webgl = {
 
   },
 
-  renderFrame: function (playerPosition, camera, deltaTime) {
+  renderFrame: function (playerPosition, camera, aimState, deltaTime) {
 
     this.updatePoints()
 
@@ -979,7 +979,7 @@ var webgl = {
 
     let tMatrix = mat4.create();
 
-    {
+    if (false) {
       camera.lastPosition.x = playerPosition.x
       camera.lastPosition.y = playerPosition.y + 1
       camera.lastPosition.z = playerPosition.z
@@ -1041,10 +1041,17 @@ var webgl = {
 
     }
 
+    let cameraPosition = [2, 1 + (1 - (Math.cos(aimState * Math.PI) + 1) / 2), 8 * ((Math.cos(aimState * Math.PI) + 3) / 4)]
+    vec3.rotateX(cameraPosition, cameraPosition, [0, 0, 0], -camera.position.lean)
+    vec3.rotateY(cameraPosition, cameraPosition, [0, 0, 0], -camera.position.yaw)
+    vec3.add(cameraPosition, cameraPosition, [playerPosition.x, playerPosition.y, playerPosition.z])
+
+
+
 
     mat4.rotateX(tMatrix, tMatrix, camera.position.lean);
     mat4.rotateY(tMatrix, tMatrix, camera.position.yaw);
-    mat4.translate(tMatrix, tMatrix, [-camera.position.x, -camera.position.y, -camera.position.z]);
+    mat4.translate(tMatrix, tMatrix, [-cameraPosition[0], -cameraPosition[1], -cameraPosition[2]]);
 
     let pMatrix = mat4.create();
 
@@ -1113,7 +1120,7 @@ var webgl = {
       this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "tMatrix"), false, tMatrix);
       this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "pMatrix"), false, pMatrix);
       this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.volumetricProgram, "shadowMatrix"), false, shadowMatrix);
-      this.gl.uniform3fv(this.gl.getUniformLocation(this.volumetricProgram, "cPosition"), new Float32Array([camera.position.x, camera.position.y, camera.position.z]));
+      this.gl.uniform3fv(this.gl.getUniformLocation(this.volumetricProgram, "cPosition"), new Float32Array(cameraPosition));
 
       this.gl.activeTexture(this.gl.TEXTURE0)
       this.gl.bindTexture(this.gl.TEXTURE_2D, this.depthTexture)
@@ -1188,7 +1195,7 @@ var webgl = {
 
 
     this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "lPosition"), new Float32Array(this.settings.sunPosition))
-    this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "cPosition"), new Float32Array([camera.position.x, camera.position.y, camera.position.z]))
+    this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "cPosition"), new Float32Array(cameraPosition))
     this.gl.uniform1f(this.gl.getUniformLocation(this.program, "uFogOpacity"), this.fogOpacity)
     let shadowDirection = [0, 0, 1]
     vec3.rotateX(shadowDirection, shadowDirection, [0, 0, 0], this.settings.sunAnglePitch)

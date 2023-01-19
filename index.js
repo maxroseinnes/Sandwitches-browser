@@ -391,7 +391,7 @@ var maps = {
   testMap: {
     floorTexture: "",
     platforms: [],
-    mapFile: "full_starting_map (4).obj"
+    mapFile: "full_starting_mapBIGMODE.obj"
   },
 
   testMap2: {

@@ -161,9 +161,21 @@ document.getElementById("volumeSlider").onchange = () => {
 
 //var inventory
 
+var updateCrosshair = () => {
+    let width = effectsCanvas.width
+    let height = effectsCanvas.height
+
+    ctx.clearRect(width / 2 - 11, height / 2 - 11, 22, 22)
+    ctx.fillStyle = "rgba(255, 255, 255, " + (aimState * 2 - 1) + ")"
+    ctx.fillRect(width / 2 - 10, height / 2 - 1, 20, 2)
+    ctx.fillRect(width / 2 - 1, height / 2 - 10, 2, 20)
+    
+}
+
 var updateHUD = () => {
     let width = effectsCanvas.width
     let height = effectsCanvas.height
+
     let slotSize = 75
     ctx.clearRect(width - (weaponSelectors.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (weaponSelectors.length) * slotSize + 20, slotSize * 2 + 20)
     ctx.fillStyle = "white"
@@ -893,7 +905,7 @@ function update(now) {
     camera.position.yaw = player ? player.position.yaw : 0
     camera.position.lean = player ? player.position.lean : 0
 
-    webgl.renderFrame(player ? player.position : {x: 0, y: 0, z: 0}, camera, deltaTime);
+    webgl.renderFrame(player ? player.position : {x: 0, y: 0, z: 0}, camera, aimState, deltaTime);
     if (running) requestAnimationFrame(update)
 }
 update()
@@ -1007,8 +1019,9 @@ function fixedUpdate() {
                 })
             }
         }
-        if (rightClicking) aimState = Math.min(1, aimState + .01)
-        else aimState = Math.max(0, aimState - .01)
+        if (rightClicking) aimState = Math.min(1, aimState + .005 * deltaTime)
+        else aimState = Math.max(0, aimState - .005 * deltaTime)
+        updateCrosshair()
 
 
         // normalize movement vector //
@@ -1361,11 +1374,11 @@ overallGraphicsSelector.onchange = () => {
 
 document.addEventListener("mousedown", function (event) {
     if (running && event.which == 1) leftClicking = true
-    if (running && event.which == 2) rightClicking = true
+    if (running && event.which == 3) rightClicking = true
 
 })
 
 document.addEventListener("mouseup", function (event) {
     if (running && event.which == 1) leftClicking = false
-    if (running && event.which == 2) rightClicking = false
+    if (running && event.which == 3) rightClicking = false
 })
