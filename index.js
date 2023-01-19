@@ -11,6 +11,7 @@ const localhost = false;
 const port = 3000;
 
 const DEFAULT_PLAYER_HEALTH = 100
+const ROOM_CAP = 10 // the max amount of rooms
 
 
 
@@ -440,7 +441,6 @@ class Room {
   }
 
   addPlayer(socket, assignedId) { // this gets called when a player joins this room
-    console.log(assignedId)
     socket.emit("map", this.mapData);
 
     /* this.leaderboard.push({
@@ -646,9 +646,9 @@ class Room {
     return data
   }
 
-  broadcast(eventName, msg, except) {
+  broadcast(eventName, data, except) {
     for (let id in this.players) {
-      if (id != except) this.players[id].socket.emit(eventName, msg)
+      if (id != except) this.players[id].socket.emit(eventName, data)
     }
   }
 
@@ -691,6 +691,11 @@ class Room {
     //console.log(killCounts.length)
   
     this.broadcast("leaderboard", killCounts, null)
+    let roomId
+    for (let i in rooms) {
+      if (rooms[i] == this) roomId = i
+    }
+    //console.log(roomId + "killcounts:", killCounts)
   }
 
 
@@ -741,6 +746,8 @@ socketServer.on("connection", (socket) => {
   socket.emit("weaponGeometry", weaponGeometry)
 
   socket.on("joinRoom", (data) => {
+    console.log(data, "JOIN ROOM")
+    
     console.log(data.roomId)
     var joinNewRoom = true
     for (let i in rooms) {
@@ -752,7 +759,17 @@ socketServer.on("connection", (socket) => {
 
     // Create new room if this player is creating one
     //let newRoom
-    if (joinNewRoom) rooms[data.roomId] = new Room(maps.testMap)
+    if (joinNewRoom) {
+      if (Object.keys(rooms).length >= ROOM_CAP) {
+        socket.emit("roomCapReached")
+        return
+      }
+
+      rooms[data.roomId] = new Room(maps.testMap)
+    }
+
+    socket.emit("roomJoinSuccess", data.roomId)
+
 
     if (data.playerId != null) { // if this player is joining from another room
       // delete this player from their room
