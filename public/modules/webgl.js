@@ -144,7 +144,7 @@ var webgl = {
 
   settings: {
 
-    particles: true,
+    particles: false,
 
     shadows: true,
     shadowMapResolution: 4096,
@@ -1367,7 +1367,7 @@ var webgl = {
     brightness /= 3 * sampleResolution * (sampleResolution / 2)
 
     let timeToChange = 1000
-    if (!isNaN(deltaTime)) this.fogOpacity = this.fogOpacity * (timeToChange - deltaTime) / timeToChange + (Math.pow(1 - brightness / 255, 1.5) + .5) * (10 / 15) * deltaTime / timeToChange
+    if (!isNaN(deltaTime)) this.fogOpacity = this.fogOpacity * (timeToChange - deltaTime) / timeToChange + (Math.pow(1 - brightness / 255, 2) + .2) * (10 / 12) * deltaTime / timeToChange
 
   }
 
@@ -2350,12 +2350,12 @@ class Player extends PhysicalObject {
       pz: .75
     }
 */
-
-    if (deltaTime > 100) return
-
     let velocityMagnitude = vec3.length([this.velocity.x, this.velocity.y, this.velocity.z]) * deltaTime
 
     let intermediateSteps = Math.ceil(velocityMagnitude / 1)
+
+    if (intermediateSteps > 20) return
+
     for (let i = 0; i < intermediateSteps; i++) {
 
       this.position.x += this.velocity.x * deltaTime / intermediateSteps
@@ -2601,7 +2601,7 @@ class Weapon extends PhysicalObject {
 
 
   getShootVelocity(angleX, yaw) {
-    if (this.class == "projectile") angleX = -angleX + Math.PI / 8
+    if (this.class == "projectile") angleX = -angleX + Math.PI / 16
     else angleX = -angleX + Math.PI / 64
     if (angleX > Math.PI / 2) angleX = Math.PI / 2
     yaw = -yaw

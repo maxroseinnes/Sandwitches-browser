@@ -444,9 +444,9 @@ for (let i in geometryInfo.indices) {
         for (let j = 0; j < points.length; j++) {
             let vector = getSideVector(j, true, 1)
             for (let k = 0; k < 3; k++) {
-                if (vector[k] > mostAxisAlignedVectorValue) {
+                if (Math.abs(vector[k]) > mostAxisAlignedVectorValue) {
                     mostAxisAlignedVector = j
-                    mostAxisAlignedVectorValue = vector[k]
+                    mostAxisAlignedVectorValue = Math.abs(vector[k])
                 }
             }
             
@@ -1386,14 +1386,14 @@ overallGraphicsSelector.onchange = () => {
             webgl.settings.skybox = true
             webgl.settings.specularLighting = true
             webgl.settings.shadows = true
-            webgl.settings.particles = true
+            webgl.settings.particles = false
             webgl.settings.volumetricLighting = false
             break
         case "high":
             webgl.settings.skybox = true
             webgl.settings.specularLighting = true
             webgl.settings.shadows = true
-            webgl.settings.particles = true
+            webgl.settings.particles = false
             webgl.settings.volumetricLighting = true
             break
     }
