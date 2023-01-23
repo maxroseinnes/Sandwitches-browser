@@ -675,7 +675,7 @@ class Room {
         var newArr = [];
         var pivot = arr.pop();
     
-        for (var i = 0; i < arr.length; i++) {
+        for (let i = 0; i < arr.length; i++) {
           if (arr[i].killCount <= pivot.killCount) {
             left.push(arr[i]);
           } else {
@@ -783,8 +783,7 @@ socketServer.on("connection", (socket) => {
 
           let listeners = socket.eventNames()
           for (let j in listeners) {
-            if (listeners[j] == "joinRoom") continue
-            socket.removeAllListeners(listeners[j])
+            if (listeners[j] != "joinRoom") socket.removeAllListeners(listeners[j])
           }
 
           socket.emit("stopTicking")

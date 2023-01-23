@@ -298,13 +298,12 @@ var leaderboardList = document.getElementById("leaderboard")
 function addPlayerToHUD(id, name) {
     leaderboard[id] = document.createElement("li")
 
-    leaderboard[id].textContent = id + name
+    leaderboard[id].textContent = name
     leaderboardList.appendChild(leaderboard[id])
 }
 
 function changePlayerNameInHUD(id, string) {
-    console.log(id)
-    leaderboard[id].textContent = id + string
+    leaderboard[id].textContent = string
 }
 
 function removePlayerFromHUD(id) {
@@ -341,7 +340,7 @@ var platformGeometry = {
 }
 
 var ground
-var mapModel
+var mapModels = []
 var camera = new PhysicalObject(0, 0, 0, 0, 0, { mx: -.05, px: .05, my: -.05, py: .05, mz: -.05, pz: .05 }, [platforms, [ground]])
 var player
 
@@ -384,7 +383,7 @@ socket.on("ping", () => {
         socket.emit("ping");
     } else {
         var sum = 0
-        for (var i = 0; i < pingTests.length; i++) {
+        for (let i = 0; i < pingTests.length; i++) {
             sum += pingTests[i];
         }
         socket.emit("pingTestComplete", sum / pingTests.length)
@@ -403,6 +402,7 @@ socket.on("stopTicking", () => {
 
 socket.on("assignPlayer", (playerInfo) => {
     player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, [ground]]);
+    startButton.disabled = false
 
     document.getElementById("nameField").value = player.name
 
@@ -551,25 +551,29 @@ socket.on("map", (mapInfo) => {
             mapInfo.platforms[i].z,
             mapInfo.platforms[i].scale
         )
-        let yaw = Math.random() * Math.PI * 2
-        platform.position.yaw = yaw
-        platform.dimensions.yaw = yaw
-        let pitch = Math.random() * Math.PI * 2
-        platform.position.pitch = pitch
-        platform.dimensions.pitch = pitch
-        let roll = Math.random() * Math.PI * 2
-        platform.position.roll = roll
-        platform.dimensions.roll = roll
         platforms.push(platform)
     }
 
     if (mapInfo.mapFile != undefined) {
-        let mapGeometry = obj.parseWavefront(fetchObj(mapInfo.mapFile), false, false)
-        //console.log(mapGeometry)
-        mapModel = new Model({}, obj.parseWavefront(fetchObj(mapInfo.mapFile), false, true), 1, "wood", 0, 0, 0)
-        
-        addPlatformsForMesh(mapGeometry)
+        let mapObj = fetchObj(mapInfo.mapFile)
+        addPlatformsForMesh(obj.parseWavefront(mapObj, false, false))
 
+        let mapModelGeometry = obj.parseWavefront(mapObj, true, true)
+        for (let name in mapModelGeometry) {
+            let texture = "wood"
+            if (name.indexOf("Tree") != -1) texture = "tree"
+            if (name.indexOf("Plane") != -1) texture = "grass"
+            if (name.indexOf("Road") != -1) texture = "asphalt"
+            if (name.indexOf("Barn") != -1) texture = "barnWood"
+            if (name.indexOf("Fence") != -1) texture = "whiteWood"
+            if (name.indexOf("Building") != -1) texture = "houseWood"
+            if (name.indexOf("Cube") != -1) texture = "barnWood"
+            if (name.indexOf("Ladder") != -1) texture = "whiteWood"
+            if (name.indexOf("Loft") != -1) texture = "barnWood"
+            mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
+            
+        }
+        
 
         
     }
@@ -583,7 +587,7 @@ socket.on("map", (mapInfo) => {
 
 // receive necessary info about the other connected players upon joining
 socket.on("otherPlayers", (otherPlayersInfo) => {
-    for (var id in otherPlayersInfo) {
+    for (let id in otherPlayersInfo) {
         otherPlayers[id] = new Player(
             playerGeometry,
             otherPlayersInfo[id].position.x,
@@ -643,7 +647,7 @@ socket.on("leaderboard", (leaderboardInfo) => {
 
 socket.on("weaponStatesRequest", (recipientId) => {
     var weaponStates = {}
-    for (var id in player.weapons) {
+    for (let id in player.weapons) {
         if (player.weapons[id].shooted) {
             console.log(player.weapons[id].position)
             weaponStates[id] = {
@@ -719,26 +723,36 @@ socket.on("playerLeave", (id) => {
 
 socket.on("playerUpdate", (playersData) => {
 
-    for (var id in playersData) {
-        if (otherPlayers[id] == null) continue
-        if (!playersData[id].respawnedThisTick) {
-            otherPlayers[id].lastPosition = otherPlayers[id].serverPosition
-            otherPlayers[id].lastState = otherPlayers[id].serverState
-        } else {
-            // if current player just respawned, set "last" variables to be equivalent to current
-            otherPlayers[id].lastPosition = playersData[id].position
-            otherPlayers[id].lastState = playersData[id].state
-            otherPlayers[id].clearSmoothing()
+    for (let id in playersData) {
+
+        // update player health and healthbar
+        if (player && id == player.id) {
+            if (playersData[id].health != player.health || playersData[id].health == 100) {
+                player.health = playersData[id].health
+                document.getElementById("healthBar").style.width = playersData[id].health + "%"
+                document.getElementById("healthBar").style.backgroundColor = "rgb(" + (2.55 * (100 - player.health)) + ", " + (2.55 * player.health * .5) + ", 0)"
+            }
         }
-        for (let i in playersData[id].position) otherPlayers[id].serverPosition[i] = playersData[id].position[i]
-        for (let i in playersData[id].state) otherPlayers[id].serverState[i] = playersData[id].state[i]
-        if (otherPlayers[id].currentWeaponType != playersData[id].currentWeaponType && playersData[id].currentWeaponType != undefined) {
-            otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
-            if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
-            otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [platforms, otherPlayers, [ground]], otherPlayers[id])
-            otherPlayers[id].currentCooldown = otherPlayers[id].inventory.currentWeapon.cooldown
+        
+        if (otherPlayers[id] != null) {
+            if (!playersData[id].respawnedThisTick) {
+                otherPlayers[id].lastPosition = otherPlayers[id].serverPosition
+                otherPlayers[id].lastState = otherPlayers[id].serverState
+            } else {
+                // if current player just respawned, set "last" variables to be equivalent to current
+                otherPlayers[id].lastPosition = playersData[id].position
+                otherPlayers[id].lastState = playersData[id].state
+                otherPlayers[id].clearSmoothing()
+            }
+            for (let i in playersData[id].position) otherPlayers[id].serverPosition[i] = playersData[id].position[i]
+            for (let i in playersData[id].state) otherPlayers[id].serverState[i] = playersData[id].state[i]
+            if (otherPlayers[id].currentWeaponType != playersData[id].currentWeaponType && playersData[id].currentWeaponType != undefined) {
+                otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
+                if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
+                otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [platforms, otherPlayers, [ground]], otherPlayers[id])
+                otherPlayers[id].currentCooldown = otherPlayers[id].inventory.currentWeapon.cooldown
+            }
         }
-        break;
     }
 })
 
@@ -777,36 +791,11 @@ socket.on("roomCapReached", () => {
 
 function joinRoom(id) {
     console.log("join room")
+    startButton.disabled = true
     socket.emit("joinRoom", {
         roomId: id, 
         playerId: (player != null) ? player.id : null
     })
-
-    //this moved to when server confirms join room success
-    /*lobbyId = id
-
-    if (player != null) removePlayerFromHUD(player.id, player.name)
-
-    // delete all map geometry
-    if (mapModel) mapModel.delete()
-
-    for (let i = 0; i < platforms.length; i++) {
-        platforms[i].remove()
-    }
-    platforms.splice(0, platforms.length)
-    if (player != undefined) {
-        player.remove()
-        player = undefined
-    }
-
-    if (ground != null) {
-        ground.remove()
-        ground = null
-    }
-
-    for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
-
-    document.getElementById("title").textContent = "Room " + lobbyId*/
 
 }
 
@@ -818,7 +807,7 @@ socket.on("roomJoinSuccess", (roomId) => {
     if (player != null) removePlayerFromHUD(player.id, player.name)
 
     // delete all map geometry
-    if (mapModel) mapModel.delete()
+    for (let i in mapModels) mapModels[i].delete()
 
     for (let i = 0; i < platforms.length; i++) {
         platforms[i].remove()
@@ -908,21 +897,23 @@ function update(now) {
     let currentTickStage = timeSinceLastTick / averageClientTPS / 1.15
 
     for (let id in otherPlayers) {
-        if (otherPlayers[id] == null) continue
-        otherPlayers[id].smoothPosition(currentTickStage)
-        otherPlayers[id].gamerTag.position = {
-          x: otherPlayers[id].position.x,
-          y: otherPlayers[id].position.y + 2.75,
-          z: otherPlayers[id].position.z,
-          yaw: lookAngleY,
-          lean: 0,
-          pitch: lookAngleX,
-          roll: 0
-        }
+        if (otherPlayers[id] != null) {
 
-        if (otherPlayers[id].inventory.currentWeapon != null) {
-            otherPlayers[id].inventory.currentWeapon.calculatePosition(deltaTime)
-            otherPlayers[id].updateCooldown(deltaTime)
+            otherPlayers[id].smoothPosition(currentTickStage)
+            otherPlayers[id].gamerTag.position = {
+            x: otherPlayers[id].position.x,
+            y: otherPlayers[id].position.y + 2.75,
+            z: otherPlayers[id].position.z,
+            yaw: lookAngleY,
+            lean: 0,
+            pitch: lookAngleX,
+            roll: 0
+            }
+
+            if (otherPlayers[id].inventory.currentWeapon != null) {
+                otherPlayers[id].inventory.currentWeapon.calculatePosition(deltaTime)
+                otherPlayers[id].updateCooldown(deltaTime)
+            }
         }
 
 
@@ -1091,14 +1082,16 @@ function fixedUpdate() {
 
 
 
-    for (var id in otherWeapons) {
-        if (otherWeapons[id] == null) continue
-        if (otherWeapons[id].shooted) {
-            otherWeapons[id].calculatePosition(deltaTime, socket)
+    for (let id in otherWeapons) {
+        if (otherWeapons[id] != null) {
+            
+            if (otherWeapons[id].shooted) {
+                otherWeapons[id].calculatePosition(deltaTime, socket, otherWeapons[id].owner == player)
 
-            if (Math.abs(otherWeapons[id].position.x) > 50 || Math.abs(otherWeapons[id].position.z) > 50 || Math.abs(otherWeapons[id].position.y) > 1000) {
-                otherWeapons[id].remove()
-                otherWeapons[id] = null
+                if (Math.abs(otherWeapons[id].position.x) > 100 || Math.abs(otherWeapons[id].position.z) > 100 || Math.abs(otherWeapons[id].position.y) > 1000) {
+                    otherWeapons[id].remove()
+                    otherWeapons[id] = null
+                }
             }
         }
     }
@@ -1311,6 +1304,10 @@ document.addEventListener("mousemove", function (event) {
 
 // -- menu -- //
 startButton.onclick = () => {
+    if (!player) {
+        //alert("join a room first")
+        return
+    }
     if ((Date.now() - lastPointerLockExited) < 1500) return
 
     console.log("starting")
