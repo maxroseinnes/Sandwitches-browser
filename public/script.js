@@ -782,10 +782,12 @@ socket.on("respawn", (data) => {
 })
 
 socket.on("tooManyPlayers", () => {
+    if (player) startButton.disabled = false
     alert("Sorry, there are too many players connected.");
 })
 
 socket.on("roomCapReached", () => {
+    if (player) startButton.disabled = false
     alert("Server has reached room limit. Cannot join room.")
 })
 

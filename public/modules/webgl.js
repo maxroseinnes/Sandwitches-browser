@@ -2683,9 +2683,9 @@ class Weapon extends PhysicalObject {
     this.velocity.z = Math.cos(yaw) * tempZ - Math.sin(yaw) * tempX
     this.velocity.x = Math.sin(yaw) * tempZ + Math.cos(yaw) * tempX
 
-    this.velocity.x += this.owner.velocity.x
-    this.velocity.y += this.owner.velocity.y
-    this.velocity.z += this.owner.velocity.z
+    //this.velocity.x += this.owner.velocity.x
+    //this.velocity.y += this.owner.velocity.y
+    //this.velocity.z += this.owner.velocity.z
 
 
     return this.velocity
@@ -2729,7 +2729,7 @@ class Platform extends PhysicalObject {
     this.texture = "olive" // default to olive texture
 
     if (type == "basic") {
-      this.texture = "wood"
+      this.texture = "sub"
     }
     if (type == "crate") {
       this.texture = "wood"
