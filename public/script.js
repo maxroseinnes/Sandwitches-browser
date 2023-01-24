@@ -640,7 +640,11 @@ socket.on("leaderboard", (leaderboardInfo) => {
             name = otherPlayers[playerInfo.id].name
         }
 
-        listItem.textContent = name + ": " + playerInfo.killCount + " kills 💀💀💀💀💀"
+        let skulls = ""
+        for (let i = 0; i < playerInfo.killCount; i++) {
+            skulls += "💀"
+        }
+        listItem.textContent = name + ": " + playerInfo.killCount + " kills " + skulls
         leaderboardList.appendChild(listItem)
     }
 })
