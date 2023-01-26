@@ -2618,10 +2618,11 @@ class Weapon extends PhysicalObject {
       
       for (let i = 0; i < this.collidableObjects.length; i++) {
         for (let j in this.collidableObjects[i]) {
+          //if (this.collidableObjects[i][j].id == this.owner.id) continue
           if (!(this.collidableObjects[i][j] instanceof PhysicalObject)) continue
           let colliding = this.collidableObjects[i][j].newCollision(this, false)
           if (colliding) {
-            if (this.collidableObjects[i][j] instanceof Player && shotByClient) {
+            if (this.collidableObjects[i][j] instanceof Player && this.collidableObjects[i][j].id != this.owner.id && shotByClient) {
               console.log("hit")
               socket.emit("playerHit", {
                 from: this.owner.id,

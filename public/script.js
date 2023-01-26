@@ -646,7 +646,11 @@ socket.on("leaderboard", (leaderboardInfo) => {
             name = otherPlayers[playerInfo.id].name
         }
 
-        listItem.textContent = name + ": " + playerInfo.killCount + " kills 💀💀💀💀💀"
+        let skulls = ""
+        for (let i = 0; i < playerInfo.killCount; i++) {
+            skulls += "💀"
+        }
+        listItem.textContent = name + ": " + playerInfo.killCount + " kills " + skulls
         leaderboardList.appendChild(listItem)
     }
 })
@@ -698,7 +702,6 @@ socket.on("weaponStates", (data) => {
 socket.on("newPlayer", (player) => {
     displayChatMessage(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
-    console.log((otherPlayers[player.id] ? "true" : "false") + " :ALKSJFD:KLDJSGf")
     console.log(otherPlayers[player.id])
     addPlayerToHUD(player.id, player.name)
 })
