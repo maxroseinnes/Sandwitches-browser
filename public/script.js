@@ -453,7 +453,18 @@ for (let i in geometryInfo.indices) {
 
         }
 
-        let vecToAlign = getSideVector(mostAxisAlignedVector, true, 1)
+
+        let longestVector = 0
+        let longestVectorLength = 0
+        for (let j = 0; j < points.length; j++) if (vec3.length(getSideVector(j, false, 1)) > longestVectorLength) {longestVector = j; longestVectorLength = vec3.length(getSideVector(j, false, 1))}
+
+        let shortestVectorLength = 9999999999999
+        for (let j = 0; j < points.length; j++) if (vec3.length(getSideVector(j, false, 1)) < shortestVectorLength) shortestVectorLength = vec3.length(getSideVector(j, false, 1))
+
+
+        let vecToAlign
+        if (longestVectorLength / shortestVectorLength > 5) vecToAlign = getSideVector(longestVector, true, 1)
+        else vecToAlign = getSideVector(mostAxisAlignedVector, true, 1)
 
         // roll only affects x and y
         let xy = [vecToAlign[0], vecToAlign[1]]
@@ -881,6 +892,8 @@ function update(now) {
     if (player) {
         player.position.yaw = lookAngleY
         player.position.lean = lookAngleX
+        player.dimensions.yaw = lookAngleY
+        player.dimensions.pitch = lookAngleX
         player.gamerTag.position = {
           x: player.position.x,
           y: player.position.y + 2.75,

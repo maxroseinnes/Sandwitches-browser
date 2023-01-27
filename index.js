@@ -560,19 +560,21 @@ class Room {
     socket.on("weaponStates", (data) => {
       let weaponInfo = {}
       for (let id in data.states) {
-        weaponInfo[id] = {
-          type: this.weapons[id].type,
-          position: {
-            x: data.states[id].position.x,
-            y: data.states[id].position.y,
-            z: data.states[id].position.z,
-            yaw: data.states[id].yaw,
-            pitch: data.states[id].pitch
-          },
-          velocity: {
-            x: data.states[id].velocity.x,
-            y: data.states[id].velocity.y,
-            z: data.states[id].velocity.z
+        if (weaponInfo[id] != null) {
+          weaponInfo[id] = {
+            type: this.weapons[id].type,
+            position: {
+              x: data.states[id].position.x,
+              y: data.states[id].position.y,
+              z: data.states[id].position.z,
+              yaw: data.states[id].yaw,
+              pitch: data.states[id].pitch
+            },
+            velocity: {
+              x: data.states[id].velocity.x,
+              y: data.states[id].velocity.y,
+              z: data.states[id].velocity.z
+            }
           }
         }
       }
