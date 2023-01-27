@@ -236,16 +236,17 @@ input[type=text] {
 
 #healthContainer {
     position: absolute;
-    bottom: 70px;
-    right: calc(50% - 350px);
+    bottom: 170px;
+    right: 60px;
 
-    width: 700px;
+    width: 500px;
     height: 20px;
 
     background-color: rgba(0, 0, 0, .5);
+    box-shadow: 0px 0px 5px 5px rgba(0, 0, 0, .1);
 
-    border-style: solid;
-    border-color: white;
+    border-radius: 10px;
+
 }
 
 #healthBar {
@@ -258,7 +259,16 @@ input[type=text] {
 
     background-color: green;
 
-    transition: width .25s, background-color .25s;
+    border-radius: 7.5px;
+
+    transition: width .375s, background-color .375s;
+}
+
+#weaponsContainer {
+    position: absolute;
+    bottom: 50px;
+    right: 50px;
+
 }
 
 #chatbox {

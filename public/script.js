@@ -173,30 +173,36 @@ var updateCrosshair = () => {
     
 }
 
+var weaponsContainer = document.getElementById("weaponsContainer")
 var updateHUD = () => {
-    let width = effectsCanvas.width
-    let height = effectsCanvas.height
-
-    let slotSize = 75
-    ctx.clearRect(width - (weaponSelectors.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (weaponSelectors.length) * slotSize + 20, slotSize * 2 + 20)
-    ctx.fillStyle = "white"
-    ctx.fillRect(width - (weaponSelectors.length + 1) * slotSize - 10, height - slotSize * 2 - 10, (weaponSelectors.length) * slotSize + 20, slotSize + 20)
+    weaponsContainer.innerHTML = ""
 
     for (let i = 0; i < weaponSelectors.length; i++) {
-        if (weaponSelectors[i].value == "tomato") ctx.fillStyle = "red"
-        if (weaponSelectors[i].value == "olive") ctx.fillStyle = "green"
-        if (weaponSelectors[i].value == "pickle") ctx.fillStyle = "lightgreen"
-        if (weaponSelectors[i].value == "sausage") ctx.fillStyle = "brown"
-        if (weaponSelectors[i].value == "anchovy") ctx.fillStyle = "blue"
+        let color = "white"
 
-        ctx.fillRect(width - (weaponSelectors.length + 1) * slotSize + i * slotSize, height - slotSize * 2, slotSize, slotSize)
-        ctx.fillStyle = "white"
-        ctx.font = "100 15px monospace"
-        ctx.fillText(weaponSelectors[i].value, width - (weaponSelectors.length + 1) * slotSize + i * slotSize, height - slotSize * 2 + 100, slotSize)
+        if (weaponSelectors[i].value == "tomato") color = "red"
+        if (weaponSelectors[i].value == "olive") color = "green"
+        if (weaponSelectors[i].value == "pickle") color = "lightgreen"
+        if (weaponSelectors[i].value == "sausage") color = "brown"
+        if (weaponSelectors[i].value == "anchovy") color = "blue"
+
+        let weaponSlot = document.createElement("td")
+        weaponSlot.style.padding = "5px"
+        weaponSlot.style.height = "75px"
+        weaponSlot.style.width = "75px"
+        weaponSlot.style.color = "white"
+        weaponSlot.style.boxShadow = "0px 0px 5px 5px rgba(0, 0, 0, .1)"
+        weaponSlot.style.borderRadius = "10px"
+        weaponSlot.style.borderStyle = "solid"
+        weaponSlot.style.borderColor = (player.inventory.currentSelection == i) ? "white" : color
+        weaponSlot.classList.add("weaponSlot")
+        weaponSlot.style.backgroundColor = color
+        weaponSlot.textContent = weaponSelectors[i].value
+        weaponsContainer.appendChild(weaponSlot)
     }
 
-    ctx.fillStyle = "yellow"
-    for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - (weaponSelectors.length + 1) * slotSize - i + player.inventory.currentSelection * slotSize, height - slotSize * 2 - i, slotSize + i * 2, slotSize + i * 2)
+    //ctx.fillStyle = "yellow"
+    //for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - (weaponSelectors.length + 1) * slotSize - i + player.inventory.currentSelection * slotSize, height - slotSize * 2 - i, slotSize + i * 2, slotSize + i * 2)
 }
 
 var changeWeaponSelection = (selection) => {
@@ -744,7 +750,7 @@ socket.on("playerUpdate", (playersData) => {
             if (playersData[id].health != player.health || playersData[id].health == 100) {
                 player.health = playersData[id].health
                 document.getElementById("healthBar").style.width = playersData[id].health + "%"
-                document.getElementById("healthBar").style.backgroundColor = "rgb(" + (2.55 * (100 - player.health)) + ", " + (2.55 * player.health * .5) + ", 0)"
+                document.getElementById("healthBar").style.backgroundColor = "rgb(" + (2.55 * (100 - player.health)) + ", " + (2.55 * player.health * .75) + ", 0)"
             }
         }
         
@@ -1146,7 +1152,7 @@ var keyBinds = {
         selecting: false
     },
     openChat: {
-        code: "KeyC",
+        code: "Enter",
         selecting: false
     }
 }
@@ -1222,8 +1228,9 @@ function initKeyInput(preventDefault) {
                 chatboxInput.textContent = chatboxInput.textContent.slice(0, -2) + "|"
             }
             else if (event.code == "Enter") {
-                socket.emit("sendChatMessage", player.name + ": " + chatboxInput.textContent.slice(0, -1))
+                if (chatboxInput.textContent.length > 1) socket.emit("sendChatMessage", player.name + ": " + chatboxInput.textContent.slice(0, -1))
                 chatboxInput.innerHTML = ""
+                closeChatbox()
             }
             else if (event.code == "Escape") {
                 closeChatbox()
@@ -1234,7 +1241,7 @@ function initKeyInput(preventDefault) {
             }
         }
 
-        if (event.code == keyBinds.openChat.code && running) {
+        else if (event.code == keyBinds.openChat.code && running) {
             openChatbox()
         }
 
