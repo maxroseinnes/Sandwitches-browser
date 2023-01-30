@@ -234,7 +234,7 @@ input[type=text] {
 
 #healthContainer {
     position: absolute;
-    bottom: 170px;
+    bottom: 60px;
     right: 60px;
 
     width: 500px;
@@ -264,7 +264,7 @@ input[type=text] {
 
 #weaponsContainer {
     position: absolute;
-    bottom: 50px;
+    bottom: 90px;
     right: 50px;
 
 }
