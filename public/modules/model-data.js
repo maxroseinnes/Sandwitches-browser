@@ -196,6 +196,228 @@ var obj = {
 
 }
 
+var generatePlatforms = (geometryInfo) => {
+    let sub = (out, a, b) => {
+        out[0] = a[0] - b[0];
+        out[1] = a[1] - b[1];
+        out[2] = a[2] - b[2];
+        return out;
+    }
+
+    let normalize = (out, a) => {
+        var x = a[0],
+        y = a[1];
+        var len = Math.sqrt(x * x + y * y);
+        if (len != 0) {
+            out[0] = a[0] / len;
+            out[1] = a[1] / len;
+        }
+        return out;
+    }
+
+    let length = (a) => {
+        let x = a[0];
+        let y = a[1];
+        let z = a[2];
+        return Math.hypot(x, y, z);
+    }
+
+    let rotateX = (out, a, b, rad) => {
+        let p = [],
+          r = [];
+        //Translate point to the origin
+        p[0] = a[0] - b[0];
+        p[1] = a[1] - b[1];
+        p[2] = a[2] - b[2];
+        //perform rotation
+        r[0] = p[0];
+        r[1] = p[1] * Math.cos(rad) - p[2] * Math.sin(rad);
+        r[2] = p[1] * Math.sin(rad) + p[2] * Math.cos(rad);
+        //translate to correct position
+        out[0] = r[0] + b[0];
+        out[1] = r[1] + b[1];
+        out[2] = r[2] + b[2];
+        return out;
+      }
+      
+      let rotateY = (out, a, b, rad) => {
+        let p = [],
+          r = [];
+        //Translate point to the origin
+        p[0] = a[0] - b[0];
+        p[1] = a[1] - b[1];
+        p[2] = a[2] - b[2];
+        //perform rotation
+        r[0] = p[2] * Math.sin(rad) + p[0] * Math.cos(rad);
+        r[1] = p[1];
+        r[2] = p[2] * Math.cos(rad) - p[0] * Math.sin(rad);
+        //translate to correct position
+        out[0] = r[0] + b[0];
+        out[1] = r[1] + b[1];
+        out[2] = r[2] + b[2];
+        return out;
+      }
+      
+      let rotateZ = (out, a, b, rad) => {
+        let p = [],
+          r = [];
+        //Translate point to the origin
+        p[0] = a[0] - b[0];
+        p[1] = a[1] - b[1];
+        p[2] = a[2] - b[2];
+        //perform rotation
+        r[0] = p[0] * Math.cos(rad) - p[1] * Math.sin(rad);
+        r[1] = p[0] * Math.sin(rad) + p[1] * Math.cos(rad);
+        r[2] = p[2];
+        //translate to correct position
+        out[0] = r[0] + b[0];
+        out[1] = r[1] + b[1];
+        out[2] = r[2] + b[2];
+        return out;
+      }
+      
+
+    let platforms = []
+    for (let i in geometryInfo.indices) {
 
 
-export default { fetchObj, obj }
+        // new method: 1. rotate so that one side (vector) is [0, 0, 1] (normalized), 2. rotate other side so that it is flat (pitch)
+
+        let points = []
+        for (let j = 0; j < geometryInfo.indices[i].vertexes.length; j++) points.push([
+            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][0], 
+            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][1], 
+            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][2]
+        ])
+        let getSideVector = (x, normalize, direction) => {
+            let vector = []
+            //console.log(x % points.length, points.length)
+            sub(vector, points[(x + points.length * 3) % points.length], points[(x + points.length * 3 + direction) % points.length])
+            if (normalize) {
+                let length = Math.sqrt(Math.pow(vector[0], 2) + Math.pow(vector[1], 2) + Math.pow(vector[2], 2))
+                if (length != 0) {
+                    vector[0] /= length
+                    vector[1] /= length
+                    vector[2] /= length
+                }
+            }
+            return vector
+        }
+
+        let mostAxisAlignedVector = 0
+        let mostAxisAlignedVectorValue = 0
+        for (let j = 0; j < points.length; j++) {
+            let vector = getSideVector(j, true, 1)
+            for (let k = 0; k < 3; k++) {
+                if (Math.abs(vector[k]) > mostAxisAlignedVectorValue) {
+                    mostAxisAlignedVector = j
+                    mostAxisAlignedVectorValue = Math.abs(vector[k])
+                }
+            }
+            
+
+        }
+
+
+        let longestVector = 0
+        let longestVectorLength = 0
+        for (let j = 0; j < points.length; j++) if (length(getSideVector(j, false, 1)) > longestVectorLength) {longestVector = j; longestVectorLength = length(getSideVector(j, false, 1))}
+
+        let shortestVectorLength = 9999999999999
+        for (let j = 0; j < points.length; j++) if (length(getSideVector(j, false, 1)) < shortestVectorLength) shortestVectorLength = length(getSideVector(j, false, 1))
+
+
+        let vecToAlign
+        if (longestVectorLength / shortestVectorLength > 5) vecToAlign = getSideVector(longestVector, true, 1)
+        else vecToAlign = getSideVector(mostAxisAlignedVector, true, 1)
+
+        // roll only affects x and y
+        let xy = [vecToAlign[0], vecToAlign[1]]
+        normalize(xy, xy)
+        let roll = (xy[0] > 0) ? Math.asin(xy[1]) : -Math.asin(xy[1])
+
+        rotateZ(vecToAlign, vecToAlign, [0, 0, 0], -roll)
+
+
+        let zx = [vecToAlign[2], vecToAlign[0]]
+        normalize(zx, zx)
+        let yaw = (zx[0] > 0) ? -Math.acos(zx[1]) : Math.acos(zx[1])
+
+        rotateY(vecToAlign, vecToAlign, [0, 0, 0], -yaw)
+
+
+        let otherVecToAlign = getSideVector(mostAxisAlignedVector, true, -1)
+        rotateZ(otherVecToAlign, otherVecToAlign, [0, 0, 0], -roll)
+        rotateY(otherVecToAlign, otherVecToAlign, [0, 0, 0], -yaw)
+
+        // otherVecToAlign should be [0, y, z] -- rotate it's pitch to be [0, 0, 1]
+
+        let yz = [otherVecToAlign[1], otherVecToAlign[2]]
+        normalize(yz, yz)
+        let pitch = (yz[0] < 0) ? Math.acos(yz[1]) : -Math.acos(yz[1])
+
+        let center = [0, 0, 0]
+        for (let i = 0; i < 3; i++) for (let j = 0; j < points.length; j++) center[i] += points[j][i] / points.length
+
+        let layedFlatPoints = []
+        for (let i = 0; i < points.length; i++) {
+            layedFlatPoints[i] = []
+            rotateZ(layedFlatPoints[i], points[i], center, -roll)
+            rotateY(layedFlatPoints[i], layedFlatPoints[i], center, -yaw)
+            rotateX(layedFlatPoints[i], layedFlatPoints[i], center, -pitch)
+        }
+
+        //console.log(layedFlatPoints)
+
+        let dimensions = [[], []]
+        for (let i = 0; i < 3; i++) {
+            let mValue = 999999999
+            let pValue = -999999999
+            for (let k = 0; k < points.length; k++) {
+                if (layedFlatPoints[k][i] - center[i] < mValue) {
+                    dimensions[0][i] = layedFlatPoints[k][i] - center[i]
+                    mValue = layedFlatPoints[k][i] - center[i]
+                }
+                if (layedFlatPoints[k][i] - center[i] > pValue) {
+                    dimensions[1][i] = layedFlatPoints[k][i] - center[i]
+                    pValue = layedFlatPoints[k][i] - center[i]
+                }
+            }
+        }
+
+
+        //console.log(dimensions)
+
+        //if (Math.abs(dimensions[1][1] - dimensions[0][1]) > .01) continue
+
+        let biggestDimension = 0
+        for (let i in dimensions) for (let j in dimensions[i]) if (Math.abs(dimensions[i][j]) > biggestDimension) biggestDimension = Math.abs(dimensions[i][j])
+
+        platforms.push({
+            position: {
+                x: center[0],
+                y: center[1],
+                z: center[2]
+            },
+            dimensions: {
+                mx: dimensions[0][0],
+                px: dimensions[1][0],
+                my: dimensions[0][1],
+                py: dimensions[1][1],
+                mz: dimensions[0][2],
+                pz: dimensions[1][2],
+                pitch: -pitch,
+                yaw: -yaw,
+                roll: -roll,
+                radius: biggestDimension,
+            }
+        })
+
+    }
+
+    return platforms
+}
+
+
+
+export default { fetchObj, obj, generatePlatforms }

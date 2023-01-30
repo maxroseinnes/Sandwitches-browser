@@ -6,6 +6,7 @@ import modelStuff from "./modules/model-data.js"
 var modelData = modelStuff.modelData
 var fetchObj = modelStuff.fetchObj
 var obj = modelStuff.obj
+var generatePlatforms = modelStuff.generatePlatforms
 
 import webglStuff from "./modules/webgl.js"
 
@@ -178,7 +179,7 @@ var updateHUD = () => {
     weaponsContainer.innerHTML = ""
 
     for (let i = 0; i < weaponSelectors.length; i++) {
-        let color = "white"
+        let color = "gray"
 
         if (weaponSelectors[i].value == "tomato") color = "red"
         if (weaponSelectors[i].value == "olive") color = "green"
@@ -191,7 +192,8 @@ var updateHUD = () => {
         weaponSlot.style.height = "75px"
         weaponSlot.style.width = "75px"
         weaponSlot.style.color = "white"
-        weaponSlot.style.boxShadow = "0px 0px 5px 5px rgba(0, 0, 0, .1)"
+        weaponSlot.style.textAlign = "center"
+        weaponSlot.style.boxShadow = "0px 0px 5px 5px rgba(0, 0, 0, .05)"
         weaponSlot.style.borderRadius = "10px"
         weaponSlot.style.borderStyle = "solid"
         weaponSlot.style.borderColor = (player.inventory.currentSelection == i) ? "white" : color
@@ -407,7 +409,7 @@ socket.on("stopTicking", () => {
 })
 
 socket.on("assignPlayer", (playerInfo) => {
-    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, [ground]]);
+    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, otherPlayers, [ground]]);
     startButton.disabled = false
 
     document.getElementById("nameField").value = player.name
@@ -426,139 +428,6 @@ socket.on("weaponGeometry", (data) => {
     console.log(weaponGeometry)
 })
 
-function addPlatformsForMesh(geometryInfo) {
-for (let i in geometryInfo.indices) {
-
-        // new method: 1. rotate so that one side (vector) is [0, 0, 1] (normalized), 2. rotate other side so that it is flat (pitch)
-
-        let points = []
-        for (let j = 0; j < geometryInfo.indices[i].vertexes.length; j++) points.push([
-            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][0], 
-            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][1], 
-            geometryInfo.positions[geometryInfo.indices[i].vertexes[j]][2]
-        ])
-        let getSideVector = (x, normalize, direction) => {
-            let vector = []
-            //console.log(x % points.length, points.length)
-            vec3.sub(vector, points[(x + points.length * 3) % points.length], points[(x + points.length * 3 + direction) % points.length])
-            if (normalize) vec3.normalize(vector, vector)
-            return vector
-        }
-
-        let mostAxisAlignedVector = 0
-        let mostAxisAlignedVectorValue = 0
-        for (let j = 0; j < points.length; j++) {
-            let vector = getSideVector(j, true, 1)
-            for (let k = 0; k < 3; k++) {
-                if (Math.abs(vector[k]) > mostAxisAlignedVectorValue) {
-                    mostAxisAlignedVector = j
-                    mostAxisAlignedVectorValue = Math.abs(vector[k])
-                }
-            }
-            
-
-        }
-
-
-        let longestVector = 0
-        let longestVectorLength = 0
-        for (let j = 0; j < points.length; j++) if (vec3.length(getSideVector(j, false, 1)) > longestVectorLength) {longestVector = j; longestVectorLength = vec3.length(getSideVector(j, false, 1))}
-
-        let shortestVectorLength = 9999999999999
-        for (let j = 0; j < points.length; j++) if (vec3.length(getSideVector(j, false, 1)) < shortestVectorLength) shortestVectorLength = vec3.length(getSideVector(j, false, 1))
-
-
-        let vecToAlign
-        if (longestVectorLength / shortestVectorLength > 5) vecToAlign = getSideVector(longestVector, true, 1)
-        else vecToAlign = getSideVector(mostAxisAlignedVector, true, 1)
-
-        // roll only affects x and y
-        let xy = [vecToAlign[0], vecToAlign[1]]
-        vec2.normalize(xy, xy)
-        let roll = (xy[0] > 0) ? Math.asin(xy[1]) : -Math.asin(xy[1])
-
-        vec3.rotateZ(vecToAlign, vecToAlign, [0, 0, 0], -roll)
-
-        let zx = [vecToAlign[2], vecToAlign[0]]
-        vec2.normalize(zx, zx)
-        let yaw = (zx[0] > 0) ? -Math.acos(zx[1]) : Math.acos(zx[1])
-
-        vec3.rotateY(vecToAlign, vecToAlign, [0, 0, 0], -yaw)
-
-
-        let otherVecToAlign = getSideVector(mostAxisAlignedVector, true, -1)
-        vec3.rotateZ(otherVecToAlign, otherVecToAlign, [0, 0, 0], -roll)
-        vec3.rotateY(otherVecToAlign, otherVecToAlign, [0, 0, 0], -yaw)
-
-        // otherVecToAlign should be [0, y, z] -- rotate it's pitch to be [0, 0, 1]
-
-        let yz = [otherVecToAlign[1], otherVecToAlign[2]]
-        vec2.normalize(yz, yz)
-        let pitch = (yz[0] < 0) ? Math.acos(yz[1]) : -Math.acos(yz[1])
-
-        vec3.rotateX(otherVecToAlign, otherVecToAlign, [0, 0, 0], -pitch)
-
-        vec3.scale(otherVecToAlign, otherVecToAlign, 100)
-        vec3.round(otherVecToAlign, otherVecToAlign)
-        vec3.scale(otherVecToAlign, otherVecToAlign, 1/100)
-        //console.log(otherVecToAlign)
-
-        let center = [0, 0, 0]
-        for (let i = 0; i < 3; i++) for (let j = 0; j < points.length; j++) center[i] += points[j][i] / points.length
-
-        let layedFlatPoints = []
-        for (let i = 0; i < points.length; i++) {
-            layedFlatPoints[i] = []
-            vec3.rotateZ(layedFlatPoints[i], points[i], center, -roll)
-            vec3.rotateY(layedFlatPoints[i], layedFlatPoints[i], center, -yaw)
-            vec3.rotateX(layedFlatPoints[i], layedFlatPoints[i], center, -pitch)
-        }
-
-        //console.log(layedFlatPoints)
-
-        let dimensions = [[], []]
-        for (let i = 0; i < 3; i++) {
-            let mValue = 999999999
-            let pValue = -999999999
-            for (let k = 0; k < points.length; k++) {
-                if (layedFlatPoints[k][i] - center[i] < mValue) {
-                    dimensions[0][i] = layedFlatPoints[k][i] - center[i]
-                    mValue = layedFlatPoints[k][i] - center[i]
-                }
-                if (layedFlatPoints[k][i] - center[i] > pValue) {
-                    dimensions[1][i] = layedFlatPoints[k][i] - center[i]
-                    pValue = layedFlatPoints[k][i] - center[i]
-                }
-            }
-        }
-
-
-        //console.log(dimensions)
-
-        //if (Math.abs(dimensions[1][1] - dimensions[0][1]) > .01) continue
-
-        let biggestDimension = 0
-        for (let i in dimensions) for (let j in dimensions[i]) if (Math.abs(dimensions[i][j]) > biggestDimension) biggestDimension = Math.abs(dimensions[i][j])
-
-        let platform = new Platform(null, null, center[0], center[1], center[2], 1)
-        platform.dimensions = {
-            mx: dimensions[0][0],
-            px: dimensions[1][0],
-            my: dimensions[0][1],
-            py: dimensions[1][1],
-            mz: dimensions[0][2],
-            pz: dimensions[1][2],
-            pitch: -pitch,
-            yaw: -yaw,
-            roll: -roll,
-            radius: biggestDimension,
-        }
-
-
-        platforms.push(platform)
-    }
-}
-
 socket.on("map", (mapInfo) => {
     for (let i = 0; i < mapInfo.platforms.length; i++) {
         let platform = new Platform(platformGeometry,
@@ -573,7 +442,12 @@ socket.on("map", (mapInfo) => {
 
     if (mapInfo.mapFile != undefined) {
         let mapObj = fetchObj(mapInfo.mapFile)
-        addPlatformsForMesh(obj.parseWavefront(mapObj, false, false))
+        let colliders = generatePlatforms(obj.parseWavefront(mapObj, false, false))
+        for (let i in colliders) {
+            let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
+            platform.dimensions = colliders[i].dimensions
+            platforms.push(platform)
+        }
 
         let mapModelGeometry = obj.parseWavefront(mapObj, true, true)
         for (let name in mapModelGeometry) {
@@ -597,7 +471,12 @@ socket.on("map", (mapInfo) => {
 
     if (mapInfo.floorTexture != "") {
         ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, true))
-        addPlatformsForMesh(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, false))
+        let colliders = generatePlatforms(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, false))
+        for (let i in colliders) {
+            let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
+            platform.dimensions = colliders[i].dimensions
+            platforms.push(platform)
+        }
     }
 
 })
@@ -710,6 +589,13 @@ socket.on("weaponStates", (data) => {
     }
 })
 
+socket.on("weaponHit", (data) => {
+    if (otherWeapons[data.weaponId]) {
+        otherWeapons[data.weaponId].shooted = false
+        otherWeapons[data.weaponId].remove()
+    }
+})
+
 socket.on("newPlayer", (player) => {
     displayChatMessage(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
     otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
@@ -769,7 +655,7 @@ socket.on("playerUpdate", (playersData) => {
             if (otherPlayers[id].currentWeaponType != playersData[id].currentWeaponType && playersData[id].currentWeaponType != undefined) {
                 otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
                 if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
-                otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [platforms, otherPlayers, [ground]], otherPlayers[id])
+                otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id])
                 otherPlayers[id].currentCooldown = otherPlayers[id].inventory.currentWeapon.cooldown
             }
         }
@@ -889,7 +775,7 @@ function update(now) {
     recentFrameCount = recentFrameCount < 1 ? 1 : recentFrameCount
     recentFrameCount = recentFrameCount > lastFramerates.length ? lastFramerates.length : recentFrameCount
     for (let i = 0; i < recentFrameCount; i++) rollingFramerate += lastFramerates[i] / recentFrameCount
-    info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9 + "<br>client TPS: " + Math.round(1000 / averageClientTPS * 100) / 100
+    info.innerHTML = Math.round(rollingFramerate) + "<br>polycount: " + webgl.points.length / 9 + "<br>client TPS: " + Math.round(1000 / averageClientTPS)
 
 
     Particle.updateParticles(deltaTime)
@@ -1066,7 +952,8 @@ function fixedUpdate() {
                     ownerId: player.id,
                     type: player.inventory.currentWeapon.type,
                     position: player.inventory.currentWeapon.position,
-                    velocity: player.inventory.currentWeapon.getShootVelocity(lookAngleX, lookAngleY)
+                    pitch: lookAngleX,
+                    yaw: lookAngleY
                 })
             }
         }
@@ -1112,10 +999,6 @@ function fixedUpdate() {
             if (otherWeapons[id].shooted) {
                 otherWeapons[id].calculatePosition(deltaTime, socket, otherWeapons[id].owner == player)
 
-                if (Math.abs(otherWeapons[id].position.x) > 100 || Math.abs(otherWeapons[id].position.z) > 100 || Math.abs(otherWeapons[id].position.y) > 1000) {
-                    otherWeapons[id].remove()
-                    otherWeapons[id] = null
-                }
             }
         }
     }

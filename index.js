@@ -13,6 +13,9 @@ const port = 3000;
 const DEFAULT_PLAYER_HEALTH = 100
 const ROOM_CAP = 10 // the max amount of rooms
 
+var obj
+var generatePlatforms
+
 
 
 const availableNames = [
@@ -76,198 +79,68 @@ var weaponGeometry = {
   meatball: {path: "weapons/meatball.obj"}
 }
 
-for (let i in weaponGeometry) getModelData(weaponGeometry[i].path, weaponGeometry[i], false)
-
-
-
-
-var obj = {
-
-parseWords: function(string) {
-  let words = []
-  let currentWord = ""
-  for (let i = 0; i < string.length; i++) {
-      if (string[i] != " ") currentWord += string[i]
-      else {
-          words.push(currentWord)
-          currentWord = ""
-      }
-  } words.push(currentWord)
-  return words
-},
-
-parseLines: function(string) {
-  let lines = []
-  let currentLine = ""
-  for (let i = 0; i < string.length; i++) {
-      if (string[i] != "\n") currentLine += string[i]
-      else {
-          lines.push(currentLine)
-          currentLine = ""
-      }
-  } lines.push(currentLine)
-  return lines
-},
-
-parseFloats: function(words) {
-  let floats = []
-  for (let i = 0; i < words.length; i++) {
-      floats.push(parseFloat(words[i]))
-  }
-  return floats
-},
-
-triangulate: function(indices) {
-  let newIndices = []
-  for (let i = 0; i < indices.length; i++) {
-      let currentIndices = indices[i]
-
-      for (let j = 0; j < currentIndices.vertexes.length - 2; j++) {
-          newIndices.push({
-              vertexes: [currentIndices.vertexes[0], currentIndices.vertexes[j+1], currentIndices.vertexes[j+2]],
-              texcoords: [currentIndices.texcoords[0], currentIndices.texcoords[j+1], currentIndices.texcoords[j+2]],
-              normals: [currentIndices.normals[0], currentIndices.normals[j+1], currentIndices.normals[j+2]]
-          })
-      }
-
-  }
-  return newIndices
-},
 
 
 
 
 
-parseWavefront: function(fileText, seperateObjects) {
-  let lines = this.parseLines(fileText)
-
-  // find all objects
-  let objectStartIndices = []
-  if (seperateObjects) {
-      for (let i = 0; i < lines.length; i++) {
-          if (lines[i].slice(0, lines[i].indexOf(" ")) == "o") {
-              objectStartIndices.push(i)
-          }
-      } objectStartIndices.push(lines.length)
-  }
-  else objectStartIndices = [0, lines.length]
-
-  let objects = {}
-  let material // string
-  for (let o = 0; o < objectStartIndices.length - 1; o++) {
-
-      let totalBeforeVertices = 0
-      for (let object in objects) totalBeforeVertices += objects[object].positions.length
-
-      let totalBeforeTexcords = 0
-      for (let object in objects) totalBeforeTexcords += objects[object].texcoords.length
-
-      let totalBeforeNormals = 0
-      for (let object in objects) totalBeforeNormals += objects[object].normals.length
-
-
-      let name
-      let smooth // boolean
-      let positions = []
-      let normals = []
-      let texcoords = []
-      let indices = []
-
-
-      for (let i = objectStartIndices[o]; i < objectStartIndices[o+1]; i++) {
-
-          // find first word in line
-          let identifier = lines[i].slice(0, lines[i].indexOf(" "))
-
-          // get line after identifier
-          let currentLine = lines[i].slice(lines[i].indexOf(" ") + 1)
-
-          if (identifier == "o") {
-              if (currentLine.indexOf(String.fromCharCode([13])) == -1) name = currentLine
-              else name = currentLine.slice(0, -1)
-          }
-
-          if (identifier == "v") positions.push(this.parseFloats(this.parseWords(currentLine)))
-
-          if (identifier == "vn") normals.push(this.parseFloats(this.parseWords(currentLine)))
-
-          if (identifier == "vt") texcoords.push(this.parseFloats(this.parseWords(currentLine)))
-
-          if (identifier == "s") {
-              if (currentLine == "0") smooth = false
-              else smooth = true
-          }
-
-          if (identifier == "usemtl") material = currentLine
-
-          if (identifier == "f") {
-              let v = []
-              let t = []
-              let n = []
-
-              let words = this.parseWords(currentLine)
-              for (let j = 0; j < words.length; j++) {
-                  v.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1 - totalBeforeVertices)
-                  words[j] = words[j].slice(words[j].indexOf("/") + 1)
-
-                  t.push(parseInt(words[j].slice(0, words[j].indexOf("/")), 10) - 1 - totalBeforeTexcords)
-                  words[j] = words[j].slice(words[j].indexOf("/") + 1)
-
-                  n.push(parseInt(words[j], 10) - 1 - totalBeforeNormals)
-              }
-
-              indices.push({
-                  vertexes: v,
-                  texcoords: t,
-                  normals: n
-              })
-          }
-      }
-
-      objects[name] = {
-          positions: positions,
-          normals: normals,
-          texcoords: texcoords,
-          smooth: smooth,
-          material: material,
-          indices: this.triangulate(indices)
-      }
-  }
-
-  for (let i in objects) if (objects[i].smooth) {
-      // make a normal for every point
-      let newNormals = []
-      for (let j in objects[i].positions) {
-          let connectedNormals = []
-          for (let k in objects[i].indices) {
-              for (let l in objects[i].indices[k].vertexes) {
-                  if (objects[i].indices[k].vertexes[l] == j) {
-                      connectedNormals.push(objects[i].normals[objects[i].indices[k].normals[l]])
-                  }
-              }
-          }
-          let averageNormal = [0, 0, 0]
-          for (let k = 0; k < connectedNormals.length; k++) {
-              for (let l in averageNormal) averageNormal[l] += connectedNormals[k][l] / connectedNormals.length
-          }
-          newNormals.push(averageNormal)
-      }
-      objects[i].normals = newNormals
-
-      for (let j in objects[i].indices) {
-          for (let k in objects[i].indices[j].vertexes) {
-              objects[i].indices[j].normals[k] = objects[i].indices[j].vertexes[k]
-          }
-      }
-  }
-
-  if (seperateObjects) return objects
-  else return Object.values(objects)[0]
-
-},
-
+const weaponSpecs = {
+  default: {
+    class: "projectile",
+    radius: .5,
+    cooldown: 1, // seconds
+    speed: .0375, // units/millisecond
+    manaCost: 20,
+    damage: 10,
+    chargeTime: 0, // seconds
+    burstCount: 1,
+    burstInterval: .5 // time between shots of bursts, seconds
+  },
+  tomato: {
+    class: "projectile",
+    radius: .75,
+    cooldown: .5,
+    speed: .0375,
+    manaCost: 5,
+    damage: 5,
+    chargeTime: 0,
+    burstCount: 1,
+    burstInterval: .5
+  },
+  olive: {
+    class: "projectile",
+    radius: .375,
+    cooldown: .15,
+    speed: .0375,
+    manaCost: 5,
+    damage: 10,
+    chargeTime: 0,
+    burstCount: 1,
+    burstInterval: .5
+  },
+  pickle: {
+    class: "projectile",
+    radius: .5,
+    cooldown: .5,
+    speed: .0375,
+    manaCost: 5,
+    damage: 5,
+    chargeTime: 0,
+    burstCount: 1,
+    burstInterval: .5
+  },
+  anchovy: {
+    class: "missile",
+    radius: .5,
+    cooldown: .5,
+    speed: .01,
+    manaCost: 20,
+    damage: 25,
+    chargeTime: 0,
+    burstCount: 1,
+    burstInterval: .5
+  },
 }
-
 
 var maps = {
 
@@ -433,9 +306,15 @@ class Room {
   players = {}
   weapons = {}
   leaderboard = []
+  platforms = []
 
   constructor(mapData) {
     this.mapData = mapData
+
+    if (mapData.mapFile) fs.readFile("./public/assets/models/" + mapData.mapFile, (err, data) => {
+      this.platforms = generatePlatforms(obj.parseWavefront(data.toString(), false, false))
+      
+    })
 
     this.tickInterval = setInterval(() => { this.tick() }, 1000 / TPS)
   }
@@ -521,29 +400,33 @@ class Room {
       }
     })
 
-    socket.on("playerHit", (hitInfo) => {
-      if (this.players[hitInfo.target] == undefined) return
-      let newHealth = this.players[hitInfo.target].health - hitInfo.damage
-      if (newHealth > 0) {
-        this.players[hitInfo.target].health = newHealth
-        //console.log("health: " + newHealth)
-      } else {
-        this.players[hitInfo.from].killCount++
-        let deathMessage = this.players[hitInfo.target].name + " was killed by " + this.players[hitInfo.from].name
-        this.broadcast("chatMessage", deathMessage, null)
-        this.respawnPlayer(hitInfo.target)
-      }
-    })
-
     // MAKING WEAPONS: 
     // client: send newWeapon message
     // server: brodcast message with weapon id and data
 
     socket.on("newWeapon", (data) => {
+      let type = (Object.keys(weaponSpecs).indexOf(data.type) != -1) ? data.type : "default"
+      let pitch = data.pitch
+      let yaw = data.yaw
+      if (weaponSpecs[type].class == "projectile") pitch = -pitch + Math.PI / 16
+      else pitch = -pitch + Math.PI / 64
+      if (pitch > Math.PI / 2) pitch = Math.PI / 2
+      yaw = -yaw
+
+      let velocity = [0, 0, -weaponSpecs[type].speed]
+
+      rotateX(velocity, velocity, [0, 0, 0], pitch)
+      rotateY(velocity, velocity, [0, 0, 0], yaw)
+      
+    
       this.weapons[nextWeaponId] = {
         type: data.type,
-        ownerId: data.ownerId/*,
-        position: data.position,*/
+        damage: weaponSpecs[type].damage,
+        class: weaponSpecs[type].class,
+        radius: weaponSpecs[type].radius,
+        ownerId: data.ownerId,
+        position: data.position,
+        velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
       }
 
       this.broadcast("newWeapon", {
@@ -551,7 +434,7 @@ class Room {
         type: data.type,
         ownerId: data.ownerId,
         position: data.position,
-        velocity: data.velocity
+        velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
       }, null)
 
       nextWeaponId++
@@ -725,14 +608,196 @@ class Room {
 
 }
 
-var rooms = {
-  1: new Room(maps.lobby1),
-  2: new Room(maps.lobby2),
-  3: new Room(maps.testMap),
-  4: new Room(maps.testMap2),
-  5: new Room(maps.testMap3),
-  6: new Room(maps.testMap4)
+var rooms = {}
+fs.readFile("./public/modules/model-data.js", (err, data) => {
+  let string = data.toString()
+  let objText = string.slice(string.indexOf("obj") + 6, string.indexOf("var generatePlatforms"))
+  let objFunction = Function("return" + objText)
+  obj = objFunction()
+
+  for (let i in weaponGeometry) getModelData(weaponGeometry[i].path, weaponGeometry[i], false)
+  
+  let generatePlatformsText = string.slice(string.indexOf("var generatePlatforms"), string.indexOf("export"))
+  let generatePlatformsFunction = Function(generatePlatformsText + "return generatePlatforms")
+  generatePlatforms = generatePlatformsFunction()
+
+  rooms = {
+    1: new Room(maps.lobby1),
+    2: new Room(maps.lobby2),
+    3: new Room(maps.testMap),
+    4: new Room(maps.testMap2),
+    5: new Room(maps.testMap3),
+    6: new Room(maps.testMap4)
+  }
+  
+})
+
+function rotateX(out, a, b, rad) {
+  let p = [],
+    r = [];
+  //Translate point to the origin
+  p[0] = a[0] - b[0];
+  p[1] = a[1] - b[1];
+  p[2] = a[2] - b[2];
+  //perform rotation
+  r[0] = p[0];
+  r[1] = p[1] * Math.cos(rad) - p[2] * Math.sin(rad);
+  r[2] = p[1] * Math.sin(rad) + p[2] * Math.cos(rad);
+  //translate to correct position
+  out[0] = r[0] + b[0];
+  out[1] = r[1] + b[1];
+  out[2] = r[2] + b[2];
+  return out;
 }
+
+function rotateY(out, a, b, rad) {
+  let p = [],
+    r = [];
+  //Translate point to the origin
+  p[0] = a[0] - b[0];
+  p[1] = a[1] - b[1];
+  p[2] = a[2] - b[2];
+  //perform rotation
+  r[0] = p[2] * Math.sin(rad) + p[0] * Math.cos(rad);
+  r[1] = p[1];
+  r[2] = p[2] * Math.cos(rad) - p[0] * Math.sin(rad);
+  //translate to correct position
+  out[0] = r[0] + b[0];
+  out[1] = r[1] + b[1];
+  out[2] = r[2] + b[2];
+  return out;
+}
+
+function rotateZ(out, a, b, rad) {
+  let p = [],
+    r = [];
+  //Translate point to the origin
+  p[0] = a[0] - b[0];
+  p[1] = a[1] - b[1];
+  p[2] = a[2] - b[2];
+  //perform rotation
+  r[0] = p[0] * Math.cos(rad) - p[1] * Math.sin(rad);
+  r[1] = p[0] * Math.sin(rad) + p[1] * Math.cos(rad);
+  r[2] = p[2];
+  //translate to correct position
+  out[0] = r[0] + b[0];
+  out[1] = r[1] + b[1];
+  out[2] = r[2] + b[2];
+  return out;
+}
+
+function collision(weaponRadius, weaponPosition, colliderDimensions, colliderPosition) {
+
+  let minDistance = colliderDimensions.radius + weaponRadius + 1
+  if (
+    Math.abs(colliderPosition.x - weaponPosition.x) > minDistance || 
+    Math.abs(colliderPosition.y - weaponPosition.y) > minDistance || 
+    Math.abs(colliderPosition.z - weaponPosition.z) > minDistance
+  ) return false
+
+
+  let boxDimensions = [[], []]
+
+  // colliderDimensions should have: mx, px..., pitch, yaw, roll
+  
+
+  // sphere vs box collision
+
+  let sphereCenter = [
+    weaponPosition.x,
+    weaponPosition.y,
+    weaponPosition.z
+  ]
+  
+  // rotate centerpoint about sphere center
+  let centerPointPosition = [
+    colliderPosition.x, 
+    colliderPosition.y, 
+    colliderPosition.z
+  ]
+  rotateZ(centerPointPosition, centerPointPosition, sphereCenter, colliderPosition.roll || colliderDimensions.roll || 0)
+  rotateY(centerPointPosition, centerPointPosition, sphereCenter, colliderPosition.yaw || colliderDimensions.yaw || 0)
+  rotateX(centerPointPosition, centerPointPosition, sphereCenter, colliderPosition.pitch || colliderDimensions.pitch || 0)
+
+
+  boxDimensions[0][0] = centerPointPosition[0] + colliderDimensions.mx
+  boxDimensions[1][0] = centerPointPosition[0] + colliderDimensions.px
+  boxDimensions[0][1] = centerPointPosition[1] + colliderDimensions.my
+  boxDimensions[1][1] = centerPointPosition[1] + colliderDimensions.py
+  boxDimensions[0][2] = centerPointPosition[2] + colliderDimensions.mz
+  boxDimensions[1][2] = centerPointPosition[2] + colliderDimensions.pz
+
+  let closestPoint = [
+    Math.max(boxDimensions[0][0], Math.min(sphereCenter[0], boxDimensions[1][0])),
+    Math.max(boxDimensions[0][1], Math.min(sphereCenter[1], boxDimensions[1][1])),
+    Math.max(boxDimensions[0][2], Math.min(sphereCenter[2], boxDimensions[1][2]))
+  ]
+
+  return Math.sqrt(
+    Math.pow(closestPoint[0] - sphereCenter[0], 2) + 
+    Math.pow(closestPoint[1] - sphereCenter[1], 2) + 
+    Math.pow(closestPoint[2] - sphereCenter[2], 2)
+  ) < weaponRadius
+
+
+}
+
+var collisionUpdateThen = Date.now()
+var collisionUpdate = setInterval(() => {
+  let now = Date.now()
+  let deltaTime = now - collisionUpdateThen
+  collisionUpdateThen = now
+
+  for (let i in rooms) {
+    for (let weaponId in rooms[i].weapons) if (rooms[i].weapons[weaponId]) {
+      // update weapon velocity and position
+      let weapon = rooms[i].weapons[weaponId]
+      if (weapon.class == "projectile") weapon.velocity.y -= 0.00001 * deltaTime
+
+      weapon.position.x += weapon.velocity.x * deltaTime
+      weapon.position.y += weapon.velocity.y * deltaTime
+      weapon.position.z += weapon.velocity.z * deltaTime
+      if (Math.abs(weapon.position.x) > 100 || Math.abs(weapon.position.z) > 100 || Math.abs(weapon.position.y) > 1000) {
+        rooms[i].broadcast("weaponHit", {weaponId: weaponId}, null)
+        rooms[i].weapons[weaponId] = null
+        continue
+      }
+      
+      // calculate collision with players
+      let hit = false
+      for (let j in rooms[i].platforms) {
+        let platform = rooms[i].platforms[j]
+        if (collision(weapon.radius, weapon.position, platform.dimensions, platform.position)) {
+          rooms[i].broadcast("weaponHit", {weaponId: weaponId}, null)
+          hit = true
+          
+        }
+      }
+      for (let playerId in rooms[i].players) if (rooms[i].players[playerId] && playerId != weapon.ownerId) {
+        let player = rooms[i].players[playerId]
+        if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2, mz: -.25, pz: .25}, player.position)) {
+          rooms[i].broadcast("weaponHit", {weaponId: weaponId}, null)
+          hit = true
+          let newHealth = player.health - weapon.damage
+          if (newHealth > 0) {
+            player.health = newHealth
+            console.log("health: " + newHealth)
+          } else {
+            if (rooms[i].players[weapon.ownerId]) {
+              rooms[i].players[weapon.ownerId].killCount++
+              let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name
+              rooms[i].broadcast("chatMessage", deathMessage, null)
+            }
+            rooms[i].respawnPlayer(playerId)
+          }
+        }
+      }
+      if (hit) rooms[i].weapons[weaponId] = null
+      
+    }
+  }
+
+}, 10)
 
 socketServer.on("connection", (socket) => {
   /*socket.emit("pingRequest")

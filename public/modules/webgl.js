@@ -197,7 +197,7 @@ var webgl = {
 
     volumetricMapSmoothing: 2,
 
-    fogIntensity: 0.035,
+    fogIntensity: 0.0275,
 
     fogColorR: 1.3,
     fogColorG: 1.05,
@@ -1955,9 +1955,9 @@ class PhysicalObject {
       this.position.y, 
       this.position.z
     ]
-    vec3.rotateZ(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.roll || 0)
-    vec3.rotateY(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.yaw || 0)
-    vec3.rotateX(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.pitch || 0)
+    vec3.rotateZ(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.roll || this.position.roll || 0)
+    vec3.rotateY(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.yaw || this.position.yaw || 0)
+    vec3.rotateX(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.pitch || this.position.pitch || 0)
 
 
     boxDimensions[0][0] = centerPointPosition[0] + this.dimensions.mx
@@ -2073,9 +2073,9 @@ class PhysicalObject {
 
       
 
-      vec3.rotateX(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.pitch || 0)
-      vec3.rotateY(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.yaw || 0)
-      vec3.rotateZ(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.roll || 0)
+      vec3.rotateX(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.pitch || -this.position.pitch || 0)
+      vec3.rotateY(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.yaw || -this.position.yaw || 0)
+      vec3.rotateZ(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.roll || -this.position.roll || 0)
       
       parent.position.x += correctionVector[0]
       parent.position.y += correctionVector[1]
@@ -2586,11 +2586,11 @@ class Weapon extends PhysicalObject {
       this.position.y = this.owner.position.y + 1.5
       this.position.z = this.owner.position.z + Math.sin(this.owner.position.yaw) * distanceFromPlayer
 
+      this.position.yaw = this.owner.position.yaw + ((this.class == "projectile") ? Date.now() / 1000 : 0)
+      this.position.pitch = (this.class == "missile") ? this.owner.position.lean : 0
     }
-    if (!this.shooted) this.position.yaw = this.owner.position.yaw + ((this.class == "projectile") ? Date.now() / 1000 : 0)
     this.position.yaw += ((this.class == "projectile") ? deltaTime / 1000 : 0)
 
-    if (!this.shooted) this.position.pitch = (this.class == "missile") ? this.owner.position.lean : 0
     //this.position.roll += ((this.class == "missile") ? deltaTime / 1000 : 0)
 
     this.lastPosition = { x: this.position.x, y: this.position.y, z: this.position.z }
@@ -2601,96 +2601,15 @@ class Weapon extends PhysicalObject {
       return
     }
 
-    let velocityMagnitude = vec3.length([this.velocity.x, this.velocity.y, this.velocity.z]) * deltaTime
-
-    let intermediateSteps = Math.ceil(velocityMagnitude / 1)
-    if (intermediateSteps > 50) {
-      this.shooted = false
-      this.remove()
-      return
-    }
-
-    for (let i = 0; i < intermediateSteps; i++) {
-
-      this.position.x += this.velocity.x * deltaTime / intermediateSteps
-      this.position.y += this.velocity.y * deltaTime / intermediateSteps
-      this.position.z += this.velocity.z * deltaTime / intermediateSteps
-      
-      for (let i = 0; i < this.collidableObjects.length; i++) {
-        for (let j in this.collidableObjects[i]) {
-          //if (this.collidableObjects[i][j].id == this.owner.id) continue
-          if (!(this.collidableObjects[i][j] instanceof PhysicalObject)) continue
-          let colliding = this.collidableObjects[i][j].newCollision(this, false)
-          if (colliding) {
-            if (this.collidableObjects[i][j] instanceof Player && this.collidableObjects[i][j].id != this.owner.id && shotByClient) {
-              console.log("hit")
-              socket.emit("playerHit", {
-                from: this.owner.id,
-                target: this.collidableObjects[i][j].id,
-                damage: this.damage
-              })
-            }
-            this.shooted = false
-            this.remove()
-            return
-          }
-          /*let movement = this.calculateSlopes()
-          let collision = this.collidableObjects[i][j].collision(this.lastPosition, this.position, movement, this.dimensions)
-
-          for (let side in collision) {
-            if (collision[side].intersects) {
-              this.shooted = false
-              this.position.x = collision[side].x
-              this.position.y = collision[side].y
-              this.position.z = collision[side].z
-
-              if (this.collidableObjects[i][j] instanceof Player) {
-                socket.emit("playerHit", {
-                  from: this.owner.id,
-                  target: this.collidableObjects[i][j].id,
-                  damage: this.damage
-                })
-              }
-
-              this.remove()
-            }
-          }*/
-
-        }
-      }
-    }
+    this.position.x += this.velocity.x * deltaTime
+    this.position.y += this.velocity.y * deltaTime
+    this.position.z += this.velocity.z * deltaTime
+    
     this.particleSpawnCounter++
     if (webgl.settings.particles && this.particleSpawnCounter % 2 == 0 && this.shooted) for (let i = 0; i < 1; i++) new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
   }
 
 
-
-  getShootVelocity(angleX, yaw) {
-    if (this.class == "projectile") angleX = -angleX + Math.PI / 16
-    else angleX = -angleX + Math.PI / 64
-    if (angleX > Math.PI / 2) angleX = Math.PI / 2
-    yaw = -yaw
-    this.velocity.x = 0
-    this.velocity.y = 0
-    this.velocity.z = -this.speed
-
-    let tempY = this.velocity.y
-    let tempZ = this.velocity.z
-    this.velocity.y = Math.cos(angleX) * tempY - Math.sin(angleX) * tempZ
-    this.velocity.z = Math.sin(angleX) * tempY + Math.cos(angleX) * tempZ
-
-    tempZ = this.velocity.z
-    let tempX = this.velocity.x
-    this.velocity.z = Math.cos(yaw) * tempZ - Math.sin(yaw) * tempX
-    this.velocity.x = Math.sin(yaw) * tempZ + Math.cos(yaw) * tempX
-
-    //this.velocity.x += this.owner.velocity.x
-    //this.velocity.y += this.owner.velocity.y
-    //this.velocity.z += this.owner.velocity.z
-
-
-    return this.velocity
-  }
 
 
   remove() {
