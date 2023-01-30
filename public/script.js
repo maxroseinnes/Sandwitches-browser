@@ -141,6 +141,7 @@ const jumpNoise = new Audio("./assets/wet_wriggling_noises/smb_jump-super.wav")
 const pauseNoise = new Audio("./assets/wet_wriggling_noises/smb_pause.wav")
 const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
 const headBumpNoise = new Audio("./assets/wet_wriggling_noises/head_bump.wav")
+const oofNoise = new Audio("./assets/wet_wriggling_noises/roblox_oof.mp3")
 
 var setVolume = () => {
     backgroundNoises.volume = .5 * volume
@@ -1256,6 +1257,7 @@ document.getElementById("settingsButton").onclick = () => {
 var sensitivitySlider = document.getElementById("sensitivitySlider")
 sensitivitySlider.onchange = () => {
     sensitivity = Math.PI / 4096 * Number(sensitivitySlider.value)
+    console.log(sensitivity)
 }
 
 var keyBindSelectors = document.getElementsByClassName("keyBindInput")
@@ -1311,6 +1313,26 @@ overallGraphicsSelector.onchange = () => {
 
     webgl.initializeShaders()
 }
+
+function updateSavedSettings() {
+    localStorage.savedSettings = {
+        "mouse": {
+            "sensitivity": document.getElementById("sensitivitySlider").value
+        },
+        "keybinds": {
+            "forward": document.getElementById("forward").value,
+            "left": document.getElementById("left").value,
+            "backward": document.getElementById("backward").value,
+            "right": document.getElementById("right").value
+        },
+        "audio": {
+            "volume": document.getElementById("volumeSlider").value
+        }
+    }
+    
+}
+
+updateSavedSettings()
 
 
 document.addEventListener("mousedown", function (event) {
