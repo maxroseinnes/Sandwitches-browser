@@ -189,13 +189,13 @@ var updateHUD = () => {
         if (weaponSelectors[i].value == "anchovy") color = "blue"
 
         let weaponSlot = document.createElement("td")
-        weaponSlot.style.padding = "5px"
-        weaponSlot.style.height = "75px"
-        weaponSlot.style.width = "75px"
+        weaponSlot.style.padding = "1vmin"
+        weaponSlot.style.height = "8vmin"
+        weaponSlot.style.width = "8vmin"
         weaponSlot.style.color = "white"
         weaponSlot.style.textAlign = "center"
-        weaponSlot.style.boxShadow = "0px 0px 5px 5px rgba(0, 0, 0, .05)"
-        weaponSlot.style.borderRadius = "10px"
+        weaponSlot.style.boxShadow = "0 0 1vmin 1vmin rgba(0, 0, 0, .05)"
+        weaponSlot.style.borderRadius = "1vmin"
         weaponSlot.style.borderStyle = "solid"
         weaponSlot.style.borderColor = (player.inventory.currentSelection == i) ? "white" : color
         weaponSlot.classList.add("weaponSlot")
@@ -1194,6 +1194,17 @@ document.addEventListener("pointerlockchange", function () {
 }, false)
 
 
+let viewPort = document.querySelector("meta[name='viewport']")
+viewPort.content = "initial-scale=1"
+
+window.onorientationchange = () => {
+    console.log(window.orientation)
+    let viewPort = document.querySelector("meta[name='viewport']")
+    viewPort.content = "initial-scale=1"
+    console.log(viewPort)
+    document.body.scrollTo(0, 0)
+}
+
 
 
 
@@ -1209,6 +1220,103 @@ document.addEventListener("mousemove", function (event) {
     }
 
 }, false)
+
+
+var touchX = 0
+var touchY = 0
+var lastTouchX = 0
+var lastTouchY = 0
+var cameraMoveTouchIdentifier = 0
+var touchMoveTouchIdentifier
+var jumpTouchIdentifier
+var shootTouchIdentifier
+
+const touchMovement = document.getElementById("touchMovement")
+const jump = document.getElementById("jump")
+const shoot = document.getElementById("shoot")
+var touchMoving = false
+
+
+
+function setMovement(x, y) {
+    if (y > .75) {s = true; w = false}
+    if (y < .25) {s = false; w = true}
+    if (.25 < y && y < .75) {s = false; w = false;}
+    if (x > .75) {d = true; a = false}
+    if (x < .25) {d = false; a = true}
+    if (.25 < x && x < .75) {d = false; a = false;}
+}
+
+document.getElementById("hud").addEventListener('touchstart', (event) => {
+    event.preventDefault()
+
+    cameraMoveTouchIdentifier = undefined
+    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target != touchMovement && event.touches[i].target != jump && event.touches[i].target != shoot) cameraMoveTouchIdentifier = i
+    
+    if (cameraMoveTouchIdentifier != undefined) {
+        touchX = event.touches[cameraMoveTouchIdentifier].pageX
+        touchY = event.touches[cameraMoveTouchIdentifier].pageY
+
+        lastTouchX = touchX
+        lastTouchY = touchY
+    }
+
+    touchMoveTouchIdentifier = undefined
+    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == touchMovement) touchMoveTouchIdentifier = i
+    
+    if (touchMoveTouchIdentifier != undefined) setMovement((event.touches[touchMoveTouchIdentifier].pageX - touchMovement.offsetLeft) / touchMovement.clientWidth, (event.touches[touchMoveTouchIdentifier].clientY - touchMovement.offsetTop) / touchMovement.clientHeight)
+    
+    jumpTouchIdentifier = undefined
+    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == jump) jumpTouchIdentifier = i
+
+    if (jumpTouchIdentifier != undefined) space = true
+    
+    
+    shootTouchIdentifier = undefined
+    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == shoot) shootTouchIdentifier = i
+    
+    if (shootTouchIdentifier != undefined) leftClicking = true
+    
+
+
+}, false)
+
+document.getElementById("hud").addEventListener('touchend', (event) => {
+    event.preventDefault()
+
+    for (let i = 0; i < event.changedTouches.length; i++) {
+        if (event.changedTouches[i].identifier == cameraMoveTouchIdentifier) cameraMoveTouchIdentifier = undefined
+        if (event.changedTouches[i].identifier == touchMoveTouchIdentifier) { w = false; a = false; s = false; d = false; touchMoveTouchIdentifier = undefined }
+        if (event.changedTouches[i].identifier == jumpTouchIdentifier) { space = false; jumpTouchIdentifier = undefined }
+        if (event.changedTouches[i].identifier == shootTouchIdentifier) { leftClicking = false; shootTouchIdentifier = undefined }
+    }
+
+}, false)
+
+document.getElementById("hud").addEventListener('touchmove', (event) => {
+    event.preventDefault()
+    if (cameraMoveTouchIdentifier != undefined) {
+        touchX = event.touches[cameraMoveTouchIdentifier].pageX
+        touchY = event.touches[cameraMoveTouchIdentifier].pageY
+            
+        let sensitivity = Math.PI / 512
+        lookAngleY += sensitivity * (touchX - lastTouchX)
+        lookAngleX += sensitivity * (touchY - lastTouchY)
+
+        if (lookAngleX < -Math.PI / 2) lookAngleX = -Math.PI / 2
+        if (lookAngleX > Math.PI / 2) lookAngleX = Math.PI / 2
+
+        lastTouchX = touchX
+        lastTouchY = touchY
+    }
+
+    if (touchMoveTouchIdentifier != undefined) setMovement((event.touches[touchMoveTouchIdentifier].pageX - touchMovement.offsetLeft) / touchMovement.clientWidth, (event.touches[touchMoveTouchIdentifier].clientY - touchMovement.offsetTop) / touchMovement.clientHeight)
+    
+    if (touchMoveTouchIdentifier == undefined) { w = false; a = false; s = false; d = false }
+    if (jumpTouchIdentifier == undefined) space = false
+    if (shootTouchIdentifier == undefined) leftClicking = false
+}, false)
+
 
 
 // -- menu -- //
@@ -1235,7 +1343,7 @@ startButton.onclick = () => {
         socket.emit("nameChange", { id: player.id, newName: player.name })
     }
 
-    canvas.requestPointerLock()
+    if (canvas.requestPointerLock) canvas.requestPointerLock()
     startGame()
 }
 
@@ -1263,8 +1371,8 @@ sensitivitySlider.onchange = () => {
 var keyBindSelectors = document.getElementsByClassName("keyBindInput")
 for (let i = 0; i < keyBindSelectors.length; i++) {
     let keyBind = keyBindSelectors[i].id
-    keyBinds[keyBind].selector = keyBindSelectors[i]
-    keyBindSelectors[i].value = keyBinds[keyBind].code
+    //keyBinds[keyBind].selector = keyBindSelectors[i]
+    //keyBindSelectors[i].value = keyBinds[keyBind].code
     keyBindSelectors[i].onmouseenter = () => { keyBinds[keyBind].selecting = true }
     keyBindSelectors[i].onmouseleave = () => { keyBinds[keyBind].selecting = false }
 }

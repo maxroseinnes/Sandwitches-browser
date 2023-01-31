@@ -2418,7 +2418,10 @@ class Player extends PhysicalObject {
       for (let i = 0; i < this.collidableObjects.length; i++) {
         for (let j in this.collidableObjects[i]) {
           if (this.collidableObjects[i][j] == null) continue
-          if (this.collidableObjects[i][j] instanceof PhysicalObject) this.collidableObjects[i][j].newCollision(this, true, headBumpNoise)
+          if (this.collidableObjects[i][j] instanceof PhysicalObject) {
+            if (this.collidableObjects[i][j] instanceof Player) this.collidableObjects[i][j].dimensions.py = 2 - this.collidableObjects[i][j].state.crouchValue
+            this.collidableObjects[i][j].newCollision(this, true, headBumpNoise)
+          }
         }
       }
       

@@ -775,7 +775,7 @@ var collisionUpdate = setInterval(() => {
       }
       for (let playerId in rooms[i].players) if (rooms[i].players[playerId] && playerId != weapon.ownerId) {
         let player = rooms[i].players[playerId]
-        if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2, mz: -.25, pz: .25}, player.position)) {
+        if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2 - player.state.crouchValue, mz: -.25, pz: .25}, player.position)) {
           rooms[i].broadcast("weaponHit", {weaponId: weaponId}, null)
           hit = true
           let newHealth = player.health - weapon.damage

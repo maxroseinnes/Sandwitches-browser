@@ -1,37 +1,38 @@
 body {
     overflow: hidden;
+    -wibkit-overflow-scrolling: touch;
 }
 
 
 #canvas {
-    position: absolute;
-    top: 0px;
-    left: 0px;
+    position: fixed;
+    top: 0;
+    left: 0;
 
     z-index: 0;
 }
 
 #effectsCanvas {
-    position: absolute;
-    top: 0px;
-    left: 0px;
+    position: fixed;
+    top: 0;
+    left: 0;
 
     z-index: 10;
 }
 
 button {
 
-    margin-top: 20px;
+    margin-top: 2vmin;
 
     width: 100%;
-    height: 45px;
+    height: 5.5vmin;
 
-    border-radius: 10px;
+    border-radius: 1.25vmin;
     border-style: none;
-    box-shadow: 0px 0px 5px 1px rgba(0, 0, 0, .15);
+    box-shadow: 0 0 5px 1px rgba(0, 0, 0, .15);
 
     color: rgba(20, 20, 20);
-    font-size: 20px;
+    font-size: 2.25vmin;
     font-family: inherit;
 
     opacity: .75;
@@ -48,15 +49,16 @@ button:disabled {
 }
 
 select {
-    padding: 10px;
-    margin: 5px;
+    padding: 1vmin;
+    margin: .5vmin;
 
-    border-radius: 5px;
+    border-radius: .5vmin;
     border-style: none;
 
     background-color: rgb(0, 0, 0, .1);
 
     font-family: inherit;
+    font-size: 1.75vmin;
 
     transition: background-color .25s;
     
@@ -67,16 +69,17 @@ select:hover {
 }
 
 input[type=text] {
-    
+
     font-family: inherit;
+    font-size: 1.75vmin;
 }
 
 .lobbyLink {
-    padding: 10px;
+    padding: 2vmin;
 
     width: 100%;
 
-    border-radius: 5px;
+    border-radius: 1vmin;
 
     background-color:rgba(0, 0, 0, .1);
     color: black;
@@ -92,26 +95,26 @@ input[type=text] {
 
 #title {
 
-    position: absolute;
+    position: fixed;
 
-    left: 0px;
-    top: calc(50% - 300px);
+    left: 0;
+    top: 15%;
     width: 100%;
     text-align: center;
     
     color: white;
     
-    font-size: 75px;
     font-family: "VT323", sans-serif;
+    font-size: 10vmin;
     
 }
 
 
 #menu {
 
-    position: absolute;
-    top: 0px;
-    left: 0px;
+    position: fixed;
+    top: 0;
+    left: 0;
 
     width: 100%;
     height: 100%;
@@ -120,35 +123,41 @@ input[type=text] {
 
     z-index: 30;
 
+    font-size: 1.75vmin;
+
 }
 
 #lobby, #main, #loadout, #settings {
 
-    position: absolute;
+    position: fixed;
     
-    top: calc(50% - 175px);
+    top: calc(30%);
 
-    padding: 25px;
+    padding: 1.5%;
 
     font-family: monospace;
-    font-size: 15px;
+    font-size: 1.75vmin;
 
-    width: 300px;
+    width: 25%;
     /*height: 250px;*/
 
     background-color: rgba(255, 255, 255, .875);
-    box-shadow: 0px 0px 10px 1px rgba(0, 0, 0, .15);
+    box-shadow: 0 0 10px 1px rgba(0, 0, 0, .15);
 
-    border-radius: 10px;
+    border-radius: 1vmin;
 
 }
 
 #lobby {
-    left: calc(50% - 550px);
+    left: calc(7%);
 }
 
 #main {
-    left: calc(50% - 175px);
+    left: calc(36%);
+}
+
+#loadout {
+    right: calc(7%);
 }
 
 #startButton {
@@ -162,10 +171,6 @@ input[type=text] {
 
     color: white;
     background-color: orange;
-}
-
-#loadout {
-    left: calc(50% + 200px);
 }
 
 #settings {
@@ -189,9 +194,9 @@ input[type=text] {
 
 
 #hud {
-    position: absolute;
-    top: 0px;
-    left: 0px;
+    position: fixed;
+    top: 0;
+    left: 0;
 
     width: 100%;
     height: 100%;
@@ -199,85 +204,86 @@ input[type=text] {
     z-index: 20;
 
     font-family: monospace;
+    font-size: 1.75vmin;
 }
 
 
 #info {
-    position: absolute;
-    top: 20px;
-    left: 20px;
+    position: fixed;
+    top: 2.5vmin;
+    left: 2.5vmin;
 
-    padding: 20px;
+    padding: 2.5vmin;
 
-    border-radius: 7.5px;
+    border-radius: 1vmin;
     background-color: rgba(0, 0, 0, 0.5);
 
-    font-size: 17px;
+    font-size: 1.75vmin;
     color: white;
 }
 
 #roomInfo {
-    position: absolute;
-    top: 20px;
-    right: 20px;
+    position: fixed;
+    top: 2.5vmin;
+    right: 2.5vmin;
 
-    padding: 5px 25px 5px 25px;
+    padding: .5vmin 2.5vmin .5vmin 2.5vmin;
 
-    border-radius: 7.5px;
+    border-radius: 1vmin;
     background-color: rgba(0, 0, 0, .5);
 
-    font-size: 17px;
+    font-size: 1.75vmin;
     text-align: left;
     color: white;
 }
 
 
 #healthContainer {
-    position: absolute;
-    bottom: 60px;
-    right: 60px;
+    position: fixed;
+    bottom: 6vmin;
+    right: 6vmin;
 
-    width: 500px;
-    height: 20px;
+    width: 40vw;
+    height: 2vmin;
 
     background-color: rgba(0, 0, 0, .5);
-    box-shadow: 0px 0px 5px 5px rgba(0, 0, 0, .05);
+    box-shadow: 0 0 5px 5px rgba(0, 0, 0, .05);
 
-    border-radius: 7.5px;
+    border-radius: 1vmin;
 
 }
 
 #healthBar {
     position: absolute;
-    top: 0px;
-    right: 0px;
+    top: 0;
+    right: 0;
 
     width: 100%;
     height: 100%;
 
     background-color: green;
 
-    border-radius: 7.5px;
+    border-radius: 1vmin;
 
     transition: width .375s, background-color .375s;
 }
 
 #weaponsContainer {
-    position: absolute;
-    bottom: 90px;
-    right: 50px;
+    position: fixed;
+    bottom: 9vmin;
+    right: 5vmin;
 
 }
 
 #chatbox {
-    position: absolute;
-    bottom: 80px;
-    left: 20px;
+    position: fixed;
+    bottom: 11vmin;
+    left: 4vmin;
 
-    padding: 20px;
+    padding: 2.5vmin;
 
-    width: 600px;
-    height: 300px;
+    width: 45vw;
+    height: 40vmin;
     
     overflow: hidden;
 
@@ -287,36 +293,93 @@ input[type=text] {
 
 #chatboxInput {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
+    bottom: 4vmin;
+    left: 4vmin;
 
-    padding: 20px;
+    padding: 2.5vmin;
 
-    width: 600px;
-    height: 20px;
+    width: 45vw;
+    height: 2vmin;
 
     background-color: rgb(0, 0, 0, .25);
 
     color: white;
 
-    font-size: 22px;
+    font-size: 2.2vmin;
 
-    text-shadow: 0px 0px 15px rgba(0, 0, 0, .25);
+    text-shadow: 0 0 15px rgba(0, 0, 0, .25);
 
 }
 
 .chatMessage {
     position: absolute;
 
-    bottom: 0px;
+    bottom: 0;
 
     max-width: 80%;
 
     color: white;
 
-    font-size: 22px;
+    font-size: 2.2vmin;
 
-    text-shadow: 0px 0px 15px rgba(0, 0, 0, .25);
+    text-shadow: 0 0 15px rgba(0, 0, 0, .25);
     
     opacity: 1.0;
 }
+
+#touchMovement {
+    display: none
+}
+
+#jump {
+    display: none
+}
+
+#shoot {
+    display: none
+}
+
+@media (pointer:coarse) {
+    #touchMovement {
+        display: block;
+        position: fixed;
+        bottom: 4vmin;
+        left: 4vmin;
+
+        width: 40vmin;
+        height: 40vmin;
+
+        background-color: rgb(0, 0, 0, .25);
+
+        border-radius: 1vmin;
+    }
+
+    #jump {
+        display: block;
+        position: fixed;
+        bottom: 30vmin;
+        right: 4vmin;
+
+        width: 20vmin;
+        height: 20vmin;
+
+        background-color: rgb(0, 0, 0, .25);
+
+        border-radius: 1vmin;
+    }
+
+    #shoot {
+        display: block;
+        position: fixed;
+        bottom: 30vmin;
+        right: 28vmin;
+
+        width: 20vmin;
+        height: 20vmin;
+
+        background-color: rgb(0, 0, 0, .25);
+
+        border-radius: 1vmin;
+    }
+}
+
