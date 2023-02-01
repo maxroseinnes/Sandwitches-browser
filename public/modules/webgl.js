@@ -509,6 +509,8 @@ var webgl = {
     uniform bool uShadowable;
     uniform float uFogOpacity;
     uniform vec3 uShadowDirection;
+    uniform float uCanvasWidth;
+    uniform float uCanvasHeight;
 
     uniform mat4 nMatrix;
   
@@ -552,7 +554,7 @@ var webgl = {
       float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
       for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
         for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
-          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / ${this.gl.canvas.width}.0, gl_FragCoord.y / ${this.gl.canvas.height}.0) + vec2(i, j) * volumetricTexelSize).rgb;
+          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / uCanvasWidth, gl_FragCoord.y / uCanvasHeight) + vec2(i, j) * volumetricTexelSize).rgb;
         }
       }
 
@@ -623,6 +625,12 @@ var webgl = {
     this.gl.vertexAttribPointer(texCoordAttribLocation, txSize, this.gl.FLOAT, false, txSize * Float32Array.BYTES_PER_ELEMENT, 0);
     this.gl.enableVertexAttribArray(texCoordAttribLocation);
 
+    
+    this.gl.useProgram(this.program)
+
+    this.gl.uniform1f(this.gl.getUniformLocation(this.program, "uCanvasWidth"), this.gl.canvas.width)
+    this.gl.uniform1f(this.gl.getUniformLocation(this.program, "uCanvasHeight"), this.gl.canvas.height)
+
 
     
     this.skyboxVertexShaderText = `
@@ -648,8 +656,9 @@ var webgl = {
     uniform mat4 matrix;
 
     uniform sampler2D uVolumetricSampler;
-
     uniform float uFogOpacity;
+    uniform float uCanvasWidth;
+    uniform float uCanvasHeight;
   
     varying lowp vec4 vPosition;
   
@@ -662,7 +671,7 @@ var webgl = {
       float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
       for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
         for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
-          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / ${this.gl.canvas.width}.0, gl_FragCoord.y / ${this.gl.canvas.height}.0) + vec2(i, j) * volumetricTexelSize).rgb;
+          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / uCanvasWidth, gl_FragCoord.y / uCanvasHeight) + vec2(i, j) * volumetricTexelSize).rgb;
         }
       }
 
@@ -721,6 +730,10 @@ var webgl = {
     //this.gl.vertexAttribPointer(sPosAttribLocation, 2, this.gl.FLOAT, false, 0, 0);
     //this.gl.enableVertexAttribArray(sPosAttribLocation);
     
+    this.gl.useProgram(this.skyboxProgram)
+
+    this.gl.uniform1f(this.gl.getUniformLocation(this.skyboxProgram, "uCanvasWidth"), this.gl.canvas.width)
+    this.gl.uniform1f(this.gl.getUniformLocation(this.skyboxProgram, "uCanvasHeight"), this.gl.canvas.height)
 
     // Make shadow map program
 

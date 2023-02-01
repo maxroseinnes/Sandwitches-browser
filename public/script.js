@@ -201,6 +201,8 @@ var updateHUD = () => {
         weaponSlot.classList.add("weaponSlot")
         weaponSlot.style.backgroundColor = color
         weaponSlot.textContent = weaponSelectors[i].value
+        weaponSlot.id = i
+
         weaponsContainer.appendChild(weaponSlot)
     }
 
@@ -1195,14 +1197,33 @@ document.addEventListener("pointerlockchange", function () {
 
 
 let viewPort = document.querySelector("meta[name='viewport']")
-viewPort.content = "initial-scale=1"
+viewPort.content = "initial-scale=1.25, maximum-scale=1.25"
 
 window.onorientationchange = () => {
     console.log(window.orientation)
     let viewPort = document.querySelector("meta[name='viewport']")
-    viewPort.content = "initial-scale=1"
+    viewPort.content = "initial-scale=1.25, maximum-scale=1.25"
     console.log(viewPort)
     document.body.scrollTo(0, 0)
+}
+
+window.onresize = () => {
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+
+    
+    webgl.gl.useProgram(webgl.program)
+    webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.program, "uCanvasWidth"), webgl.gl.canvas.width)
+    webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.program, "uCanvasHeight"), webgl.gl.canvas.height)
+    
+    webgl.gl.useProgram(webgl.skyboxProgram)
+    webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasWidth"), webgl.gl.canvas.width)
+    webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasHeight"), webgl.gl.canvas.height)
+
+    webgl.aspect = canvas.width / canvas.height
+
+    effectsCanvas.width = window.innerWidth
+    effectsCanvas.height = window.innerHeight
 }
 
 
@@ -1238,42 +1259,55 @@ var touchMoving = false
 
 
 
-function setMovement(x, y) {
-    if (y > .75) {s = true; w = false}
-    if (y < .25) {s = false; w = true}
-    if (.25 < y && y < .75) {s = false; w = false;}
-    if (x > .75) {d = true; a = false}
-    if (x < .25) {d = false; a = true}
-    if (.25 < x && x < .75) {d = false; a = false;}
+function setMovement(x, y, touchStart) {
+    if (y > .67) {s = true; w = false;}
+    if (y < .33) {s = false; w = true; if (touchStart) {if (Date.now() - lastWPress < 250) player.movementState = "sprinting"; lastWPress = Date.now()}}
+    else {player.movementState = "walking"; lastWPress = 0}
+    if (.33 < y && y < .67) {s = false; w = false;}
+    if (x > .67) {d = true; a = false}
+    if (x < .67) {d = false; a = true}
+    if (.33 < x && x < .67) {d = false; a = false;}
+}
+
+function getTouchByIdentifier(touches, identifier) {
+    for (let i = 0; i < touches.length; i++) if (touches[i].identifier == identifier) return touches[i]
 }
 
 document.getElementById("hud").addEventListener('touchstart', (event) => {
     event.preventDefault()
 
+    for (let i = 0; i < event.touches.length; i++) {
+        if (event.touches[i].target.classList.contains("weaponSlot")) changeWeaponSelection(event.touches[i].target.id)
+    }
+
     cameraMoveTouchIdentifier = undefined
-    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target != touchMovement && event.touches[i].target != jump && event.touches[i].target != shoot) cameraMoveTouchIdentifier = i
+    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target != touchMovement && event.touches[i].target != jump && event.touches[i].target != shoot) cameraMoveTouchIdentifier = event.touches[i].identifier
     
     if (cameraMoveTouchIdentifier != undefined) {
-        touchX = event.touches[cameraMoveTouchIdentifier].pageX
-        touchY = event.touches[cameraMoveTouchIdentifier].pageY
+        let cameraTouch = getTouchByIdentifier(event.touches, cameraMoveTouchIdentifier)
+        touchX = cameraTouch.pageX
+        touchY = cameraTouch.pageY
 
         lastTouchX = touchX
         lastTouchY = touchY
     }
 
     touchMoveTouchIdentifier = undefined
-    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == touchMovement) touchMoveTouchIdentifier = i
+    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == touchMovement) touchMoveTouchIdentifier = event.touches[i].identifier
     
-    if (touchMoveTouchIdentifier != undefined) setMovement((event.touches[touchMoveTouchIdentifier].pageX - touchMovement.offsetLeft) / touchMovement.clientWidth, (event.touches[touchMoveTouchIdentifier].clientY - touchMovement.offsetTop) / touchMovement.clientHeight)
+    if (touchMoveTouchIdentifier != undefined) {
+        let moveTouch = getTouchByIdentifier(event.touches, touchMoveTouchIdentifier)
+        setMovement((moveTouch.pageX - touchMovement.offsetLeft) / touchMovement.clientWidth, (moveTouch.clientY - touchMovement.offsetTop) / touchMovement.clientHeight, true)
+    }
     
     jumpTouchIdentifier = undefined
-    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == jump) jumpTouchIdentifier = i
+    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == jump) jumpTouchIdentifier = event.touches[i].identifier
 
     if (jumpTouchIdentifier != undefined) space = true
     
     
     shootTouchIdentifier = undefined
-    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == shoot) shootTouchIdentifier = i
+    for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == shoot) shootTouchIdentifier = event.touches[i].identifier
     
     if (shootTouchIdentifier != undefined) leftClicking = true
     
@@ -1286,7 +1320,7 @@ document.getElementById("hud").addEventListener('touchend', (event) => {
 
     for (let i = 0; i < event.changedTouches.length; i++) {
         if (event.changedTouches[i].identifier == cameraMoveTouchIdentifier) cameraMoveTouchIdentifier = undefined
-        if (event.changedTouches[i].identifier == touchMoveTouchIdentifier) { w = false; a = false; s = false; d = false; touchMoveTouchIdentifier = undefined }
+        if (event.changedTouches[i].identifier == touchMoveTouchIdentifier) { w = false; a = false; s = false; d = false; player.movementState = "walking"; touchMoveTouchIdentifier = undefined }
         if (event.changedTouches[i].identifier == jumpTouchIdentifier) { space = false; jumpTouchIdentifier = undefined }
         if (event.changedTouches[i].identifier == shootTouchIdentifier) { leftClicking = false; shootTouchIdentifier = undefined }
     }
@@ -1296,8 +1330,9 @@ document.getElementById("hud").addEventListener('touchend', (event) => {
 document.getElementById("hud").addEventListener('touchmove', (event) => {
     event.preventDefault()
     if (cameraMoveTouchIdentifier != undefined) {
-        touchX = event.touches[cameraMoveTouchIdentifier].pageX
-        touchY = event.touches[cameraMoveTouchIdentifier].pageY
+        let cameraTouch = getTouchByIdentifier(event.touches, cameraMoveTouchIdentifier)
+        touchX = cameraTouch.pageX
+        touchY = cameraTouch.pageY
             
         let sensitivity = Math.PI / 512
         lookAngleY += sensitivity * (touchX - lastTouchX)
@@ -1310,11 +1345,11 @@ document.getElementById("hud").addEventListener('touchmove', (event) => {
         lastTouchY = touchY
     }
 
-    if (touchMoveTouchIdentifier != undefined) setMovement((event.touches[touchMoveTouchIdentifier].pageX - touchMovement.offsetLeft) / touchMovement.clientWidth, (event.touches[touchMoveTouchIdentifier].clientY - touchMovement.offsetTop) / touchMovement.clientHeight)
+    if (touchMoveTouchIdentifier != undefined) {
+        let moveTouch = getTouchByIdentifier(event.touches, touchMoveTouchIdentifier)
+        setMovement((moveTouch.pageX - touchMovement.offsetLeft) / touchMovement.clientWidth, (moveTouch.clientY - touchMovement.offsetTop) / touchMovement.clientHeight)
+    }
     
-    if (touchMoveTouchIdentifier == undefined) { w = false; a = false; s = false; d = false }
-    if (jumpTouchIdentifier == undefined) space = false
-    if (shootTouchIdentifier == undefined) leftClicking = false
 }, false)
 
 
