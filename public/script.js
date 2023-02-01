@@ -464,9 +464,12 @@ socket.on("map", (mapInfo) => {
             if (name.indexOf("Cube") != -1) texture = "barnWood"
             if (name.indexOf("Ladder") != -1) texture = "whiteWood"
             if (name.indexOf("Loft") != -1) texture = "barnWood"
+            if (name.indexOf("BigBuilding") != -1) texture = "jerry"
             mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
             
         }
+
+        console.log(mapModelGeometry)
         
 
         
@@ -688,6 +691,12 @@ socket.on("respawn", (data) => {
     player.health = data.health
     player.state = data.state
     console.log(player)
+
+    startRespawnCountdown()
+    document.exitPointerLock()
+
+
+
 })
 
 socket.on("tooManyPlayers", () => {
@@ -1181,12 +1190,26 @@ function pauseGame() {
     menu.style.display = ""
 }
 
+function startRespawnCountdown() {
+    startButton.disabled = true
+    for (let i = 0; i < 5; i++) window.setTimeout(() => {
+        startButton.textContent = 5 - i
+    }, i * 1000)
+
+    window.setTimeout(() => {
+        startButton.disabled = false
+        startButton.textContent = "Respawn"
+    }, 5000)
+
+}
+
 
 var lastPointerLockExited = Date.now()
 document.addEventListener("pointerlockchange", function () {
     lastPointerLockExited = Date.now()
     if (document.pointerLockElement === canvas) {
         pointerLocked = true
+        startButton.textContent = "Resume"
     } else {
         pointerLocked = false
         if (!chatboxOpen) pauseGame()
@@ -1247,7 +1270,7 @@ var touchX = 0
 var touchY = 0
 var lastTouchX = 0
 var lastTouchY = 0
-var cameraMoveTouchIdentifier = 0
+var cameraMoveTouchIdentifier
 var touchMoveTouchIdentifier
 var jumpTouchIdentifier
 var shootTouchIdentifier
@@ -1255,7 +1278,6 @@ var shootTouchIdentifier
 const touchMovement = document.getElementById("touchMovement")
 const jump = document.getElementById("jump")
 const shoot = document.getElementById("shoot")
-var touchMoving = false
 
 
 
@@ -1334,9 +1356,8 @@ document.getElementById("hud").addEventListener('touchmove', (event) => {
         touchX = cameraTouch.pageX
         touchY = cameraTouch.pageY
             
-        let sensitivity = Math.PI / 512
-        lookAngleY += sensitivity * (touchX - lastTouchX)
-        lookAngleX += sensitivity * (touchY - lastTouchY)
+        lookAngleY += sensitivity * 2 * (touchX - lastTouchX)
+        lookAngleX += sensitivity * 2 * (touchY - lastTouchY)
 
         if (lookAngleX < -Math.PI / 2) lookAngleX = -Math.PI / 2
         if (lookAngleX > Math.PI / 2) lookAngleX = Math.PI / 2
