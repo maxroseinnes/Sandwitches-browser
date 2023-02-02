@@ -197,6 +197,7 @@ var updateHUD = () => {
         weaponSlot.style.boxShadow = "0 0 1vmin 1vmin rgba(0, 0, 0, .05)"
         weaponSlot.style.borderRadius = "1vmin"
         weaponSlot.style.borderStyle = "solid"
+        weaponSlot.style.borderWidth = ".3vmin"
         weaponSlot.style.borderColor = (player.inventory.currentSelection == i) ? "white" : color
         weaponSlot.classList.add("weaponSlot")
         weaponSlot.style.backgroundColor = color
@@ -639,14 +640,17 @@ socket.on("playerUpdate", (playersData) => {
 
         // update player health and healthbar
         if (player && id == player.id) {
-            if (playersData[id].health != player.health || playersData[id].health == 100) {
+            if (playersData[id].health != player.health) {
                 player.health = playersData[id].health
+                player.alive = playersData[id].health > 0
                 document.getElementById("healthBar").style.width = playersData[id].health + "%"
                 document.getElementById("healthBar").style.backgroundColor = "rgb(" + (2.55 * (100 - player.health)) + ", " + (2.55 * player.health * .75) + ", 0)"
             }
         }
         
         if (otherPlayers[id] != null) {
+            otherPlayers[id].health = playersData[id].health
+            otherPlayers[id].alive = playersData[id].health > 0
             if (!playersData[id].respawnedThisTick) {
                 otherPlayers[id].lastPosition = otherPlayers[id].serverPosition
                 otherPlayers[id].lastState = otherPlayers[id].serverState
@@ -688,15 +692,25 @@ socket.on("respawn", (data) => {
     player.lastPosition = data.position
     player.lastState = data.state
     player.position = data.position
-    player.health = data.health
     player.state = data.state
     console.log(player)
 
-    startRespawnCountdown()
-    document.exitPointerLock()
 
 
+})
 
+socket.on("youDied", (data) => {
+    if (data.id == player.id) {
+        startRespawnCountdown()
+        if (chatboxOpen) closeChatbox()
+        pauseGame()
+        document.exitPointerLock()
+
+    }
+})
+
+socket.on("playerRespawned", (data) => {
+    if (otherPlayers[data.id]) otherPlayers[data.id].clearSmoothing()
 })
 
 socket.on("tooManyPlayers", () => {
@@ -807,6 +821,7 @@ function update(now) {
           pitch: lookAngleX,
           roll: 0
         }
+        player.gamerTag.alive = player.alive
 
     }
 
@@ -831,6 +846,7 @@ function update(now) {
             pitch: lookAngleX,
             roll: 0
             }
+            otherPlayers[id].gamerTag.alive = otherPlayers[id].alive
 
             if (otherPlayers[id].inventory.currentWeapon != null) {
                 otherPlayers[id].inventory.currentWeapon.calculatePosition(deltaTime)
@@ -1181,13 +1197,22 @@ function pauseGame() {
     pauseNoise.play()
     console.log("stopped")
 
-    initKeyInput(false)
-    running = false
+    leftClicking = false
+    rightClicking = false
 
-    fixedUpdateThen = Date.now();
-    clearInterval(fixedUpdateInterval)
+    initKeyInput(false)
+    //running = false
+
+    //fixedUpdateThen = Date.now();
+    //clearInterval(fixedUpdateInterval)
 
     menu.style.display = ""
+    window.setTimeout(() => {
+        menu.style.opacity = "1.0"
+        document.getElementById("lobby").style.left = "7%"
+        document.getElementById("main").style.top = "30%"
+        document.getElementById("loadout").style.right = "7%" 
+    }, 0)
 }
 
 function startRespawnCountdown() {
@@ -1383,10 +1408,17 @@ startButton.onclick = () => {
     }
     if ((Date.now() - lastPointerLockExited) < 1500) return
 
+    if (!player.alive) socket.emit("respawnMe", {id: player.id})
+    console.log(player.alive)
+
     console.log("starting")
 
-    backgroundNoises.play()
-    menu.style.display = "none"
+    //backgroundNoises.play()
+    window.setTimeout(() => {menu.style.display = "none"}, 250)
+    window.setTimeout(() => {menu.style.opacity = "0.0"}, 10)
+    document.getElementById("lobby").style.left = "-3%"
+    document.getElementById("main").style.top = "20%"
+    document.getElementById("loadout").style.right = "-3%"
 
     changeWeaponSelection(player.inventory.currentSelection)
 
@@ -1500,8 +1532,8 @@ updateSavedSettings()
 
 
 document.addEventListener("mousedown", function (event) {
-    if (running && event.which == 1) leftClicking = true
-    if (running && event.which == 3) rightClicking = true
+    if (running && event.which == 1 && menu.style.display == "none") leftClicking = true
+    if (running && event.which == 3 && menu.style.display == "none") rightClicking = true
 
 })
 

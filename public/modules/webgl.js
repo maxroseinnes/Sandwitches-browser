@@ -1317,6 +1317,8 @@ var webgl = {
 
         let parent = Model.allModels[i].parent
 
+        if (parent && parent.alive === false) continue
+
         let mMatrix = mat4.create()
         let mnMatrix = mat4.create()
 
@@ -1361,6 +1363,8 @@ var webgl = {
       // all of these: yaw, lean, pitch, roll, x, y, z, walkCycle, crouchValue, slideValue, scale
 
       let parent = transparentModels[i].parent
+
+      if (parent && parent.alive === false) continue
 
       let mMatrix = mat4.create()
       let mnMatrix = mat4.create()
@@ -2124,6 +2128,7 @@ class GamerTag {
     GamerTag.allGamerTags.push(this)
 
     this.name = name
+    this.alive = true
 
     this.geometryInfo = {
       positions: [
@@ -2341,6 +2346,7 @@ class Player extends PhysicalObject {
     this.currentCooldown = 1
 
     this.id = id
+    this.alive = true
     this.name = name
     this.lastName = this.name
 
@@ -2433,6 +2439,7 @@ class Player extends PhysicalObject {
           if (this.collidableObjects[i][j] == null) continue
           if (this.collidableObjects[i][j] instanceof PhysicalObject) {
             if (this.collidableObjects[i][j] instanceof Player) this.collidableObjects[i][j].dimensions.py = 2 - this.collidableObjects[i][j].state.crouchValue
+            if (this.collidableObjects[i][j] instanceof Player && !this.collidableObjects[i][j].alive) continue
             this.collidableObjects[i][j].newCollision(this, true, headBumpNoise)
           }
         }
@@ -2594,6 +2601,8 @@ class Weapon extends PhysicalObject {
   }
 
   calculatePosition(deltaTime, socket, shotByClient) {
+    this.alive = this.owner.alive
+
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((this.owner.currentCooldown - this.owner.cooldownTimer) / this.owner.currentCooldown - 1)) + 1) / 2
     if (!this.shooted) {
       this.models.main.scale = this.scale * distanceFromPlayer / 2

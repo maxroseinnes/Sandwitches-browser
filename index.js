@@ -400,6 +400,12 @@ class Room {
       }
     })
 
+    socket.on("respawnMe", (data) => {
+      if (this.players[data.id] && this.players[data.id].health <= 0) {
+        this.respawnPlayer(data.id)
+      }
+    })
+
     // MAKING WEAPONS: 
     // client: send newWeapon message
     // server: brodcast message with weapon id and data
@@ -468,7 +474,7 @@ class Room {
     })
 
     socket.on("death", (deathInfo) => {
-      this.respawnPlayer(deathInfo.id)
+      if (this.players[deathInfo.id]) this.players[deathInfo.id].socket.emit("youDied", {id: deathInfo.id})
 
       let deathMessage;
       if (deathInfo.type == "void") {
@@ -513,6 +519,7 @@ class Room {
       state: this.players[id].state,
       health: DEFAULT_PLAYER_HEALTH,
     })
+    this.broadcast("playerRespawned", {id: id}, id)
   }
 
   genPlayerPacket(id) {
@@ -589,7 +596,7 @@ class Room {
     // Compile player data into an array
     let playersData = {}
     for (let id in this.players) {
-      if (this.players[id] != null) playersData[id] = this.genPlayerPacket(id)
+      if (this.players[id]) playersData[id] = this.genPlayerPacket(id)
     }
 
     // Send array to each connected player
@@ -773,14 +780,14 @@ var collisionUpdate = setInterval(() => {
           
         }
       }
-      for (let playerId in rooms[i].players) if (rooms[i].players[playerId] && playerId != weapon.ownerId) {
+      for (let playerId in rooms[i].players) if (rooms[i].players[playerId] && rooms[i].players[playerId].health > 0 && playerId != weapon.ownerId) {
         let player = rooms[i].players[playerId]
         if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2 - player.state.crouchValue, mz: -.25, pz: .25}, player.position)) {
           rooms[i].broadcast("weaponHit", {weaponId: weaponId}, null)
           hit = true
           let newHealth = player.health - weapon.damage
+          player.health = newHealth
           if (newHealth > 0) {
-            player.health = newHealth
             console.log("health: " + newHealth)
           } else {
             if (rooms[i].players[weapon.ownerId]) {
@@ -788,7 +795,7 @@ var collisionUpdate = setInterval(() => {
               let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name
               rooms[i].broadcast("chatMessage", deathMessage, null)
             }
-            rooms[i].respawnPlayer(playerId)
+            player.socket.emit("youDied", {id: playerId})
           }
         }
       }

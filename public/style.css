@@ -58,7 +58,7 @@ select {
     background-color: rgb(0, 0, 0, .1);
 
     font-family: inherit;
-    font-size: 1.75vmin;
+    font-size: 1.625vmin;
 
     transition: background-color .25s;
     
@@ -71,7 +71,13 @@ select:hover {
 input[type=text] {
 
     font-family: inherit;
-    font-size: 1.75vmin;
+    font-size: 1.625vmin;
+}
+
+input[type=number] {
+
+    font-family: inherit;
+    font-size: 1.625vmin;
 }
 
 .lobbyLink {
@@ -123,7 +129,10 @@ input[type=text] {
 
     z-index: 30;
 
-    font-size: 1.75vmin;
+    font-size: 1.625vmin;
+
+    opacity: 1.0;
+    transition: opacity .1s;
 
 }
 
@@ -136,7 +145,7 @@ input[type=text] {
     padding: 1.5%;
 
     font-family: monospace;
-    font-size: 1.75vmin;
+    font-size: 1.625vmin;
 
     width: 25%;
     /*height: 250px;*/
@@ -149,15 +158,19 @@ input[type=text] {
 }
 
 #lobby {
-    left: calc(7%);
+    left: 7%;
+    transition: left .1s;
 }
 
 #main {
-    left: calc(36%);
+    left: 36%;
+    top: 30%;
+    transition: top .1s;
 }
 
 #loadout {
-    right: calc(7%);
+    right: 7%;
+    transition: right .1s;
 }
 
 #startButton {
@@ -204,7 +217,7 @@ input[type=text] {
     z-index: 20;
 
     font-family: monospace;
-    font-size: 1.75vmin;
+    font-size: 1.625vmin;
 }
 
 
@@ -218,7 +231,7 @@ input[type=text] {
     border-radius: 1vmin;
     background-color: rgba(0, 0, 0, 0.5);
 
-    font-size: 1.75vmin;
+    font-size: 1.625vmin;
     color: white;
 }
 
@@ -232,7 +245,7 @@ input[type=text] {
     border-radius: 1vmin;
     background-color: rgba(0, 0, 0, .5);
 
-    font-size: 1.75vmin;
+    font-size: 1.625vmin;
     text-align: left;
     color: white;
 }
@@ -249,7 +262,7 @@ input[type=text] {
     background-color: rgba(0, 0, 0, .5);
     box-shadow: 0 0 5px 5px rgba(0, 0, 0, .05);
 
-    border-radius: 1vmin;
+    border-radius: .875vmin;
 
 }
 
@@ -263,7 +276,7 @@ input[type=text] {
 
     background-color: green;
 
-    border-radius: 1vmin;
+    border-radius: .875vmin;
 
     transition: width .375s, background-color .375s;
 }
