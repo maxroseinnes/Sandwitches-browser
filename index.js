@@ -473,19 +473,6 @@ class Room {
         weaponData: weaponInfo})
     })
 
-    socket.on("death", (deathInfo) => {
-      if (this.players[deathInfo.id]) this.players[deathInfo.id].socket.emit("youDied", {id: deathInfo.id})
-
-      let deathMessage;
-      if (deathInfo.type == "void") {
-        deathMessage = deathInfo.name + " fell into the void."
-      } else {
-        deathMessage = deathInfo.name + " died."
-      }
-      console.log(deathMessage)
-      this.broadcast("chatMessage", deathMessage, null)
-    })
-
     socket.on("disconnect", () => {
       for (let id in this.players) {
         // maybe using object takes a little too long to fully delete the name value pair?
@@ -595,8 +582,17 @@ class Room {
   tick() {
     // Compile player data into an array
     let playersData = {}
-    for (let id in this.players) {
-      if (this.players[id]) playersData[id] = this.genPlayerPacket(id)
+    for (let id in this.players) if (this.players[id]) {
+      if (this.players[id].position.y < -100) {
+        this.players[id].health = 0
+        this.players[id].socket.emit("youDied", {id: id})
+
+        let deathMessage = this.players[id].name + " fell into the void."
+        console.log(deathMessage)
+        this.broadcast("chatMessage", deathMessage, null)
+
+      }
+      playersData[id] = this.genPlayerPacket(id)
     }
 
     // Send array to each connected player

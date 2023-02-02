@@ -362,17 +362,6 @@ var ticks = 0;
 function tick() {
     ticks++;
     if (player != null) {
-        if (player.position.y < -100) {
-            /*var respawnPositionX = Math.random() * 10 - 5;
-            var respawnPositionZ = Math.random() * 10 - 5;
-            player.position.x = respawnPositionX;
-            player.position.y = 0;
-            player.position.z = respawnPositionZ;
-            player.lastPosition.x = respawnPositionX;
-            player.lastPosition.y = 0
-            player.lastPosition.z = respawnPositionZ*/
-            socket.emit("death", { type: "void", id: player.id, name: player.name });
-        }
         socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, currentWeaponType: player.inventory.currentWeapon.type });
     }
     //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
@@ -700,7 +689,11 @@ socket.on("respawn", (data) => {
 })
 
 socket.on("youDied", (data) => {
-    if (data.id == player.id) {
+    if (player && data.id == player.id) {
+        player.position.x = 0
+        player.position.y = 2
+        player.position.z = 0
+
         startRespawnCountdown()
         if (chatboxOpen) closeChatbox()
         pauseGame()
@@ -1003,7 +996,7 @@ function fixedUpdate() {
     }
 
 
-    player.calculatePosition(deltaTime, headBumpNoise)
+    if (player.alive) player.calculatePosition(deltaTime, headBumpNoise)
 
     if (!player.lastOnGround && player.onGround) {
         let splatVolume = Math.abs(player.lastVelocity.y) * 50 - .75
@@ -1199,6 +1192,16 @@ function pauseGame() {
 
     leftClicking = false
     rightClicking = false
+    w = false
+    a = false
+    s = false
+    d = false
+    left = false
+    right = false
+    up = false
+    down = false
+    shift = false
+    space = false
 
     initKeyInput(false)
     //running = false
