@@ -28,14 +28,12 @@ var Ground = webglStuff.Ground
 
 // GLOBAL VARIABLES //
 
-var w = false
-var a = false
-var s = false
-var d = false
+var forward = false
 var left = false
+var backward = false
 var right = false
-var up = false
-var down = false
+var arrowLeft = false
+var arrowRight = false
 var shift = false
 var space = false
 var leftClicking = false
@@ -262,12 +260,12 @@ function openChatbox() {
 
     leftClicking = false
     rightClicking = false
-    w = false
-    a = false
-    s = false
-    d = false
+    forward = false
     left = false
+    backward = false
     right = false
+    arrowLeft = false
+    arrowRight = false
     up = false
     down = false
     shift = false
@@ -919,27 +917,27 @@ function fixedUpdate() {
         z: 0
     }
 
-    if (w && !chatboxOpen) {
+    if (forward && !chatboxOpen) {
         movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
         movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
     }
-    if (a && !chatboxOpen) {
+    if (left && !chatboxOpen) {
         movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
         movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
     }
-    if (s && !chatboxOpen) {
+    if (backward && !chatboxOpen) {
         movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
         movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
         player.state.walkCycle -= walkAnimationSpeed
     }
-    if (d && !chatboxOpen) {
+    if (right && !chatboxOpen) {
         movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
         movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
     }
-    if ((!w && !s) || player.movementState == "sliding") {
+    if ((!forward && !backward) || player.movementState == "sliding") {
         let r = player.state.walkCycle % Math.PI
         if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
         else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
@@ -1050,19 +1048,19 @@ function fixedUpdate() {
 // -- key pressing -- //
 
 var keyBinds = {
-    w: {
+    forward: {
         code: "KeyW",
         selecting: false
     },
-    a: {
+    left: {
         code: "KeyA",
         selecting: false
     },
-    s: {
+    backward: {
         code: "KeyS",
         selecting: false
     },
-    d: {
+    right: {
         code: "KeyD",
         selecting: false
     },
@@ -1104,27 +1102,25 @@ function initKeyInput(preventDefault) {
 
 
             if (event.code == "ArrowLeft") {
-                left = true
+                arrowLeft = true
                 if (player.inventory.currentSelection - 1 >= 0) changeWeaponSelection(player.inventory.currentSelection - 1)
             }
             if (event.code == "ArrowRight") {
-                right = true
+                arrowRight = true
                 if (player.inventory.currentSelection + 1 < weaponSelectors.length) changeWeaponSelection(player.inventory.currentSelection + 1)
             }
         }
-        if (event.code == "ArrowUp") up = true
-        if (event.code == "ArrowDown") down = true
 
-        if (event.code == keyBinds.w.code) {
-            w = true
+        if (event.code == keyBinds.forward.code) {
+            forward = true
             if (Date.now() - lastWPress < 250) {
                 player.movementState = "sprinting"
             }
             if (!event.repeat) lastWPress = Date.now()
         }
-        if (event.code == keyBinds.s.code) s = true
-        if (event.code == keyBinds.a.code) a = true
-        if (event.code == keyBinds.d.code) d = true
+        if (event.code == keyBinds.backward.code) backward = true
+        if (event.code == keyBinds.left.code) left = true
+        if (event.code == keyBinds.right.code) right = true
 
         if (event.code == "ShiftLeft") {
 
@@ -1166,18 +1162,16 @@ function initKeyInput(preventDefault) {
     document.onkeyup = (event) => {
         if (preventDefault) event.preventDefault();
 
-        if (event.code == 37) left = false
-        if (event.code == 39) right = false
-        if (event.code == 38) up = false
-        if (event.code == 40) down = false
+        if (event.code == 37) arrowLeft = false
+        if (event.code == 39) arrowRight = false
 
-        if (event.code == keyBinds.w.code) {
-            w = false
+        if (event.code == keyBinds.forward.code) {
+            forward = false
             player.movementState = "walking"
         }
-        if (event.code == keyBinds.s.code) s = false
-        if (event.code == keyBinds.a.code) a = false
-        if (event.code == keyBinds.d.code) d = false
+        if (event.code == keyBinds.backward.code) backward = false
+        if (event.code == keyBinds.left.code) left = false
+        if (event.code == keyBinds.right.code) right = false
 
         if (event.code == "ShiftLeft") shift = false
         if (event.code == "Space") space = false
@@ -1203,14 +1197,12 @@ function pauseGame() {
 
     leftClicking = false
     rightClicking = false
-    w = false
-    a = false
-    s = false
-    d = false
+    forward = false
     left = false
+    backward = false
     right = false
-    up = false
-    down = false
+    arrowLeft = false
+    arrowRight = false
     shift = false
     space = false
 
@@ -1331,13 +1323,13 @@ const shoot = document.getElementById("shoot")
 
 
 function setMovement(x, y, touchStart) {
-    if (y > .67) {s = true; w = false;}
-    if (y < .33) {s = false; w = true; if (touchStart) {if (Date.now() - lastWPress < 250) player.movementState = "sprinting"; lastWPress = Date.now()}}
+    if (y > .67) {backward = true; forward = false;}
+    if (y < .33) {backward = false; forward = true; if (touchStart) {if (Date.now() - lastWPress < 250) player.movementState = "sprinting"; lastWPress = Date.now()}}
     else {player.movementState = "walking"; lastWPress = 0}
-    if (.33 < y && y < .67) {s = false; w = false;}
-    if (x > .67) {d = true; a = false}
-    if (x < .67) {d = false; a = true}
-    if (.33 < x && x < .67) {d = false; a = false;}
+    if (.33 < y && y < .67) {backward = false; forward = false;}
+    if (x > .67) {right = true; left = false}
+    if (x < .67) {right = false; left = true}
+    if (.33 < x && x < .67) {right = false; left = false;}
 }
 
 function getTouchByIdentifier(touches, identifier) {
@@ -1391,7 +1383,7 @@ document.getElementById("hud").addEventListener('touchend', (event) => {
 
     for (let i = 0; i < event.changedTouches.length; i++) {
         if (event.changedTouches[i].identifier == cameraMoveTouchIdentifier) cameraMoveTouchIdentifier = undefined
-        if (event.changedTouches[i].identifier == touchMoveTouchIdentifier) { w = false; a = false; s = false; d = false; player.movementState = "walking"; touchMoveTouchIdentifier = undefined }
+        if (event.changedTouches[i].identifier == touchMoveTouchIdentifier) { forward = false; left = false; backward = false; right = false; player.movementState = "walking"; touchMoveTouchIdentifier = undefined }
         if (event.changedTouches[i].identifier == jumpTouchIdentifier) { space = false; jumpTouchIdentifier = undefined }
         if (event.changedTouches[i].identifier == shootTouchIdentifier) { leftClicking = false; shootTouchIdentifier = undefined }
     }
@@ -1484,8 +1476,8 @@ sensitivitySlider.onchange = () => {
 var keyBindSelectors = document.getElementsByClassName("keyBindInput")
 for (let i = 0; i < keyBindSelectors.length; i++) {
     let keyBind = keyBindSelectors[i].id
-    //keyBinds[keyBind].selector = keyBindSelectors[i]
-    //keyBindSelectors[i].value = keyBinds[keyBind].code
+    keyBinds[keyBind].selector = keyBindSelectors[i]
+    keyBindSelectors[i].value = keyBinds[keyBind].code
     keyBindSelectors[i].onmouseenter = () => { keyBinds[keyBind].selecting = true }
     keyBindSelectors[i].onmouseleave = () => { keyBinds[keyBind].selecting = false }
 }
@@ -1536,7 +1528,7 @@ overallGraphicsSelector.onchange = () => {
 }
 
 function updateSavedSettings() {
-    localStorage.savedSettings = {
+    localStorage.savedSettings = JSON.stringify({
         "mouse": {
             "sensitivity": document.getElementById("sensitivitySlider").value
         },
@@ -1544,16 +1536,18 @@ function updateSavedSettings() {
             "forward": document.getElementById("forward").value,
             "left": document.getElementById("left").value,
             "backward": document.getElementById("backward").value,
-            "right": document.getElementById("right").value
+            "right": document.getElementById("right").value,
+            "openChat": document.getElementById("openChat").value
         },
         "audio": {
             "volume": document.getElementById("volumeSlider").value
+        },
+        "graphics": {
+            
         }
-    }
+    })
     
 }
-
-updateSavedSettings()
 
 
 document.addEventListener("mousedown", function (event) {
