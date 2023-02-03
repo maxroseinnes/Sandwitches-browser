@@ -352,7 +352,7 @@ class Room {
     this.players[assignedId] = {
       name: name,
       position: position,
-      health: DEFAULT_PLAYER_HEALTH,
+      health: 0,
       state: state,
       killCount: 0,
       socket: socket
@@ -365,7 +365,7 @@ class Room {
       id: assignedId,
       name: name,
       position: position,
-      health: DEFAULT_PLAYER_HEALTH,
+      health: 0,
       state: state
     });
 
@@ -377,7 +377,7 @@ class Room {
       id: assignedId,
       name: name,
       position: position,
-      health: DEFAULT_PLAYER_HEALTH,
+      health: 0,
       state: state
     }, assignedId);
 
@@ -489,6 +489,7 @@ class Room {
   }
 
   respawnPlayer(id) {
+    this.broadcast("playerRespawned", {id: id}, id)
     this.players[id].position.x = Math.random() * 10 - 5;
     this.players[id].position.y = 2;
     this.players[id].position.z = Math.random() * 10 - 5;
@@ -506,7 +507,6 @@ class Room {
       state: this.players[id].state,
       health: DEFAULT_PLAYER_HEALTH,
     })
-    this.broadcast("playerRespawned", {id: id}, id)
   }
 
   genPlayerPacket(id) {
@@ -585,7 +585,7 @@ class Room {
     for (let id in this.players) if (this.players[id]) {
       if (this.players[id].position.y < -100) {
         this.players[id].health = 0
-        this.players[id].socket.emit("youDied", {id: id})
+        this.players[id].socket.emit("youDied", {id: id, cause: "void"})
 
         let deathMessage = this.players[id].name + " fell into the void."
         console.log(deathMessage)
@@ -791,7 +791,7 @@ var collisionUpdate = setInterval(() => {
               let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name
               rooms[i].broadcast("chatMessage", deathMessage, null)
             }
-            player.socket.emit("youDied", {id: playerId})
+            player.socket.emit("youDied", {id: playerId, cause: "killed"})
           }
         }
       }

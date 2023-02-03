@@ -211,6 +211,8 @@ var webgl = {
 
     skybox: true,
 
+    outlineResolution: 1024,
+
   },
 
 
@@ -399,6 +401,31 @@ var webgl = {
     this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.RENDERBUFFER, this.volumetricMapDepthBuffer)
 
 
+
+    // make framebuffer for normals color map
+
+    this.normalRenderMap = this.gl.createTexture()
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.normalRenderMap)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.canvas.width, this.gl.canvas.height, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
+
+    this.normalRenderFramebuffer = this.gl.createFramebuffer()
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.normalRenderFramebuffer)
+
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.normalRenderMap, 0)
+
+    this.normalRenderMapDepthBuffer = this.gl.createRenderbuffer()
+    this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.normalRenderMapDepthBuffer)
+
+    this.gl.renderbufferStorage(this.gl.RENDERBUFFER, this.gl.DEPTH_COMPONENT16, this.gl.canvas.width, this.gl.canvas.height)
+    this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.RENDERBUFFER, this.normalRenderMapDepthBuffer)
+
+
+
     this.gl.clearDepth(1);
     this.gl.depthFunc(this.gl.LEQUAL);
 
@@ -411,24 +438,6 @@ var webgl = {
     this.initializeShaders()
 
 
-    // collision pipeline:
-
-    /*
-    create a 3D texture with collision voxels for each physical object:
-      - vertex shader runs twice with model data, once with front faces, once with back faces
-      
-      - run another shader that iterates through grid by rendering layered triangle strips at the correct resolution
-        - the output is a 3d texture of collision voxels (booleans as alpha values)
-
-
-    */
-   
-
-    // volumetric lighting pipeline
-    /*
-      before running fragment shader, take a low resolution picture of the scene with depth values
-    */
-  
   
   },
 
@@ -503,6 +512,7 @@ var webgl = {
     uniform sampler2D uNormalMapSampler;
     uniform sampler2D uShadowSampler;
     uniform sampler2D uVolumetricSampler;
+    uniform sampler2D uNormalRenderSampler;
     uniform vec3 cPosition;
     uniform vec3 lPosition;
     uniform float uGlossValue;
@@ -513,6 +523,18 @@ var webgl = {
     uniform float uCanvasHeight;
 
     uniform mat4 nMatrix;
+
+    mat3 sx = mat3(
+      1.0, 2.0, 1.0,
+      0.0, 0.0, 0.0,
+      -1.0, -2.0, -1.0
+    );
+
+    mat3 sy = mat3(
+      1.0, 0.0, -1.0,
+      2.0, 0.0, -2.0,
+      1.0, 0.0, -1.0
+    );
   
     void main() {
       lowp vec4 normalMapTexelColor = texture2D(uNormalMapSampler, vTextureCoord) * -0.5 + 0.5;
@@ -561,12 +583,38 @@ var webgl = {
       fogColor /= ${Math.pow(this.settings.volumetricMapSmoothing * 2 + 1, 2)}.0;
       ` : ``}
 
+      //lowp vec4 texelColor = texture2D(uNormalRenderSampler, vec2(gl_FragCoord.x / uCanvasWidth, gl_FragCoord.y / uCanvasHeight));
+      //texelColor = vec4((texelColor.xyz + .5) / 2.0, texelColor.a);
       lowp vec4 texelColor = texture2D(uSampler, vTextureCoord);
 
+
+      vec3 gx;
+      vec3 gy;
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          gx += sx[i][j] * texture2D(uNormalRenderSampler, vec2((gl_FragCoord.x + float(i)-1.0) / uCanvasWidth, (gl_FragCoord.y + float(j)-1.0) / uCanvasHeight)).rgb;
+          gy += sy[i][j] * texture2D(uNormalRenderSampler, vec2((gl_FragCoord.x + float(i)-1.0) / uCanvasWidth, (gl_FragCoord.y + float(j)-1.0) / uCanvasHeight)).rgb;
+        }
+      }
+
+
+      float gx2;
+      float gy2;
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          gx2 += sx[i][j] * texture2D(uNormalRenderSampler, vec2((gl_FragCoord.x + float(i)-1.0) / uCanvasWidth, (gl_FragCoord.y + float(j)-1.0) / uCanvasHeight)).a;
+          gy2 += sy[i][j] * texture2D(uNormalRenderSampler, vec2((gl_FragCoord.x + float(i)-1.0) / uCanvasWidth, (gl_FragCoord.y + float(j)-1.0) / uCanvasHeight)).a;
+        }
+      }
+
+      float gMagnitude = sqrt(pow(length(gx), 2.0) + pow(length(gy), 2.0));
+      float gMagnitude2 = sqrt(gx2 * gx2 + gy2 * gy2);
+      float outline = (gMagnitude > .5 || gMagnitude2 > .025) ? 0.5 : 1.0;
+
       gl_FragColor = vec4(
-        (texelColor.r * lighting.x${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.r * ${this.settings.fogColorR} * uFogOpacity` : ``}, 
-        (texelColor.g * lighting.y${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.g * ${this.settings.fogColorG} * uFogOpacity` : ``}, 
-        (texelColor.b * lighting.z${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.b * ${this.settings.fogColorB} * uFogOpacity` : ``}, 
+        (texelColor.r * outline * lighting.x${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.r * ${this.settings.fogColorR} * uFogOpacity` : ``}, 
+        (texelColor.g * outline * lighting.y${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.g * ${this.settings.fogColorG} * uFogOpacity` : ``}, 
+        (texelColor.b * outline * lighting.z${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.b * ${this.settings.fogColorB} * uFogOpacity` : ``}, 
         texelColor.a
       );
     }
@@ -916,6 +964,91 @@ var webgl = {
     if (!this.gl.getProgramParameter(this.volumetricProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the volumetric shader program: ${this.gl.getProgramInfoLog(this.volumetricProgram)}`)
   
 
+    this.normalRenderVertexShaderText = `precision mediump float;
+  
+    attribute vec4 vertPosition;
+    attribute vec3 aVertNormal;
+  
+    uniform float uScale;
+    uniform vec3 uOffset;
+    uniform float uWalkCycle;
+    uniform float uCrouchValue;
+    uniform float uLean;
+    uniform mat4 mMatrix;
+    uniform mat4 mnMatrix;
+
+    uniform mat4 pMatrix;
+    uniform mat4 tMatrix;
+
+    varying lowp vec3 vNormal;
+  
+    void main() {
+
+      vec4 modelPosition = vec4(vertPosition.xyz * uScale + uOffset, 1.0);
+
+      vec4 position = modelPosition;
+      vec3 normal = aVertNormal;
+
+      if (uWalkCycle != 0.0 || uCrouchValue != 0.0 || uLean != 0.0) {
+          
+        float walk = sin(uWalkCycle) * (2.0 - modelPosition.y) * sin(modelPosition.x * 2.0);
+        float walkY = modelPosition.y * (1.0 - (uCrouchValue / 2.0)) + modelPosition.y * sin(modelPosition.x * 2.0) * sin(uWalkCycle) * 0.025;
+        float walkZ = modelPosition.z + 0.2 * walk;
+
+        position.z = walkZ * cos(uLean * modelPosition.y / 3.0) - walkY * sin(uLean * modelPosition.y / 3.0);
+        position.y = walkZ * sin(uLean * modelPosition.y / 3.0) + walkY * cos(uLean * modelPosition.y / 3.0);
+
+        normal.z = aVertNormal.z * cos(uLean * modelPosition.y / 3.0) - aVertNormal.y * sin(uLean * modelPosition.y / 3.0);
+        normal.y = aVertNormal.z * sin(uLean * modelPosition.y / 3.0) + aVertNormal.y * cos(uLean * modelPosition.y / 3.0);
+
+      }
+      position = mMatrix * position;
+      normal = vec4(mnMatrix * vec4(normal, 1.0)).xyz;
+
+      gl_Position = pMatrix * tMatrix * position;
+  
+      vNormal = normal;
+
+    }
+    `
+
+    this.normalRenderFragmentShaderText = `
+    precision mediump float;
+
+    varying lowp vec3 vNormal;
+
+    void main() {
+      gl_FragColor = vec4((normalize(vNormal) + 1.0) / 2.0, pow(gl_FragCoord.z, 1.0));
+    }
+    `
+
+
+    // shaders //
+    this.normalRenderVertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
+    this.normalRenderFragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
+
+
+    // program //
+    this.normalRenderProgram = this.gl.createProgram()
+
+
+    this.gl.shaderSource(this.normalRenderVertexShader, this.normalRenderVertexShaderText)
+    this.gl.shaderSource(this.normalRenderFragmentShader, this.normalRenderFragmentShaderText)
+
+    this.gl.compileShader(this.normalRenderVertexShader)
+    this.gl.compileShader(this.normalRenderFragmentShader)
+
+    this.gl.attachShader(this.normalRenderProgram, this.normalRenderVertexShader)
+    this.gl.attachShader(this.normalRenderProgram, this.normalRenderFragmentShader)
+    this.gl.linkProgram(this.normalRenderProgram)
+    this.gl.validateProgram(this.normalRenderProgram)
+
+
+    if (!this.gl.getProgramParameter(this.normalRenderProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the normalRender shader program: ${this.gl.getProgramInfoLog(this.normalRenderProgram)}`)
+  
+
+
+
   },
 
   loadTexture: (gl, texture, canvas) => {
@@ -1157,7 +1290,6 @@ var webgl = {
     }
 
 
-
     // ---------------- RENDER VOLUMETRIC TEXTURE ---------------- //
 
 
@@ -1197,6 +1329,35 @@ var webgl = {
 
     }
     
+
+    // ---------------- NORMAL RENDER ---------------- //
+
+    this.gl.clearColor(1, 1, 1, 1);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.normalRenderFramebuffer)
+    this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+    
+    this.gl.useProgram(this.normalRenderProgram);
+
+
+    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.normalRenderProgram, "tMatrix"), false, tMatrix);
+    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.normalRenderProgram, "pMatrix"), false, pMatrix);
+
+    this.gl.disable(this.gl.BLEND)
+    this.drawModels({
+      mMatrix: this.gl.getUniformLocation(this.normalRenderProgram, "mMatrix"),
+      mnMatrix: this.gl.getUniformLocation(this.normalRenderProgram, "mnMatrix"),
+      walkCycle: this.gl.getUniformLocation(this.normalRenderProgram, "uWalkCycle"),
+      crouchValue: this.gl.getUniformLocation(this.normalRenderProgram, "uCrouchValue"),
+      lean: this.gl.getUniformLocation(this.normalRenderProgram, "uLean"),
+      scale: this.gl.getUniformLocation(this.normalRenderProgram, "uScale"),
+      offset: this.gl.getUniformLocation(this.normalRenderProgram, "uOffset")
+    }, {
+      endWithTransparent: true
+    })
+    this.gl.enable(this.gl.BLEND)
+
+
     // ---------------- SKYBOX RENDER ---------------- //
 
     if (!this.settings.volumetricLighting) this.gl.clearColor(0.75, 0.8, 1, 1);
@@ -1227,7 +1388,6 @@ var webgl = {
       this.gl.drawArrays(this.gl.TRIANGLES, 0, 6)
 
     }
-
 
 
 
@@ -1272,6 +1432,10 @@ var webgl = {
     this.gl.activeTexture(this.gl.TEXTURE3)
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.volumetricMap)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uVolumetricSampler"), 3)
+
+    this.gl.activeTexture(this.gl.TEXTURE4)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.normalRenderMap)
+    this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uNormalRenderSampler"), 4)
 
     if (!this.settings.heaven) this.drawModels({
       mMatrix: this.gl.getUniformLocation(this.program, "mMatrix"),
@@ -1798,7 +1962,7 @@ class PhysicalObject {
   }
 
   clearSmoothing() {
-    this.pastPositions.splice(1)
+    this.pastPositions = []
   }
 
   calculateSlopes() {
@@ -2128,7 +2292,7 @@ class GamerTag {
     GamerTag.allGamerTags.push(this)
 
     this.name = name
-    this.alive = true
+    this.alive = false
 
     this.geometryInfo = {
       positions: [
@@ -2346,7 +2510,7 @@ class Player extends PhysicalObject {
     this.currentCooldown = 1
 
     this.id = id
-    this.alive = true
+    this.alive = false
     this.name = name
     this.lastName = this.name
 
@@ -2483,6 +2647,7 @@ class Weapon extends PhysicalObject {
     this.type = type
 
     this.owner = owner
+    this.alive = true
 
     // default settings
     this.class = "projectile"
@@ -2601,7 +2766,6 @@ class Weapon extends PhysicalObject {
   }
 
   calculatePosition(deltaTime, socket, shotByClient) {
-    this.alive = this.owner.alive
 
     let distanceFromPlayer = 2 * (Math.cos(Math.PI * ((this.owner.currentCooldown - this.owner.cooldownTimer) / this.owner.currentCooldown - 1)) + 1) / 2
     if (!this.shooted) {

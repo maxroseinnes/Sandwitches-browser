@@ -259,7 +259,19 @@ var chatboxInput = document.getElementById("chatboxInput")
 chatboxInput.style.display = "none"
 function openChatbox() {
     chatboxOpen = true
-    document.exitPointerLock()
+
+    leftClicking = false
+    rightClicking = false
+    w = false
+    a = false
+    s = false
+    d = false
+    left = false
+    right = false
+    up = false
+    down = false
+    shift = false
+    space = false
 
     var blinkCursor = (lastInput) => {
         if (!chatboxOpen) return
@@ -290,9 +302,6 @@ function closeChatbox() {
     chatboxOpen = false
     chatboxLastCloseTime = Date.now()
     startGame()
-    window.setTimeout(() => {
-        canvas.requestPointerLock()
-    }, 200)
 
     chatboxInput.style.display = "none"
     chatbox.style.backgroundColor = "transparent"
@@ -592,11 +601,11 @@ socket.on("weaponHit", (data) => {
     }
 })
 
-socket.on("newPlayer", (player) => {
-    displayChatMessage(player.name + " spawned in at x: " + player.position.x + ", y: " + player.position.y + ", z: " + player.position.z);
-    otherPlayers[player.id] = new Player(playerGeometry, player.position.x, player.position.y, player.position.z, player.position.yaw, player.position.lean, player.health, player.id, player.name);
-    console.log(otherPlayers[player.id])
-    addPlayerToHUD(player.id, player.name)
+socket.on("newPlayer", (newPlayer) => {
+    displayChatMessage(newPlayer.name + " spawned in at x: " + newPlayer.position.x + ", y: " + newPlayer.position.y + ", z: " + newPlayer.position.z);
+    otherPlayers[newPlayer.id] = new Player(playerGeometry, newPlayer.position.x, newPlayer.position.y, newPlayer.position.z, newPlayer.position.yaw, newPlayer.position.lean, newPlayer.health, newPlayer.id, newPlayer.name);
+    console.log(otherPlayers[newPlayer.id])
+    addPlayerToHUD(newPlayer.id, newPlayer.name)
 })
 
 socket.on("newWeapon", (data) => {
@@ -626,15 +635,14 @@ socket.on("playerLeave", (id) => {
 socket.on("playerUpdate", (playersData) => {
 
     for (let id in playersData) {
-
         // update player health and healthbar
         if (player && id == player.id) {
             if (playersData[id].health != player.health) {
                 player.health = playersData[id].health
-                player.alive = playersData[id].health > 0
                 document.getElementById("healthBar").style.width = playersData[id].health + "%"
                 document.getElementById("healthBar").style.backgroundColor = "rgb(" + (2.55 * (100 - player.health)) + ", " + (2.55 * player.health * .75) + ", 0)"
             }
+            player.alive = playersData[id].health > 0
         }
         
         if (otherPlayers[id] != null) {
@@ -690,12 +698,13 @@ socket.on("respawn", (data) => {
 
 socket.on("youDied", (data) => {
     if (player && data.id == player.id) {
-        player.position.x = 0
-        player.position.y = 2
-        player.position.z = 0
+        if (data.cause == "void") {
+            player.position.x = 0
+            player.position.y = 2
+            player.position.z = 0
+        }
 
         startRespawnCountdown()
-        if (chatboxOpen) closeChatbox()
         pauseGame()
         document.exitPointerLock()
 
@@ -703,7 +712,9 @@ socket.on("youDied", (data) => {
 })
 
 socket.on("playerRespawned", (data) => {
-    if (otherPlayers[data.id]) otherPlayers[data.id].clearSmoothing()
+    if (!otherPlayers[data.id]) return
+    otherPlayers[data.id].pastPositions = []
+    otherPlayers[data.id].pastStates = []
 })
 
 socket.on("tooManyPlayers", () => {
@@ -815,6 +826,7 @@ function update(now) {
           roll: 0
         }
         player.gamerTag.alive = player.alive
+        if (player.inventory.currentWeapon) player.inventory.currentWeapon.alive = player.alive
 
     }
 
@@ -840,9 +852,10 @@ function update(now) {
             roll: 0
             }
             otherPlayers[id].gamerTag.alive = otherPlayers[id].alive
+            if (otherPlayers[id].inventory.currentWeapon) otherPlayers[id].inventory.currentWeapon.alive = otherPlayers[id].alive
 
             if (otherPlayers[id].inventory.currentWeapon != null) {
-                otherPlayers[id].inventory.currentWeapon.calculatePosition(deltaTime)
+                if (otherPlayers[id].alive) otherPlayers[id].inventory.currentWeapon.calculatePosition(deltaTime)
                 otherPlayers[id].updateCooldown(deltaTime)
             }
         }
@@ -877,123 +890,121 @@ function fixedUpdate() {
 
     // -- Movement -- //
 
-    if (!chatboxOpen) {
-        let speed = 0;
-        if (player.movementState == "walking") {
-            speed = Player.walkingSpeed
-            webgl.fov -= deltaTime * Player.fovShiftSpeed
-            if (webgl.fov < Player.walkingFOV) webgl.fov = Player.walkingFOV
-        }
-        if (player.movementState == "crouching") {
-            speed = Player.crouchingSpeed
-            webgl.fov -= deltaTime * Player.fovShiftSpeed
-            if (webgl.fov < Player.crouchingFOV) webgl.fov = Player.walkingFOV
-        }
-        if (player.movementState == "sprinting") {
-            speed = Player.sprintingSpeed
-            webgl.fov += deltaTime * Player.fovShiftSpeed
-            if (webgl.fov > Player.sprintingFOV) webgl.fov = Player.sprintingFOV
-        }
-        if (player.movementState == "sliding") {
-            speed = Player.slidingSpeed
-            webgl.fov += deltaTime * Player.fovShiftSpeed
-            if (webgl.fov > Player.slidingFOV) webgl.fov = Player.slidingFOV
-        }
-        let walkAnimationSpeed = 2.25 * deltaTime * speed
+    let speed = 0;
+    if (player.movementState == "walking") {
+        speed = Player.walkingSpeed
+        webgl.fov -= deltaTime * Player.fovShiftSpeed
+        if (webgl.fov < Player.walkingFOV) webgl.fov = Player.walkingFOV
+    }
+    if (player.movementState == "crouching") {
+        speed = Player.crouchingSpeed
+        webgl.fov -= deltaTime * Player.fovShiftSpeed
+        if (webgl.fov < Player.crouchingFOV) webgl.fov = Player.walkingFOV
+    }
+    if (player.movementState == "sprinting") {
+        speed = Player.sprintingSpeed
+        webgl.fov += deltaTime * Player.fovShiftSpeed
+        if (webgl.fov > Player.sprintingFOV) webgl.fov = Player.sprintingFOV
+    }
+    if (player.movementState == "sliding") {
+        speed = Player.slidingSpeed
+        webgl.fov += deltaTime * Player.fovShiftSpeed
+        if (webgl.fov > Player.slidingFOV) webgl.fov = Player.slidingFOV
+    }
+    let walkAnimationSpeed = 2.25 * deltaTime * speed
 
-        let movementVector = {
-            x: 0,
-            y: 0,
-            z: 0
-        }
+    let movementVector = {
+        x: 0,
+        y: 0,
+        z: 0
+    }
 
-        if (w) {
-            movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-            movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+    if (w && !chatboxOpen) {
+        movementVector.x += speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+        movementVector.z += speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
-            if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
-        }
-        if (a) {
-            movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
-            movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
-        }
-        if (s) {
-            movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
-            movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
+        if (player.movementState != "sliding") player.state.walkCycle += walkAnimationSpeed
+    }
+    if (a && !chatboxOpen) {
+        movementVector.x -= speed * Math.cos(lookAngleY) * deltaTime
+        movementVector.z -= speed * Math.sin(lookAngleY) * deltaTime
+    }
+    if (s && !chatboxOpen) {
+        movementVector.x -= speed * Math.cos(lookAngleY - (Math.PI / 2)) * deltaTime
+        movementVector.z -= speed * Math.sin(lookAngleY - (Math.PI / 2)) * deltaTime
 
-            player.state.walkCycle -= walkAnimationSpeed
-        }
-        if (d) {
-            movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
-            movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
-        }
-        if ((!w && !s) || player.movementState == "sliding") {
-            let r = player.state.walkCycle % Math.PI
-            if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
-            else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
-        }
+        player.state.walkCycle -= walkAnimationSpeed
+    }
+    if (d && !chatboxOpen) {
+        movementVector.x += speed * Math.cos(lookAngleY) * deltaTime
+        movementVector.z += speed * Math.sin(lookAngleY) * deltaTime
+    }
+    if ((!w && !s) || player.movementState == "sliding") {
+        let r = player.state.walkCycle % Math.PI
+        if (r < Math.PI / 2) player.state.walkCycle = (player.state.walkCycle - r) + (r / (1 + deltaTime / 100))
+        else player.state.walkCycle = (player.state.walkCycle + r) - (r / (1 + deltaTime / 100))
+    }
 
-        if (player.movementState == "sliding") {
-            player.slideCountdown -= deltaTime
-            if (player.slideCountdown != null && player.slideCountdown <= 0) {
-                player.movementState = "crouching"
-                player.slideCountdown = 1000
-            }
-        }
-        if (shift && player.movementState == "walking") {
+    if (player.movementState == "sliding") {
+        player.slideCountdown -= deltaTime
+        if (player.slideCountdown != null && player.slideCountdown <= 0) {
             player.movementState = "crouching"
-            player.state.crouchValue += .015 * deltaTime
-            if (player.state.crouchValue > 1) player.state.crouchValue = 1
-        }
-        else if (shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
-            player.state.crouchValue += .015 * deltaTime
-            if (player.state.crouchValue > 1) player.state.crouchValue = 1
-        }
-        else if (!shift && player.movementState != "crouching") {
-            player.state.crouchValue -= .015 * deltaTime
-            if (player.state.crouchValue < 0) player.state.crouchValue = 0
-        }
-        else if (shift && player.movementState == "sprinting") {
-            player.movementState = "sliding"
             player.slideCountdown = 1000
         }
-        else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
-            player.movementState = "walking"
-        }
-
-        if (space) {
-            if (player.onGround) {
-            player.velocity.y = Player.jumpForce
-            }
-        }
-
-        if (leftClicking) {
-            if (!player.inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
-                socket.emit("newWeapon", {
-                    ownerId: player.id,
-                    type: player.inventory.currentWeapon.type,
-                    position: player.inventory.currentWeapon.position,
-                    pitch: lookAngleX,
-                    yaw: lookAngleY
-                })
-            }
-        }
-        if (rightClicking) aimState = Math.min(1, aimState + .005 * deltaTime)
-        else aimState = Math.max(0, aimState - .005 * deltaTime)
-        updateCrosshair()
-
-
-        // normalize movement vector //
-        let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2))
-        if (hypotenuse > 0) {
-            player.velocity.x = movementVector.x / hypotenuse * speed
-            player.velocity.z = movementVector.z / hypotenuse * speed
-        } else {
-            player.velocity.x = 0
-            player.velocity.z = 0
-        }
-
     }
+    if (shift && !chatboxOpen && player.movementState == "walking") {
+        player.movementState = "crouching"
+        player.state.crouchValue += .015 * deltaTime
+        if (player.state.crouchValue > 1) player.state.crouchValue = 1
+    }
+    else if (shift && !chatboxOpen && (player.movementState == "crouching" || player.movementState == "sliding")) {
+        player.state.crouchValue += .015 * deltaTime
+        if (player.state.crouchValue > 1) player.state.crouchValue = 1
+    }
+    else if (!shift && player.movementState != "crouching") {
+        player.state.crouchValue -= .015 * deltaTime
+        if (player.state.crouchValue < 0) player.state.crouchValue = 0
+    }
+    else if (shift && !chatboxOpen && player.movementState == "sprinting") {
+        player.movementState = "sliding"
+        player.slideCountdown = 1000
+    }
+    else if (!shift && (player.movementState == "crouching" || player.movementState == "sliding")) {
+        player.movementState = "walking"
+    }
+
+    if (space && !chatboxOpen) {
+        if (player.onGround) {
+        player.velocity.y = Player.jumpForce
+        }
+    }
+
+    if (leftClicking) {
+        if (!player.inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
+            socket.emit("newWeapon", {
+                ownerId: player.id,
+                type: player.inventory.currentWeapon.type,
+                position: player.inventory.currentWeapon.position,
+                pitch: lookAngleX,
+                yaw: lookAngleY
+            })
+        }
+    }
+    if (rightClicking) aimState = Math.min(1, aimState + .005 * deltaTime)
+    else aimState = Math.max(0, aimState - .005 * deltaTime)
+    updateCrosshair()
+
+
+    // normalize movement vector //
+    let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2))
+    if (hypotenuse > 0) {
+        player.velocity.x = movementVector.x / hypotenuse * speed
+        player.velocity.z = movementVector.z / hypotenuse * speed
+    } else {
+        player.velocity.x = 0
+        player.velocity.z = 0
+    }
+
 
 
     if (player.alive) player.calculatePosition(deltaTime, headBumpNoise)
@@ -1208,8 +1219,10 @@ function pauseGame() {
 
     //fixedUpdateThen = Date.now();
     //clearInterval(fixedUpdateInterval)
+    if (chatboxOpen) closeChatbox()
 
-    menu.style.display = ""
+    menu.style.zIndex = 30
+    window.setTimeout(() => {menu.style.zIndex = 30}, 100)
     window.setTimeout(() => {
         menu.style.opacity = "1.0"
         document.getElementById("lobby").style.left = "7%"
@@ -1240,7 +1253,7 @@ document.addEventListener("pointerlockchange", function () {
         startButton.textContent = "Resume"
     } else {
         pointerLocked = false
-        if (!chatboxOpen) pauseGame()
+        pauseGame()
     }
 
 
@@ -1270,6 +1283,14 @@ window.onresize = () => {
     webgl.gl.useProgram(webgl.skyboxProgram)
     webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasWidth"), webgl.gl.canvas.width)
     webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasHeight"), webgl.gl.canvas.height)
+
+    webgl.gl.bindTexture(webgl.gl.TEXTURE_2D, webgl.normalRenderMap)
+    webgl.gl.texImage2D(webgl.gl.TEXTURE_2D, 0, webgl.gl.RGBA, webgl.gl.canvas.width, webgl.gl.canvas.height, 0, webgl.gl.RGBA, webgl.gl.UNSIGNED_BYTE, null)
+
+    webgl.gl.bindRenderbuffer(webgl.gl.RENDERBUFFER, webgl.normalRenderMapDepthBuffer)
+
+    webgl.gl.renderbufferStorage(webgl.gl.RENDERBUFFER, webgl.gl.DEPTH_COMPONENT16, webgl.gl.canvas.width, webgl.gl.canvas.height)
+
 
     webgl.aspect = canvas.width / canvas.height
 
@@ -1409,15 +1430,14 @@ startButton.onclick = () => {
         //alert("join a room first")
         return
     }
-    if ((Date.now() - lastPointerLockExited) < 1500) return
+    if ((Date.now() - lastPointerLockExited) < 750) return
 
     if (!player.alive) socket.emit("respawnMe", {id: player.id})
-    console.log(player.alive)
 
     console.log("starting")
 
     //backgroundNoises.play()
-    window.setTimeout(() => {menu.style.display = "none"}, 250)
+    window.setTimeout(() => {menu.style.zIndex = "10"}, 250)
     window.setTimeout(() => {menu.style.opacity = "0.0"}, 10)
     document.getElementById("lobby").style.left = "-3%"
     document.getElementById("main").style.top = "20%"
@@ -1434,7 +1454,9 @@ startButton.onclick = () => {
         socket.emit("nameChange", { id: player.id, newName: player.name })
     }
 
-    if (canvas.requestPointerLock) canvas.requestPointerLock()
+    let timeToWait = Math.max(1500 - (Date.now() - lastPointerLockExited), 0)
+
+    if (canvas.requestPointerLock) window.setTimeout(() => {canvas.requestPointerLock()}, timeToWait)
     startGame()
 }
 
@@ -1535,8 +1557,8 @@ updateSavedSettings()
 
 
 document.addEventListener("mousedown", function (event) {
-    if (running && event.which == 1 && menu.style.display == "none") leftClicking = true
-    if (running && event.which == 3 && menu.style.display == "none") rightClicking = true
+    if (running && event.which == 1 && menu.style.opacity == 0) leftClicking = true
+    if (running && event.which == 3 && menu.style.opacity == 0) rightClicking = true
 
 })
 
