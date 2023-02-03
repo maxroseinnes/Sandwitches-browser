@@ -609,7 +609,7 @@ var webgl = {
 
       float gMagnitude = sqrt(pow(length(gx), 2.0) + pow(length(gy), 2.0));
       float gMagnitude2 = sqrt(gx2 * gx2 + gy2 * gy2);
-      float outline = (gMagnitude > .5 || gMagnitude2 > .025) ? 0.5 : 1.0;
+      float outline = (gMagnitude > .5 || gMagnitude2 > .025) ? 0.45 : 1.0;
 
       gl_FragColor = vec4(
         (texelColor.r * outline * lighting.x${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.r * ${this.settings.fogColorR} * uFogOpacity` : ``}, 
@@ -1353,7 +1353,8 @@ var webgl = {
       scale: this.gl.getUniformLocation(this.normalRenderProgram, "uScale"),
       offset: this.gl.getUniformLocation(this.normalRenderProgram, "uOffset")
     }, {
-      endWithTransparent: true
+      endWithTransparent: true,
+      excludeTransparentModels: true
     })
     this.gl.enable(this.gl.BLEND)
 

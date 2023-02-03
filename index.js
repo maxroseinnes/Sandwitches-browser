@@ -752,7 +752,7 @@ var collisionUpdate = setInterval(() => {
   collisionUpdateThen = now
 
   for (let i in rooms) {
-    for (let weaponId in rooms[i].weapons) if (rooms[i].weapons[weaponId]) {
+    for (let weaponId in rooms[i].weapons) if (rooms[i].weapons[weaponId] && rooms[i].weapons[weaponId].velocity) {
       // update weapon velocity and position
       let weapon = rooms[i].weapons[weaponId]
       if (weapon.class == "projectile") weapon.velocity.y -= 0.00001 * deltaTime
@@ -784,7 +784,7 @@ var collisionUpdate = setInterval(() => {
           let newHealth = player.health - weapon.damage
           player.health = newHealth
           if (newHealth > 0) {
-            console.log("health: " + newHealth)
+            //console.log("health: " + newHealth)
           } else {
             if (rooms[i].players[weapon.ownerId]) {
               rooms[i].players[weapon.ownerId].killCount++
@@ -795,7 +795,7 @@ var collisionUpdate = setInterval(() => {
           }
         }
       }
-      if (hit) rooms[i].weapons[weaponId] = null
+      if (hit) delete rooms[i].weapons[weaponId]
       
     }
   }
