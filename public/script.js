@@ -152,8 +152,9 @@ var setVolume = () => {
 
 setVolume()
 
-document.getElementById("volumeSlider").onchange = () => {
-    volume = document.getElementById("volumeSlider").value / 100
+var volumeSlider = document.getElementById("volumeSlider")
+volumeSlider.onchange = () => {
+    volume = volumeSlider.value / 100
     setVolume()
 }
 
@@ -1561,9 +1562,9 @@ overallGraphicsSelector.onchange = () => {
 function updateSavedSettings() {
     localStorage.savedSettings = JSON.stringify({
         "mouse": {
-            "sensitivity": document.getElementById("sensitivitySlider").value
+            "sensitivity": sensitivitySlider.value
         },
-        "keybinds": {
+        "keyBinds": {
             "forward": document.getElementById("forward").value,
             "left": document.getElementById("left").value,
             "backward": document.getElementById("backward").value,
@@ -1571,44 +1572,79 @@ function updateSavedSettings() {
             "openChat": document.getElementById("openChat").value
         },
         "audio": {
-            "volume": document.getElementById("volumeSlider").value
+            "volume": volumeSlider.value
         },
         "graphics": {
-            "overall": document.getElementById("overallGraphics").value,
-            "skybox": document.getElementById("skybox").value,
-            "specularLighting": document.getElementById("specularLighting"),
-            "shadows": document.getElementById("shadows").value,
-            "particles": document.getElementById("particles").value,
-            "voumetricLighting": document.getElementById("volumetricLighting").value,
-            "heaven": document.getElementById("heaven").value
+            "overall": overallGraphicsSelector.value,
+            "skybox": document.getElementById("skybox").checked,
+            "specularLighting": document.getElementById("specularLighting").checked,
+            "shadows": document.getElementById("shadows").checked,
+            "particles": document.getElementById("particles").checked,
+            "voumetricLighting": document.getElementById("volumetricLighting").checked,
+            "heaven": document.getElementById("heaven").checked
         }
     })   
+
+    console.log(JSON.parse(localStorage.savedSettings))
+}
+
+document.getElementById("saveSettingsButton").onclick = () => {
+    //updateSavedSettings()
 }
 
 function readSavedSettings() {
     let savedSettings = JSON.parse(localStorage.savedSettings)
-    document.getElementById("sensitivitySlider").value = savedSettings.mouse.sensitivity
-    document.getElementById("forward").value = savedSettings.keybinds.forward
-    document.getElementById("left").value = savedSettings.keybinds.left
-    document.getElementById("backward").value = savedSettings.keybinds.backward
-    document.getElementById("right").value = savedSettings.keybinds.right
-    document.getElementById("volumeSlider").value = savedSettings.audio.volume
-    document.getElementById("overallGraphics").value = savedSettings.graphics.overall.value
-    document.getElementById("skybox").value = savedSettings.graphics.skybox
-    document.getElementById("specularLighting").value = savedSettings.graphics.specularLighting
-    document.getElementById("shadows").value = savedSettings.graphics.shadows
-    document.getElementById("particles").value = savedSettings.graphics.particles
-    document.getElementById("volumetricLighting").value = savedSettings.graphics.volumetricLighting
-    document.getElementById("heaven").value = savedSettings.graphics.heaven
+    if (savedSettings.mouse.sensitivity != null) {
+        document.getElementById("sensitivitySlider").value = savedSettings.mouse.sensitivity
+        sensitivitySlider.onchange()
 
-    keybinds.forward = savedSettings.keybinds.forward
-    keybinds.left = savedSettings.keybinds.left
-    keybinds.backward = savedSettings.keybinds.backward
-    keybinds.right = savedSettings.keybinds.right
+    }
 
-    overallGraphicsSelector.onchange()
-    
+    if (savedSettings.keyBinds.forward != null) {
+        document.getElementById("forward").value = savedSettings.keyBinds.forward
+        keyBinds.forward = savedSettings.keyBinds.forward
+    }
+    if (savedSettings.keyBinds.left != null) {
+        document.getElementById("left").value = savedSettings.keyBinds.left
+        keyBinds.left = savedSettings.keyBinds.left
+    }
+    if (savedSettings.keyBinds.backward != null){
+        document.getElementById("backward").value = savedSettings.keyBinds.backward
+        keyBinds.backward = savedSettings.keyBinds.backward
+    }
+    if (savedSettings.keyBinds.right != null){
+        console.log("bruh")
+        document.getElementById("right").value = savedSettings.keyBinds.right
+        keyBinds.right = savedSettings.keyBinds.right
+    }
+    if (savedSettings.keyBinds.openChat != null){
+        document.getElementById("openChat").value = savedSettings.keyBinds.openChat
+        keyBinds.openChat = savedSettings.keyBinds.openChat
+    }
+
+    if (savedSettings.audio.volume != null) {
+        document.getElementById("volumeSlider").value = savedSettings.audio.volume
+        volumeSlider.onchange()
+    }
+
+    if (savedSettings.graphics.overall != null) {
+        document.getElementById("overallGraphics").value = savedSettings.graphics.overall
+        overallGraphicsSelector.onchange()
+    }
+    if (savedSettings.graphics.skybox != null) document.getElementById("skybox").value = savedSettings.graphics.skybox
+    if (savedSettings.graphics.specularLighting != null) document.getElementById("specularLighting").value = savedSettings.graphics.specularLighting
+    if (savedSettings.graphics.shadows != null) document.getElementById("shadows").value = savedSettings.graphics.shadows
+    if (savedSettings.graphics.particles != null) document.getElementById("particles").value = savedSettings.graphics.particles
+    if (savedSettings.graphics.volumetricLighting != null) document.getElementById("volumetricLighting").value = savedSettings.graphics.volumetricLighting
+    if (savedSettings.graphics.heaven != null) document.getElementById("heaven").value = savedSettings.graphics.heaven
+
+    for (let settingsCheckbox in settingsCheckboxes) {
+        webgl.settings[settingsCheckbox.id] = settingsCheckbox.checked
+        webgl.initializeShaders()
+    }
 }
+
+readSavedSettings()
 
 
 document.addEventListener("mousedown", function (event) {

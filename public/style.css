@@ -20,7 +20,7 @@ body {
     z-index: 10;
 }
 
-button {
+button, #saveSettingsButton {
 
     margin-top: 2vmin;
 
@@ -39,11 +39,11 @@ button {
     transition: opacity .25s;
 }
 
-button:hover {
+button:hover, #saveSettingsButton:hover {
     opacity: 1.0;
 }
 
-button:disabled {
+button:disabled, #saveSettingsButton:disabled {
     opacity: .5;
     cursor: not-allowed;
 }
@@ -180,7 +180,7 @@ input[type=number] {
 }
 
 
-#settingsButton, #joinGameButton {
+#settingsButton, #joinGameButton, #saveSettingsButton {
 
     color: white;
     background-color: orange;
@@ -191,7 +191,7 @@ input[type=number] {
     left: calc(50% - 500px);
 
     width: 1000px;
-    height: 300px;
+    height: 400px;
 
     display: none;
 }
