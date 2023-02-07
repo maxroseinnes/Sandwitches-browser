@@ -1584,12 +1584,10 @@ function updateSavedSettings() {
             "heaven": document.getElementById("heaven").checked
         }
     })   
-
-    console.log(JSON.parse(localStorage.savedSettings))
 }
 
 document.getElementById("saveSettingsButton").onclick = () => {
-    //updateSavedSettings()
+    updateSavedSettings()
 }
 
 function readSavedSettings() {
@@ -1602,24 +1600,23 @@ function readSavedSettings() {
 
     if (savedSettings.keyBinds.forward != null) {
         document.getElementById("forward").value = savedSettings.keyBinds.forward
-        keyBinds.forward = savedSettings.keyBinds.forward
+        keyBinds.forward.code = savedSettings.keyBinds.forward
     }
     if (savedSettings.keyBinds.left != null) {
         document.getElementById("left").value = savedSettings.keyBinds.left
-        keyBinds.left = savedSettings.keyBinds.left
+        keyBinds.left.code = savedSettings.keyBinds.left
     }
     if (savedSettings.keyBinds.backward != null){
         document.getElementById("backward").value = savedSettings.keyBinds.backward
-        keyBinds.backward = savedSettings.keyBinds.backward
+        keyBinds.backward.code = savedSettings.keyBinds.backward
     }
     if (savedSettings.keyBinds.right != null){
-        console.log("bruh")
         document.getElementById("right").value = savedSettings.keyBinds.right
-        keyBinds.right = savedSettings.keyBinds.right
+        keyBinds.right.code = savedSettings.keyBinds.right
     }
     if (savedSettings.keyBinds.openChat != null){
         document.getElementById("openChat").value = savedSettings.keyBinds.openChat
-        keyBinds.openChat = savedSettings.keyBinds.openChat
+        keyBinds.openChat.code = savedSettings.keyBinds.openChat
     }
 
     if (savedSettings.audio.volume != null) {
@@ -1631,12 +1628,12 @@ function readSavedSettings() {
         document.getElementById("overallGraphics").value = savedSettings.graphics.overall
         overallGraphicsSelector.onchange()
     }
-    if (savedSettings.graphics.skybox != null) document.getElementById("skybox").value = savedSettings.graphics.skybox
-    if (savedSettings.graphics.specularLighting != null) document.getElementById("specularLighting").value = savedSettings.graphics.specularLighting
-    if (savedSettings.graphics.shadows != null) document.getElementById("shadows").value = savedSettings.graphics.shadows
-    if (savedSettings.graphics.particles != null) document.getElementById("particles").value = savedSettings.graphics.particles
-    if (savedSettings.graphics.volumetricLighting != null) document.getElementById("volumetricLighting").value = savedSettings.graphics.volumetricLighting
-    if (savedSettings.graphics.heaven != null) document.getElementById("heaven").value = savedSettings.graphics.heaven
+    if (savedSettings.graphics.skybox != null) document.getElementById("skybox").checked = savedSettings.graphics.skybox
+    if (savedSettings.graphics.specularLighting != null) document.getElementById("specularLighting").checked = savedSettings.graphics.specularLighting
+    if (savedSettings.graphics.shadows != null) document.getElementById("shadows").checked = savedSettings.graphics.shadows
+    if (savedSettings.graphics.particles != null) document.getElementById("particles").checked = savedSettings.graphics.particles
+    if (savedSettings.graphics.volumetricLighting != null) document.getElementById("volumetricLighting").checked = savedSettings.graphics.volumetricLighting
+    if (savedSettings.graphics.heaven != null) document.getElementById("heaven").checked = savedSettings.graphics.heaven
 
     for (let settingsCheckbox in settingsCheckboxes) {
         webgl.settings[settingsCheckbox.id] = settingsCheckbox.checked

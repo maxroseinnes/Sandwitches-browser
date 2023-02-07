@@ -43,7 +43,7 @@ button:hover, #saveSettingsButton:hover {
     opacity: 1.0;
 }
 
-button:disabled, #saveSettingsButton:disabled {
+button:disabled {
     opacity: .5;
     cursor: not-allowed;
 }
