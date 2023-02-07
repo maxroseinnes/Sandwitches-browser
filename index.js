@@ -788,7 +788,8 @@ var collisionUpdate = setInterval(() => {
           } else {
             if (rooms[i].players[weapon.ownerId]) {
               rooms[i].players[weapon.ownerId].killCount++
-              let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name
+              let vowels = "aeiou"
+              let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name + " with a" + (vowels.includes(weapon.type[0]) ? "n " : " ") + weapon.type 
               rooms[i].broadcast("chatMessage", deathMessage, null)
             }
             player.socket.emit("youDied", {id: playerId, cause: "killed"})
