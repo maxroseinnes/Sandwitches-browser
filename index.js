@@ -76,7 +76,7 @@ var weaponGeometry = {
   sausage: {path: "weapons/sausage.obj"},
   pan: {path: "weapons/lowpolyfryingpanwith_meat_.obj"},
   anchovy: {path: "weapons/anchovy_terrible.obj"},
-  meatball: {path: "weapons/meatball.obj"}
+  meatball: {path: "weapons/swagball.obj"}
 }
 
 
@@ -845,6 +845,39 @@ var collisionUpdate = setInterval(() => {
 
 }, 10)
 
+const maxFFAPlayers = 8
+const maxLobbyPlayers = 20
+
+var ffaUpdate = setInterval(() => {
+  for (let i in rooms.ffaRooms) {
+    // update game stuff in active rooms
+    // max players 8
+    // all players stay in room after game
+    // add next player from queue when someone leaves
+    // max players in lobby is 20
+    // put in practice room if all lobbies are full
+
+    
+  }
+
+  for (let i in rooms.lobbyRooms) {
+    let room = rooms.lobbyRooms[i]
+    if (Object.keys(room.players).length < maxLobbyPlayers) {
+      let openPlayerSlots = maxLobbyPlayers - Object.keys(room.players).length
+      let addedPlayers = 0
+      for (let j in ffaQueue) {
+        if (ffaQueue[j].location == "waiting") {
+          ffaQueue[j].socket.emit("joinRoomSuccess", i)
+          room.addPlayer(ffaQueue[j].socket, nextId)
+          nextId++
+          addedPlayers++
+        }
+        if (addedPlayers >= openPlayerSlots) break
+      }
+    }
+  }
+}, 1000)
+
 function kickPlayer(id, socket) {
     for (let i in rooms) for (let j in rooms[i]) {
       let room = rooms[i][j]
@@ -931,9 +964,9 @@ socketServer.on("connection", (socket) => {
 
     if (data.playerId != null) { // if this player is joining from another room
       kickPlayer(data.playerId, socket)
-      ffaQueue.push({id: data.playerId, socket: socket})
+      ffaQueue.push({id: data.playerId, socket: socket, location: "waiting"})
     } else {
-      ffaQueue.push({id: nextId, socket: socket})
+      ffaQueue.push({id: nextId, socket: socket, location: "waiting"})
       nextId++
     }
 
