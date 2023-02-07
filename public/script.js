@@ -1574,9 +1574,39 @@ function updateSavedSettings() {
             "volume": document.getElementById("volumeSlider").value
         },
         "graphics": {
-            
+            "overall": document.getElementById("overallGraphics").value,
+            "skybox": document.getElementById("skybox").value,
+            "specularLighting": document.getElementById("specularLighting"),
+            "shadows": document.getElementById("shadows").value,
+            "particles": document.getElementById("particles").value,
+            "voumetricLighting": document.getElementById("volumetricLighting").value,
+            "heaven": document.getElementById("heaven").value
         }
-    })
+    })   
+}
+
+function readSavedSettings() {
+    let savedSettings = JSON.parse(localStorage.savedSettings)
+    document.getElementById("sensitivitySlider").value = savedSettings.mouse.sensitivity
+    document.getElementById("forward").value = savedSettings.keybinds.forward
+    document.getElementById("left").value = savedSettings.keybinds.left
+    document.getElementById("backward").value = savedSettings.keybinds.backward
+    document.getElementById("right").value = savedSettings.keybinds.right
+    document.getElementById("volumeSlider").value = savedSettings.audio.volume
+    document.getElementById("overallGraphics").value = savedSettings.graphics.overall.value
+    document.getElementById("skybox").value = savedSettings.graphics.skybox
+    document.getElementById("specularLighting").value = savedSettings.graphics.specularLighting
+    document.getElementById("shadows").value = savedSettings.graphics.shadows
+    document.getElementById("particles").value = savedSettings.graphics.particles
+    document.getElementById("volumetricLighting").value = savedSettings.graphics.volumetricLighting
+    document.getElementById("heaven").value = savedSettings.graphics.heaven
+
+    keybinds.forward = savedSettings.keybinds.forward
+    keybinds.left = savedSettings.keybinds.left
+    keybinds.backward = savedSettings.keybinds.backward
+    keybinds.right = savedSettings.keybinds.right
+
+    overallGraphicsSelector.onchange()
     
 }
 

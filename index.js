@@ -576,7 +576,7 @@ class Room {
         var left = [];
         var right = [];
         var newArr = [];
-        var pivot = arr.pop();
+        var piat = arr.pop();
     
         for (let i = 0; i < arr.length; i++) {
           if (arr[i].killCount <= pivot.killCount) {
@@ -829,10 +829,10 @@ var collisionUpdate = setInterval(() => {
           if (newHealth > 0) {
             //console.log("health: " + newHealth)
           } else {
-            if (room.players[weapon.ownerId]) {
-              room.players[weapon.ownerId].killCount++
-              let deathMessage = player.name + " was killed by " + room.players[weapon.ownerId].name
-              room.broadcast("chatMessage", deathMessage, null)
+            if (rooms[i].players[weapon.ownerId]) {
+              rooms[i].players[weapon.ownerId].killCount++
+              let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name
+              rooms[i].broadcast("chatMessage", deathMessage, null)
             }
             player.socket.emit("youDied", {id: playerId, cause: "killed"})
           }
