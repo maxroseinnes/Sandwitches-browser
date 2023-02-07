@@ -88,18 +88,18 @@ const weaponSpecs = {
   default: {
     class: "projectile",
     radius: .5,
-    cooldown: 1, // seconds
+    cooldown: 1000, // milliseconds
     speed: .0375, // units/millisecond
     manaCost: 20,
     damage: 10,
-    chargeTime: 0, // seconds
+    chargeTime: 0, // milliseconds
     burstCount: 1,
     burstInterval: .5 // time between shots of bursts, seconds
   },
   tomato: {
     class: "projectile",
     radius: .75,
-    cooldown: .5,
+    cooldown: 500,
     speed: .0375,
     manaCost: 5,
     damage: 5,
@@ -110,7 +110,7 @@ const weaponSpecs = {
   olive: {
     class: "projectile",
     radius: .375,
-    cooldown: .15,
+    cooldown: 150,
     speed: .0375,
     manaCost: 5,
     damage: 10,
@@ -121,7 +121,7 @@ const weaponSpecs = {
   pickle: {
     class: "projectile",
     radius: .5,
-    cooldown: .5,
+    cooldown: 500,
     speed: .0375,
     manaCost: 5,
     damage: 5,
@@ -132,7 +132,7 @@ const weaponSpecs = {
   anchovy: {
     class: "missile",
     radius: .5,
-    cooldown: .5,
+    cooldown: 500,
     speed: .01,
     manaCost: 20,
     damage: 25,
@@ -140,6 +140,21 @@ const weaponSpecs = {
     burstCount: 1,
     burstInterval: .5
   },
+  meatball: {
+    class: "projectile",
+    radius: 1,
+    cooldown: 1000,
+    speed: .0375,
+    manaCost: 20,
+    damage: 50,
+    chargeTime: 0,
+    burstCount: 1,
+    burstInterval: .5
+  },
+}
+
+function getWeaponSpecs(type) {
+  return weaponSpecs[(Object.keys(weaponSpecs).includes(type)) ? type : "default"]
 }
 
 var maps = {
@@ -353,6 +368,8 @@ class Room {
       name: name,
       position: position,
       health: 0,
+      lastShotTime: 0,
+      lastShotWeapon: 0,
       state: state,
       killCount: 0,
       socket: socket
@@ -382,7 +399,7 @@ class Room {
     }, assignedId);
 
     socket.on("nameChange", (data) => {
-      if (this.players[data.id] != null) {
+      if (this.players[data.id]) {
         this.players[data.id].name = data.newName
         this.broadcast("nameChange", { id: data.id, newName: data.newName }, null)
       }
@@ -393,7 +410,7 @@ class Room {
     })
 
     socket.on("playerUpdate", (data) => {
-      if (this.players[data.id] != null) {
+      if (this.players[data.id]) {
         this.players[data.id].position = data.position;
         this.players[data.id].state = data.state;
         this.players[data.id].currentWeaponType = data.currentWeaponType;
@@ -411,15 +428,21 @@ class Room {
     // server: brodcast message with weapon id and data
 
     socket.on("newWeapon", (data) => {
-      let type = (Object.keys(weaponSpecs).indexOf(data.type) != -1) ? data.type : "default"
+      if (!this.players[data.ownerId]) return
+      if (this.players[data.ownerId].lastShotTime + getWeaponSpecs(this.players[data.ownerId].lastShotType).cooldown >= Date.now()) return
+      this.players[data.ownerId].lastShotTime = Date.now()
+      this.players[data.ownerId].lastShotType = data.type
+      
+
+      let weaponSpec = getWeaponSpecs(data.type)
       let pitch = data.pitch
       let yaw = data.yaw
-      if (weaponSpecs[type].class == "projectile") pitch = -pitch + Math.PI / 16
+      if (weaponSpec.class == "projectile") pitch = -pitch + Math.PI / 16
       else pitch = -pitch + Math.PI / 64
       if (pitch > Math.PI / 2) pitch = Math.PI / 2
       yaw = -yaw
 
-      let velocity = [0, 0, -weaponSpecs[type].speed]
+      let velocity = [0, 0, -weaponSpec.speed]
 
       rotateX(velocity, velocity, [0, 0, 0], pitch)
       rotateY(velocity, velocity, [0, 0, 0], yaw)
@@ -427,9 +450,9 @@ class Room {
     
       this.weapons[nextWeaponId] = {
         type: data.type,
-        damage: weaponSpecs[type].damage,
-        class: weaponSpecs[type].class,
-        radius: weaponSpecs[type].radius,
+        damage: weaponSpec.damage,
+        class: weaponSpec.class,
+        radius: weaponSpec.radius,
         ownerId: data.ownerId,
         position: data.position,
         velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
@@ -439,6 +462,7 @@ class Room {
         id: nextWeaponId,
         type: data.type,
         ownerId: data.ownerId,
+        cooldown: weaponSpec.cooldown,
         position: data.position,
         velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
       }, null)
@@ -449,7 +473,7 @@ class Room {
     socket.on("weaponStates", (data) => {
       let weaponInfo = {}
       for (let id in data.states) {
-        if (weaponInfo[id] != null) {
+        if (this.weapons[id]) {
           weaponInfo[id] = {
             type: this.weapons[id].type,
             position: {
@@ -476,8 +500,8 @@ class Room {
     socket.on("disconnect", () => {
       for (let id in this.players) {
         // maybe using object takes a little too long to fully delete the name value pair?
-        // adding if (this.players[name] != null) fixes problem
-        if (this.players[id] != null && socket == this.players[id].socket) {
+        // adding if (this.players[name]) fixes problem
+        if (this.players[id] && socket == this.players[id].socket) {
           this.broadcast("playerLeave", id, null);
           console.log(this.players[id].name + " left. 😭😭😭😭😭😭😭");
           availableNames.push(this.players[id].name);
@@ -570,10 +594,11 @@ class Room {
     //console.log(killCounts.length)
   
     this.broadcast("leaderboard", killCounts, null)
+    /* ROOM ORGANIZATION HAS BEEN CHANGED
     let roomId
     for (let i in rooms) {
       if (rooms[i] == this) roomId = i
-    }
+    }*/
     //console.log(roomId + "killcounts:", killCounts)
   }
 
@@ -625,12 +650,29 @@ fs.readFile("./public/modules/model-data.js", (err, data) => {
   generatePlatforms = generatePlatformsFunction()
 
   rooms = {
-    1: new Room(maps.lobby1),
-    2: new Room(maps.lobby2),
-    3: new Room(maps.testMap),
-    4: new Room(maps.testMap2),
-    5: new Room(maps.testMap3),
-    6: new Room(maps.testMap4)
+    privateRooms: {
+      1: new Room(maps.lobby1),
+      2: new Room(maps.lobby2),
+      3: new Room(maps.testMap),
+      4: new Room(maps.testMap2),
+      5: new Room(maps.testMap3),
+      6: new Room(maps.testMap4)
+    },
+    lobbyRooms: {
+      1: new Room(maps.testMap),
+      2: new Room(maps.testMap2),
+      3: new Room(maps.testMap3),
+      4: new Room(maps.testMap4)
+    },
+    ffaRooms: {
+      1: new Room(maps.testMap4),
+      2: new Room(maps.testMap4),
+      3: new Room(maps.testMap4),
+      4: new Room(maps.testMap4),
+      5: new Room(maps.testMap4),
+      6: new Room(maps.testMap4),
+
+    }
   }
   
 })
@@ -751,35 +793,36 @@ var collisionUpdate = setInterval(() => {
   let deltaTime = now - collisionUpdateThen
   collisionUpdateThen = now
 
-  for (let i in rooms) {
-    for (let weaponId in rooms[i].weapons) if (rooms[i].weapons[weaponId] && rooms[i].weapons[weaponId].velocity) {
+  for (let i in rooms) for (let j in rooms[i]) {
+    let room = rooms[i][j]
+    for (let weaponId in room.weapons) if (room.weapons[weaponId] && room.weapons[weaponId].velocity) {
       // update weapon velocity and position
-      let weapon = rooms[i].weapons[weaponId]
+      let weapon = room.weapons[weaponId]
       if (weapon.class == "projectile") weapon.velocity.y -= 0.00001 * deltaTime
 
       weapon.position.x += weapon.velocity.x * deltaTime
       weapon.position.y += weapon.velocity.y * deltaTime
       weapon.position.z += weapon.velocity.z * deltaTime
       if (Math.abs(weapon.position.x) > 100 || Math.abs(weapon.position.z) > 100 || Math.abs(weapon.position.y) > 1000) {
-        rooms[i].broadcast("weaponHit", {weaponId: weaponId}, null)
-        rooms[i].weapons[weaponId] = null
+        room.broadcast("weaponHit", {weaponId: weaponId}, null)
+        room.weapons[weaponId] = null
         continue
       }
       
       // calculate collision with players
       let hit = false
-      for (let j in rooms[i].platforms) {
-        let platform = rooms[i].platforms[j]
+      for (let j in room.platforms) {
+        let platform = room.platforms[j]
         if (collision(weapon.radius, weapon.position, platform.dimensions, platform.position)) {
-          rooms[i].broadcast("weaponHit", {weaponId: weaponId}, null)
+          room.broadcast("weaponHit", {weaponId: weaponId}, null)
           hit = true
           
         }
       }
-      for (let playerId in rooms[i].players) if (rooms[i].players[playerId] && rooms[i].players[playerId].health > 0 && playerId != weapon.ownerId) {
-        let player = rooms[i].players[playerId]
+      for (let playerId in room.players) if (room.players[playerId] && room.players[playerId].health > 0 && playerId != weapon.ownerId) {
+        let player = room.players[playerId]
         if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2 - player.state.crouchValue, mz: -.25, pz: .25}, player.position)) {
-          rooms[i].broadcast("weaponHit", {weaponId: weaponId}, null)
+          room.broadcast("weaponHit", {weaponId: weaponId}, null)
           hit = true
           let newHealth = player.health - weapon.damage
           player.health = newHealth
@@ -788,20 +831,43 @@ var collisionUpdate = setInterval(() => {
           } else {
             if (rooms[i].players[weapon.ownerId]) {
               rooms[i].players[weapon.ownerId].killCount++
-              let vowels = "aeiou"
-              let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name + " with a" + (vowels.includes(weapon.type[0]) ? "n " : " ") + weapon.type 
+              let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name
               rooms[i].broadcast("chatMessage", deathMessage, null)
             }
             player.socket.emit("youDied", {id: playerId, cause: "killed"})
           }
         }
       }
-      if (hit) delete rooms[i].weapons[weaponId]
+      if (hit) delete room.weapons[weaponId]
       
     }
   }
 
 }, 10)
+
+function kickPlayer(id, socket) {
+    for (let i in rooms) for (let j in rooms[i]) {
+      let room = rooms[i][j]
+      if (Object.keys(room.players).includes(String(id))) { // if joining player is in this room
+        //playerSocket = room.players[id].socket
+        //rooms[data.roomId].addPlayer(room.players[id].socket, id)
+        room.broadcast("playerLeave", id, null);
+        console.log(room.players[id].name + " left. 😭😭😭😭😭😭😭");
+
+        let listeners = socket.eventNames()
+        for (let k in listeners) {
+          if (listeners[k] != "joinRoom") socket.removeAllListeners(listeners[k])
+        }
+
+        socket.emit("stopTicking")
+
+        availableNames.push(room.players[id].name);
+        delete room.players[id];
+      }
+    }
+}
+
+var ffaQueue = []
 
 socketServer.on("connection", (socket) => {
   /*socket.emit("pingRequest")
@@ -821,7 +887,7 @@ socketServer.on("connection", (socket) => {
     
     console.log(data.roomId)
     var joinNewRoom = true
-    for (let i in rooms) {
+    for (let i in rooms.privateRooms) {
       if (data.roomId == i) {
         joinNewRoom = false
         break
@@ -831,12 +897,12 @@ socketServer.on("connection", (socket) => {
     // Create new room if this player is creating one
     //let newRoom
     if (joinNewRoom) {
-      if (Object.keys(rooms).length >= ROOM_CAP) {
+      if (Object.keys(rooms.privateRooms).length >= ROOM_CAP) {
         socket.emit("roomCapReached")
         return
       }
 
-      rooms[data.roomId] = new Room(maps.testMap)
+      rooms.privateRooms[data.roomId] = new Room(maps.testMap)
     }
 
     socket.emit("roomJoinSuccess", data.roomId)
@@ -844,33 +910,40 @@ socketServer.on("connection", (socket) => {
 
     if (data.playerId != null) { // if this player is joining from another room
       // delete this player from their room
-      let playerSocket
-      for (let i in rooms) {
-        if (Object.keys(rooms[i].players).indexOf(String(data.playerId)) != -1) { // if joining player is in this room
-          //playerSocket = rooms[i].players[data.playerId].socket
-          //rooms[data.roomId].addPlayer(rooms[i].players[data.playerId].socket, data.playerId)
-          rooms[i].broadcast("playerLeave", data.playerId, null);
-          console.log(rooms[i].players[data.playerId].name + " left. 😭😭😭😭😭😭😭");
+      kickPlayer(data.playerId, socket)
 
-          let listeners = socket.eventNames()
-          for (let j in listeners) {
-            if (listeners[j] != "joinRoom") socket.removeAllListeners(listeners[j])
-          }
-
-          socket.emit("stopTicking")
-
-          availableNames.push(rooms[i].players[data.playerId].name);
-          delete rooms[i].players[data.playerId];
-        }
+      for (let i in ffaQueue) {
+        if (ffaQueue[i].id == data.playerId) ffaQueue.splice(i, 1)
       }
 
       // add this player to the new room
-      rooms[data.roomId].addPlayer(socket, data.playerId)
+      rooms.privateRooms[data.roomId].addPlayer(socket, data.playerId)
     } else {
-      rooms[data.roomId].addPlayer(socket, nextId)
+      rooms.privateRooms[data.roomId].addPlayer(socket, nextId)
       nextId++
     }
   })
+
+
+  socket.on("joinFFAQueue", (data) => {
+    console.log(data, "JOIN FAA")
+    
+
+    if (data.playerId != null) { // if this player is joining from another room
+      kickPlayer(data.playerId, socket)
+      ffaQueue.push({id: data.playerId, socket: socket})
+    } else {
+      ffaQueue.push({id: nextId, socket: socket})
+      nextId++
+    }
+
+
+    socket.emit("addedToFFAQueue", null)
+
+
+  })
+
+  
 
 });
 

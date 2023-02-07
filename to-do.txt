@@ -39,3 +39,12 @@ Collision:
             - if (colliding && currently colliding): do GPU collision
             - if (colliding && !currently colliding): correct position to box collider (as it is doing now)
 
+
+Outline pipeline (in chosen resolution)
+    render depth map
+    render surface normals
+        (maybe do both of these in one draw call?)
+    
+
+make messages only be able to affect player sending them
+
