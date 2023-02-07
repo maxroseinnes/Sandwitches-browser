@@ -576,7 +576,7 @@ class Room {
         var left = [];
         var right = [];
         var newArr = [];
-        var pivot = arr.pop();
+        var piat = arr.pop();
     
         for (let i = 0; i < arr.length; i++) {
           if (arr[i].killCount <= pivot.killCount) {
