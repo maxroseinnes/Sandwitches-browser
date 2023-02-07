@@ -77,6 +77,7 @@ var leaderboard = {}
 
 // Local global variables //
 var platforms = [];
+var cameraColliders = [];
 
 // html elements //
 const menu = document.getElementById("menu")
@@ -214,7 +215,6 @@ var changeWeaponSelection = (selection) => {
     player.inventory.currentWeapon.remove()
 
     player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[selection].value, [platforms, otherPlayers, [ground]], player)
-    player.currentCooldown = player.inventory.currentWeapon.cooldown
     updateHUD()
 }
 
@@ -266,8 +266,6 @@ function openChatbox() {
     right = false
     arrowLeft = false
     arrowRight = false
-    up = false
-    down = false
     shift = false
     space = false
 
@@ -428,6 +426,11 @@ socket.on("weaponGeometry", (data) => {
     console.log(weaponGeometry)
 })
 
+function distanceFromAxisAligned(angle) {
+    let remainder = (angle % (Math.PI / 2)) / (Math.PI / 2)
+    return Math.abs(Math.round(remainder) - remainder) * (Math.PI / 2)
+}
+
 socket.on("map", (mapInfo) => {
     for (let i = 0; i < mapInfo.platforms.length; i++) {
         let platform = new Platform(platformGeometry,
@@ -442,11 +445,36 @@ socket.on("map", (mapInfo) => {
 
     if (mapInfo.mapFile != undefined) {
         let mapObj = fetchObj(mapInfo.mapFile)
-        let colliders = generatePlatforms(obj.parseWavefront(mapObj, false, false))
+        let faceGeometry = obj.parseWavefront(mapObj, false, false)
+        let colliders = generatePlatforms(faceGeometry)
         for (let i in colliders) {
             let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
             platform.dimensions = colliders[i].dimensions
             platforms.push(platform)
+        }
+        for (let i in faceGeometry.indices) {
+            if (distanceFromAxisAligned(colliders[i].dimensions.pitch) + distanceFromAxisAligned(colliders[i].dimensions.roll) > .1) continue
+            let dimensions = [[Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY], [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY]]
+            for (let j in faceGeometry.indices[i].vertexes) {
+                let vertex = faceGeometry.indices[i].vertexes[j]
+                for (let k = 0; k < 3; k++) {
+                    if (faceGeometry.positions[vertex][k] < dimensions[0][k]) dimensions[0][k] = faceGeometry.positions[vertex][k]
+                    if (faceGeometry.positions[vertex][k] > dimensions[1][k]) dimensions[1][k] = faceGeometry.positions[vertex][k]
+                }
+            }
+            let allowed = false
+            for (let j = 0; j < 3; j++) if (Math.abs(dimensions[0][j] - dimensions[1][j]) < .1) allowed = true
+            if (!allowed) continue
+            let platform = new Platform(null, null, 0, 0, 0, 1)
+            platform.dimensions = {
+                mx: dimensions[0][0],
+                px: dimensions[1][0],
+                my: dimensions[0][1],
+                py: dimensions[1][1],
+                mz: dimensions[0][2],
+                pz: dimensions[1][2]
+            }
+            cameraColliders.push(platform)
         }
 
         let mapModelGeometry = obj.parseWavefront(mapObj, true, true)
@@ -461,7 +489,7 @@ socket.on("map", (mapInfo) => {
             if (name.indexOf("Cube") != -1) texture = "barnWood"
             if (name.indexOf("Ladder") != -1) texture = "whiteWood"
             if (name.indexOf("Loft") != -1) texture = "barnWood"
-            if (name.indexOf("BigBuilding") != -1) texture = "jerry"
+            if (name.indexOf("BigBuilding") != -1) texture = "barnWood"
             mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
             
         }
@@ -619,6 +647,7 @@ socket.on("newWeapon", (data) => {
 
     owner.weapons.push(otherWeapons[data.id])
 
+    owner.currentCooldown = data.cooldown / 1000
     owner.cooldownTimer = owner.currentCooldown
 })
 
@@ -661,7 +690,6 @@ socket.on("playerUpdate", (playersData) => {
                 otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
                 if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
                 otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id])
-                otherPlayers[id].currentCooldown = otherPlayers[id].inventory.currentWeapon.cooldown
             }
         }
     }
@@ -739,6 +767,7 @@ function joinRoom(id) {
 socket.on("roomJoinSuccess", (roomId) => {
     lobbyId = roomId
     document.getElementById("title").textContent = "Room " + lobbyId
+    startButton.textContent = "Play"
 
     if (player != null) removePlayerFromHUD(player.id, player.name)
 
@@ -749,6 +778,7 @@ socket.on("roomJoinSuccess", (roomId) => {
         platforms[i].remove()
     }
     platforms.splice(0, platforms.length)
+    cameraColliders.splice(0, cameraColliders.length)
     if (player != undefined) {
         player.remove()
         player = undefined
@@ -874,7 +904,7 @@ function update(now) {
     camera.position.yaw = player ? player.position.yaw : 0
     camera.position.lean = player ? player.position.lean : 0
 
-    webgl.renderFrame(player ? player.position : {x: 0, y: 0, z: 0}, camera, aimState, deltaTime);
+    webgl.renderFrame(player ? player.position : {x: 0, y: 0, z: 0}, camera, cameraColliders, aimState, deltaTime);
     if (running) requestAnimationFrame(update)
 }
 update()
@@ -889,7 +919,7 @@ function fixedUpdate() {
     // -- Movement -- //
 
     let speed = 0;
-    if (player.movementState == "walking") {
+    if (player.movementState == "walking" || aimState > 0) {
         speed = Player.walkingSpeed
         webgl.fov -= deltaTime * Player.fovShiftSpeed
         if (webgl.fov < Player.walkingFOV) webgl.fov = Player.walkingFOV
@@ -899,12 +929,12 @@ function fixedUpdate() {
         webgl.fov -= deltaTime * Player.fovShiftSpeed
         if (webgl.fov < Player.crouchingFOV) webgl.fov = Player.walkingFOV
     }
-    if (player.movementState == "sprinting") {
+    if (player.movementState == "sprinting" && aimState <= 0) {
         speed = Player.sprintingSpeed
         webgl.fov += deltaTime * Player.fovShiftSpeed
         if (webgl.fov > Player.sprintingFOV) webgl.fov = Player.sprintingFOV
     }
-    if (player.movementState == "sliding") {
+    if (player.movementState == "sliding" && aimState <= 0) {
         speed = Player.slidingSpeed
         webgl.fov += deltaTime * Player.fovShiftSpeed
         if (webgl.fov > Player.slidingFOV) webgl.fov = Player.slidingFOV
@@ -978,7 +1008,7 @@ function fixedUpdate() {
     }
 
     if (leftClicking) {
-        if (!player.inventory.currentWeapon.shooted && player.cooldownTimer <= 0) {
+        if (player.cooldownTimer <= 0) {
             socket.emit("newWeapon", {
                 ownerId: player.id,
                 type: player.inventory.currentWeapon.type,
@@ -1213,8 +1243,9 @@ function pauseGame() {
     //clearInterval(fixedUpdateInterval)
     if (chatboxOpen) closeChatbox()
 
-    menu.style.zIndex = 30
-    window.setTimeout(() => {menu.style.zIndex = 30}, 100)
+    menu.style.zIndex = "30"
+    window.setTimeout(() => {menu.style.zIndex = "30"}, 100)
+    window.setTimeout(() => {menu.style.zIndex = "30"}, 300)
     window.setTimeout(() => {
         menu.style.opacity = "1.0"
         document.getElementById("lobby").style.left = "7%"
