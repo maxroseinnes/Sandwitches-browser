@@ -114,7 +114,8 @@ var myWeapons = [
     "sausage",
     "anchovy",
     "pan",
-    "meatball"
+    "meatball",
+    "asparagus"
 ]
 var weaponSelectors = []
 for (let i = 0; i < 3; i++) {
