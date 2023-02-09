@@ -76,7 +76,8 @@ var weaponGeometry = {
   sausage: {path: "weapons/sausage.obj"},
   pan: {path: "weapons/lowpolyfryingpanwith_meat_.obj"},
   anchovy: {path: "weapons/anchovy_terrible.obj"},
-  meatball: {path: "weapons/swagball.obj"}
+  meatball: {path: "weapons/swagball.obj"},
+  asparagus: {path: "weapons/CoolAsparagus.obj"}
 }
 
 
@@ -147,6 +148,17 @@ const weaponSpecs = {
     speed: .0375,
     manaCost: 20,
     damage: 50,
+    chargeTime: 0,
+    burstCount: 1,
+    burstInterval: .5
+  },
+  asparagus: {
+    class: "missile",
+    radius: 1,
+    cooldown: 2000,
+    speed: .0375,
+    manaCost: 20,
+    damage: 100,
     chargeTime: 0,
     burstCount: 1,
     burstInterval: .5
