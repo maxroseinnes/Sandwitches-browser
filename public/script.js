@@ -94,7 +94,7 @@ joinRoomButton.onclick = () => {
     if (roomKeyInput.value == lobbyId) return
     //lobbyId = roomKeyInput.value
     joinRoom(roomKeyInput.value)
-    
+
 }
 
 
@@ -163,6 +163,7 @@ setVolume()
 
 var volumeSlider = document.getElementById("volumeSlider")
 volumeSlider.onchange = () => {
+    if (localStorage.savedSettings == genSettingsJSON) document.getElementById("saveSettingsButton").disabled = true
     volume = volumeSlider.value / 100
     setVolume()
 }
@@ -181,7 +182,7 @@ var updateCrosshair = () => {
     ctx.fillStyle = "rgba(255, 255, 255, " + (aimState * 2 - 1) + ")"
     ctx.fillRect(width / 2 - 10, height / 2 - 1, 20, 2)
     ctx.fillRect(width / 2 - 1, height / 2 - 10, 2, 20)
-    
+
 }
 
 var weaponsContainer = document.getElementById("weaponsContainer")
@@ -501,13 +502,13 @@ socket.on("map", (mapInfo) => {
             if (name.indexOf("Loft") != -1) texture = "barnWood"
             if (name.indexOf("BigBuilding") != -1) texture = "barnWood"
             mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
-            
+
         }
 
         console.log(mapModelGeometry)
-        
 
-        
+
+
     }
 
     if (mapInfo.floorTexture != "") {
@@ -545,7 +546,7 @@ socket.on("otherPlayers", (otherPlayersInfo) => {
 socket.on("leaderboard", (leaderboardInfo) => {
     var leaderboardList = document.getElementById("leaderboard")
     leaderboardList.innerHTML = ""
-   
+
     //console.log(leaderboardInfo)
     // Need to make the list order itself every time
     /*for (let i = 0; i < leaderboardInfo.length; i++) {
@@ -608,7 +609,7 @@ socket.on("weaponStatesRequest", (recipientId) => {
 
         }
     }
-    
+
     socket.emit("weaponStates", {
         recipientId: recipientId, // so server doesn't forget who needs the weapon info
         ownerId: player.id,
@@ -681,7 +682,7 @@ socket.on("playerUpdate", (playersData) => {
             }
             player.alive = playersData[id].health > 0
         }
-        
+
         if (otherPlayers[id] != null) {
             otherPlayers[id].health = playersData[id].health
             otherPlayers[id].alive = playersData[id].health > 0
@@ -767,7 +768,7 @@ function joinRoom(id) {
     console.log("join room")
     startButton.disabled = true
     socket.emit("joinRoom", {
-        roomId: id, 
+        roomId: id,
         playerId: (player != null) ? player.id : null
     })
 
@@ -856,13 +857,13 @@ function update(now) {
         player.dimensions.yaw = lookAngleY
         player.dimensions.pitch = lookAngleX
         player.gamerTag.position = {
-          x: player.position.x,
-          y: player.position.y + 2.75,
-          z: player.position.z,
-          yaw: lookAngleY,
-          lean: 0,
-          pitch: lookAngleX,
-          roll: 0
+            x: player.position.x,
+            y: player.position.y + 2.75,
+            z: player.position.z,
+            yaw: lookAngleY,
+            lean: 0,
+            pitch: lookAngleX,
+            roll: 0
         }
         player.gamerTag.alive = player.alive
         if (player.inventory.currentWeapon) player.inventory.currentWeapon.alive = player.alive
@@ -882,13 +883,13 @@ function update(now) {
 
             otherPlayers[id].smoothPosition(currentTickStage)
             otherPlayers[id].gamerTag.position = {
-            x: otherPlayers[id].position.x,
-            y: otherPlayers[id].position.y + 2.75,
-            z: otherPlayers[id].position.z,
-            yaw: lookAngleY,
-            lean: 0,
-            pitch: lookAngleX,
-            roll: 0
+                x: otherPlayers[id].position.x,
+                y: otherPlayers[id].position.y + 2.75,
+                z: otherPlayers[id].position.z,
+                yaw: lookAngleY,
+                lean: 0,
+                pitch: lookAngleX,
+                roll: 0
             }
             otherPlayers[id].gamerTag.alive = otherPlayers[id].alive
             if (otherPlayers[id].inventory.currentWeapon) otherPlayers[id].inventory.currentWeapon.alive = otherPlayers[id].alive
@@ -915,7 +916,7 @@ function update(now) {
     camera.position.yaw = player ? player.position.yaw : 0
     camera.position.lean = player ? player.position.lean : 0
 
-    webgl.renderFrame(player ? player.position : {x: 0, y: 0, z: 0}, camera, cameraColliders, aimState, deltaTime);
+    webgl.renderFrame(player ? player.position : { x: 0, y: 0, z: 0 }, camera, cameraColliders, aimState, deltaTime);
     if (running) requestAnimationFrame(update)
 }
 update()
@@ -1014,7 +1015,7 @@ function fixedUpdate() {
 
     if (space && !chatboxOpen) {
         if (player.onGround) {
-        player.velocity.y = Player.jumpForce
+            player.velocity.y = Player.jumpForce
         }
     }
 
@@ -1066,7 +1067,7 @@ function fixedUpdate() {
 
     for (let id in otherWeapons) {
         if (otherWeapons[id] != null) {
-            
+
             if (otherWeapons[id].shooted) {
                 otherWeapons[id].calculatePosition(deltaTime, socket, otherWeapons[id].owner == player)
 
@@ -1121,6 +1122,7 @@ function initKeyInput(preventDefault) {
             if (keyBinds[i].selecting) {
                 keyBinds[i].code = event.code
                 keyBinds[i].selector.value = event.code
+                updateSaveSettingsButton()
             }
         }
 
@@ -1255,13 +1257,13 @@ function pauseGame() {
     if (chatboxOpen) closeChatbox()
 
     menu.style.zIndex = "30"
-    window.setTimeout(() => {menu.style.zIndex = "30"}, 100)
-    window.setTimeout(() => {menu.style.zIndex = "30"}, 300)
+    window.setTimeout(() => { menu.style.zIndex = "30" }, 100)
+    window.setTimeout(() => { menu.style.zIndex = "30" }, 300)
     window.setTimeout(() => {
         menu.style.opacity = "1.0"
         document.getElementById("lobby").style.left = "7%"
         document.getElementById("main").style.top = "30%"
-        document.getElementById("loadout").style.right = "7%" 
+        document.getElementById("loadout").style.right = "7%"
     }, 0)
 }
 
@@ -1309,11 +1311,11 @@ window.onresize = () => {
     canvas.width = window.innerWidth
     canvas.height = window.innerHeight
 
-    
+
     webgl.gl.useProgram(webgl.program)
     webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.program, "uCanvasWidth"), webgl.gl.canvas.width)
     webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.program, "uCanvasHeight"), webgl.gl.canvas.height)
-    
+
     webgl.gl.useProgram(webgl.skyboxProgram)
     webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasWidth"), webgl.gl.canvas.width)
     webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasHeight"), webgl.gl.canvas.height)
@@ -1365,13 +1367,13 @@ const shoot = document.getElementById("shoot")
 
 
 function setMovement(x, y, touchStart) {
-    if (y > .67) {backward = true; forward = false;}
-    if (y < .33) {backward = false; forward = true; if (touchStart) {if (Date.now() - lastWPress < 250) player.movementState = "sprinting"; lastWPress = Date.now()}}
-    else {player.movementState = "walking"; lastWPress = 0}
-    if (.33 < y && y < .67) {backward = false; forward = false;}
-    if (x > .67) {right = true; left = false}
-    if (x < .67) {right = false; left = true}
-    if (.33 < x && x < .67) {right = false; left = false;}
+    if (y > .67) { backward = true; forward = false; }
+    if (y < .33) { backward = false; forward = true; if (touchStart) { if (Date.now() - lastWPress < 250) player.movementState = "sprinting"; lastWPress = Date.now() } }
+    else { player.movementState = "walking"; lastWPress = 0 }
+    if (.33 < y && y < .67) { backward = false; forward = false; }
+    if (x > .67) { right = true; left = false }
+    if (x < .67) { right = false; left = true }
+    if (.33 < x && x < .67) { right = false; left = false; }
 }
 
 function getTouchByIdentifier(touches, identifier) {
@@ -1387,7 +1389,7 @@ document.getElementById("hud").addEventListener('touchstart', (event) => {
 
     cameraMoveTouchIdentifier = undefined
     for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target != touchMovement && event.touches[i].target != jump && event.touches[i].target != shoot) cameraMoveTouchIdentifier = event.touches[i].identifier
-    
+
     if (cameraMoveTouchIdentifier != undefined) {
         let cameraTouch = getTouchByIdentifier(event.touches, cameraMoveTouchIdentifier)
         touchX = cameraTouch.pageX
@@ -1399,23 +1401,23 @@ document.getElementById("hud").addEventListener('touchstart', (event) => {
 
     touchMoveTouchIdentifier = undefined
     for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == touchMovement) touchMoveTouchIdentifier = event.touches[i].identifier
-    
+
     if (touchMoveTouchIdentifier != undefined) {
         let moveTouch = getTouchByIdentifier(event.touches, touchMoveTouchIdentifier)
         setMovement((moveTouch.pageX - touchMovement.offsetLeft) / touchMovement.clientWidth, (moveTouch.clientY - touchMovement.offsetTop) / touchMovement.clientHeight, true)
     }
-    
+
     jumpTouchIdentifier = undefined
     for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == jump) jumpTouchIdentifier = event.touches[i].identifier
 
     if (jumpTouchIdentifier != undefined) space = true
-    
-    
+
+
     shootTouchIdentifier = undefined
     for (let i = 0; i < event.touches.length; i++) if (event.touches[i].target == shoot) shootTouchIdentifier = event.touches[i].identifier
-    
+
     if (shootTouchIdentifier != undefined) leftClicking = true
-    
+
 
 
 }, false)
@@ -1438,7 +1440,7 @@ document.getElementById("hud").addEventListener('touchmove', (event) => {
         let cameraTouch = getTouchByIdentifier(event.touches, cameraMoveTouchIdentifier)
         touchX = cameraTouch.pageX
         touchY = cameraTouch.pageY
-            
+
         lookAngleY += sensitivity * 2 * (touchX - lastTouchX)
         lookAngleX += sensitivity * 2 * (touchY - lastTouchY)
 
@@ -1453,7 +1455,7 @@ document.getElementById("hud").addEventListener('touchmove', (event) => {
         let moveTouch = getTouchByIdentifier(event.touches, touchMoveTouchIdentifier)
         setMovement((moveTouch.pageX - touchMovement.offsetLeft) / touchMovement.clientWidth, (moveTouch.clientY - touchMovement.offsetTop) / touchMovement.clientHeight)
     }
-    
+
 }, false)
 
 
@@ -1466,13 +1468,13 @@ startButton.onclick = () => {
     }
     if ((Date.now() - lastPointerLockExited) < 750) return
 
-    if (!player.alive) socket.emit("respawnMe", {id: player.id})
+    if (!player.alive) socket.emit("respawnMe", { id: player.id })
 
     console.log("starting")
 
     //backgroundNoises.play()
-    window.setTimeout(() => {menu.style.zIndex = "10"}, 250)
-    window.setTimeout(() => {menu.style.opacity = "0.0"}, 10)
+    window.setTimeout(() => { menu.style.zIndex = "10" }, 250)
+    window.setTimeout(() => { menu.style.opacity = "0.0" }, 10)
     document.getElementById("lobby").style.left = "-3%"
     document.getElementById("main").style.top = "20%"
     document.getElementById("loadout").style.right = "-3%"
@@ -1490,7 +1492,7 @@ startButton.onclick = () => {
 
     let timeToWait = Math.max(1500 - (Date.now() - lastPointerLockExited), 0)
 
-    if (canvas.requestPointerLock) window.setTimeout(() => {canvas.requestPointerLock()}, timeToWait)
+    if (canvas.requestPointerLock) window.setTimeout(() => { canvas.requestPointerLock() }, timeToWait)
     startGame()
 }
 
@@ -1510,7 +1512,8 @@ document.getElementById("settingsButton").onclick = () => {
 }
 
 var sensitivitySlider = document.getElementById("sensitivitySlider")
-sensitivitySlider.onchange = () => {
+sensitivitySlider.onchange = (calledManually = false) => {
+    if (!calledManually) updateSaveSettingsButton()
     sensitivity = Math.PI / 4096 * Number(sensitivitySlider.value)
     console.log(sensitivity)
 }
@@ -1529,13 +1532,15 @@ var overallGraphicsSelector = document.getElementById("overallGraphics")
 
 for (let i = 0; i < settingsCheckboxes.length; i++) {
     settingsCheckboxes[i].onchange = () => {
+        updateSaveSettingsButton()
         webgl.settings[settingsCheckboxes[i].id] = settingsCheckboxes[i].checked
         webgl.initializeShaders()
         overallGraphicsSelector.value = "custom"
     }
 }
 
-overallGraphicsSelector.onchange = () => {
+overallGraphicsSelector.onchange = (calledManually = false) => {
+    if (!calledManually) updateSaveSettingsButton()
     switch (overallGraphicsSelector.value) {
         case "low":
             webgl.settings.skybox = true
@@ -1560,7 +1565,7 @@ overallGraphicsSelector.onchange = () => {
             break
     }
 
-    for(let i = 0; i < settingsCheckboxes.length; i++) {
+    for (let i = 0; i < settingsCheckboxes.length; i++) {
         for (let setting in webgl.settings) {
             if (settingsCheckboxes[i].id == setting) settingsCheckboxes[i].checked = webgl.settings[setting]
         }
@@ -1569,8 +1574,8 @@ overallGraphicsSelector.onchange = () => {
     webgl.initializeShaders()
 }
 
-function updateSavedSettings() {
-    localStorage.savedSettings = JSON.stringify({
+function genSettingsJSON() {
+    return JSON.stringify({
         "mouse": {
             "sensitivity": sensitivitySlider.value
         },
@@ -1590,65 +1595,63 @@ function updateSavedSettings() {
             "specularLighting": document.getElementById("specularLighting").checked,
             "shadows": document.getElementById("shadows").checked,
             "particles": document.getElementById("particles").checked,
-            "voumetricLighting": document.getElementById("volumetricLighting").checked,
+            "volumetricLighting": document.getElementById("volumetricLighting").checked,
             "heaven": document.getElementById("heaven").checked
         }
-    })   
+    })
+}
+function updateSavedSettings() { 
+    localStorage.savedSettings = genSettingsJSON()
+    document.getElementById("saveSettingsButton").disabled = true
 }
 
-document.getElementById("saveSettingsButton").onclick = () => {
-    updateSavedSettings()
+document.getElementById("saveSettingsButton").onclick = () => updateSavedSettings()
+
+function updateSaveSettingsButton() {
+    document.getElementById("saveSettingsButton").disabled = localStorage.savedSettings == genSettingsJSON()
 }
 
 function readSavedSettings() {
+    if (localStorage.savedSettings == null) return
     let savedSettings = JSON.parse(localStorage.savedSettings)
-    if (savedSettings.mouse.sensitivity != null) {
-        document.getElementById("sensitivitySlider").value = savedSettings.mouse.sensitivity
-        sensitivitySlider.onchange()
 
-    }
+    keyBinds.forward.code = savedSettings.keyBinds.forward
+    keyBinds.left.code = savedSettings.keyBinds.left
+    keyBinds.backward.code = savedSettings.keyBinds.backward
+    keyBinds.right.code = savedSettings.keyBinds.right
+    keyBinds.openChat.code = savedSettings.keyBinds.openChat
 
-    if (savedSettings.keyBinds.forward != null) {
-        document.getElementById("forward").value = savedSettings.keyBinds.forward
-        keyBinds.forward.code = savedSettings.keyBinds.forward
-    }
-    if (savedSettings.keyBinds.left != null) {
-        document.getElementById("left").value = savedSettings.keyBinds.left
-        keyBinds.left.code = savedSettings.keyBinds.left
-    }
-    if (savedSettings.keyBinds.backward != null){
-        document.getElementById("backward").value = savedSettings.keyBinds.backward
-        keyBinds.backward.code = savedSettings.keyBinds.backward
-    }
-    if (savedSettings.keyBinds.right != null){
-        document.getElementById("right").value = savedSettings.keyBinds.right
-        keyBinds.right.code = savedSettings.keyBinds.right
-    }
-    if (savedSettings.keyBinds.openChat != null){
-        document.getElementById("openChat").value = savedSettings.keyBinds.openChat
-        keyBinds.openChat.code = savedSettings.keyBinds.openChat
-    }
+    // Mouse
+    document.getElementById("sensitivitySlider").value = savedSettings.mouse.sensitivity
 
-    if (savedSettings.audio.volume != null) {
-        document.getElementById("volumeSlider").value = savedSettings.audio.volume
-        volumeSlider.onchange()
-    }
+    // Audio
+    document.getElementById("volumeSlider").value = savedSettings.audio.volume
 
-    if (savedSettings.graphics.overall != null) {
-        document.getElementById("overallGraphics").value = savedSettings.graphics.overall
-        overallGraphicsSelector.onchange()
-    }
-    if (savedSettings.graphics.skybox != null) document.getElementById("skybox").checked = savedSettings.graphics.skybox
-    if (savedSettings.graphics.specularLighting != null) document.getElementById("specularLighting").checked = savedSettings.graphics.specularLighting
-    if (savedSettings.graphics.shadows != null) document.getElementById("shadows").checked = savedSettings.graphics.shadows
-    if (savedSettings.graphics.particles != null) document.getElementById("particles").checked = savedSettings.graphics.particles
-    if (savedSettings.graphics.volumetricLighting != null) document.getElementById("volumetricLighting").checked = savedSettings.graphics.volumetricLighting
-    if (savedSettings.graphics.heaven != null) document.getElementById("heaven").checked = savedSettings.graphics.heaven
+    // Key binds
+    document.getElementById("forward").value = savedSettings.keyBinds.forward
+    document.getElementById("left").value = savedSettings.keyBinds.left
+    document.getElementById("backward").value = savedSettings.keyBinds.backward
+    document.getElementById("right").value = savedSettings.keyBinds.right
+    document.getElementById("openChat").value = savedSettings.keyBinds.openChat
 
+    // Graphics
+    document.getElementById("skybox").checked = savedSettings.graphics.skybox
+    document.getElementById("specularLighting").checked = savedSettings.graphics.specularLighting
+    document.getElementById("shadows").checked = savedSettings.graphics.shadows
+    document.getElementById("particles").checked = savedSettings.graphics.particles
+    document.getElementById("volumetricLighting").checked = savedSettings.graphics.volumetricLighting
+    document.getElementById("heaven").checked = savedSettings.graphics.heaven
+    document.getElementById("overallGraphics").value = savedSettings.graphics.overall
+
+    // Update game
+    sensitivitySlider.onchange(true)
+    volumeSlider.onchange(true)
+    overallGraphicsSelector.onchange(true)
     for (let settingsCheckbox in settingsCheckboxes) {
         webgl.settings[settingsCheckbox.id] = settingsCheckbox.checked
         webgl.initializeShaders()
     }
+    document.getElementById("saveSettingsButton").disabled = true
 }
 
 readSavedSettings()

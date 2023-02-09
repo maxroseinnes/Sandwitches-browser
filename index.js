@@ -428,6 +428,7 @@ class Room {
     // server: brodcast message with weapon id and data
 
     socket.on("newWeapon", (data) => {
+      console.log("new weapon")
       if (!this.players[data.ownerId]) return
       if (this.players[data.ownerId].lastShotTime + getWeaponSpecs(this.players[data.ownerId].lastShotType).cooldown >= Date.now()) return
       this.players[data.ownerId].lastShotTime = Date.now()
