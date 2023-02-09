@@ -88,6 +88,7 @@ const effectsCanvas = document.getElementById("effectsCanvas")
 const ctx = effectsCanvas.getContext("2d")
 const roomKeyInput = document.getElementById("roomKeyInput")
 const joinRoomButton = document.getElementById("joinRoomButton")
+const joinGameButton = document.getElementById("joinGameButton")
 
 joinRoomButton.onclick = () => {
     if (roomKeyInput.value == lobbyId) return
@@ -95,6 +96,14 @@ joinRoomButton.onclick = () => {
     joinRoom(roomKeyInput.value)
     
 }
+
+
+joinGameButton.onclick = () => {
+    socket.emit("joinFFAQueue", {
+        playerId: (player != null) ? player.id : null
+    })
+}
+
 //lobbyId = 4
 //joinRoom() // go to room 4 first
 
@@ -766,6 +775,7 @@ function joinRoom(id) {
 
 // Receives this from the server when the player joins the room successfully
 socket.on("roomJoinSuccess", (roomId) => {
+    pauseGame()
     lobbyId = roomId
     document.getElementById("title").textContent = "Room " + lobbyId
     startButton.textContent = "Play"

@@ -576,7 +576,7 @@ class Room {
         var left = [];
         var right = [];
         var newArr = [];
-        var piat = arr.pop();
+        var pivot = arr.pop();
     
         for (let i = 0; i < arr.length; i++) {
           if (arr[i].killCount <= pivot.killCount) {
@@ -622,10 +622,7 @@ class Room {
 
     // Send array to each connected player
     this.broadcast("playerUpdate", playersData, null)
-    if (this.ticks % TPS == 0) {
-      this.sendLeaderboard()
-    }
-
+    
     if (this.timeOfLastTick != undefined) {
       //console.log("TPS: " + 1000 / (new Date().getTime() - timeOfLastTick));
     }
@@ -634,6 +631,39 @@ class Room {
     this.ticks++
   }
 
+}
+
+class PrivateRoom extends Room {
+  constructor(mapData) {
+    super(mapData)
+    
+  }
+}
+
+class LobbyRoom extends Room {
+  constructor(mapData) {
+    super(mapData)
+  }
+}
+
+class FFARoom extends Room {
+  matchStartTime
+  matchEndTime
+  constructor(mapData) {
+    super(mapData)
+  }
+
+  startMatch(matchDuration) {
+    this.matchStartTime = Date.now()
+    this.matchEndTime = this.matchStartTime + matchDuration
+  }
+
+  endMatch() {
+    let array = []
+    for (let id in this.players) if (this.players[id]) array.push({id: id, killCount: this.players[id].killCount})
+    array.sort((a, b) => {return b.killCount - a.killCount})
+    this.broadcast("leaderboard", array)
+  }
 }
 
 var rooms = {}
@@ -651,26 +681,20 @@ fs.readFile("./public/modules/model-data.js", (err, data) => {
 
   rooms = {
     privateRooms: {
-      1: new Room(maps.lobby1),
-      2: new Room(maps.lobby2),
-      3: new Room(maps.testMap),
-      4: new Room(maps.testMap2),
-      5: new Room(maps.testMap3),
-      6: new Room(maps.testMap4)
+      1: new PrivateRoom(maps.lobby1),
+      2: new PrivateRoom(maps.lobby2),
+      3: new PrivateRoom(maps.testMap),
+      4: new PrivateRoom(maps.testMap2),
+      5: new PrivateRoom(maps.testMap3),
+      6: new PrivateRoom(maps.testMap4)
     },
     lobbyRooms: {
-      1: new Room(maps.testMap),
-      2: new Room(maps.testMap2),
-      3: new Room(maps.testMap3),
-      4: new Room(maps.testMap4)
+      1: new LobbyRoom(maps.testMap),
+      2: new LobbyRoom(maps.testMap2),
     },
     ffaRooms: {
-      1: new Room(maps.testMap4),
-      2: new Room(maps.testMap4),
-      3: new Room(maps.testMap4),
-      4: new Room(maps.testMap4),
-      5: new Room(maps.testMap4),
-      6: new Room(maps.testMap4),
+      1: new FFARoom(maps.testMap4),
+      2: new FFARoom(maps.testMap4),
 
     }
   }
@@ -788,7 +812,7 @@ function collision(weaponRadius, weaponPosition, colliderDimensions, colliderPos
 }
 
 var collisionUpdateThen = Date.now()
-var collisionUpdate = setInterval(() => {
+const collisionUpdate = setInterval(() => {
   let now = Date.now()
   let deltaTime = now - collisionUpdateThen
   collisionUpdateThen = now
@@ -829,10 +853,10 @@ var collisionUpdate = setInterval(() => {
           if (newHealth > 0) {
             //console.log("health: " + newHealth)
           } else {
-            if (rooms[i].players[weapon.ownerId]) {
-              rooms[i].players[weapon.ownerId].killCount++
-              let deathMessage = player.name + " was killed by " + rooms[i].players[weapon.ownerId].name
-              rooms[i].broadcast("chatMessage", deathMessage, null)
+            if (room.players[weapon.ownerId]) {
+              room.players[weapon.ownerId].killCount++
+              let deathMessage = player.name + " was killed by " + room.players[weapon.ownerId].name
+              room.broadcast("chatMessage", deathMessage, null)
             }
             player.socket.emit("youDied", {id: playerId, cause: "killed"})
           }
@@ -845,37 +869,46 @@ var collisionUpdate = setInterval(() => {
 
 }, 10)
 
-const maxFFAPlayers = 8
-const maxLobbyPlayers = 20
+var lobbyQueue = []
+var ffaQueue = []
 
-var ffaUpdate = setInterval(() => {
-  for (let i in rooms.ffaRooms) {
-    // update game stuff in active rooms
-    // max players 8
-    // all players stay in room after game
-    // add next player from queue when someone leaves
-    // max players in lobby is 20
-    // put in practice room if all lobbies are full
+const maxFFAPlayers = 2 // max players per ffa room
+const maxLobbyPlayers = 3 // max players per ffa lobby
 
-    
-  }
-
+const ffaUpdate = setInterval(() => {
   for (let i in rooms.lobbyRooms) {
     let room = rooms.lobbyRooms[i]
     if (Object.keys(room.players).length < maxLobbyPlayers) {
-      let openPlayerSlots = maxLobbyPlayers - Object.keys(room.players).length
-      let addedPlayers = 0
-      for (let j in ffaQueue) {
-        if (ffaQueue[j].location == "waiting") {
-          ffaQueue[j].socket.emit("joinRoomSuccess", i)
-          room.addPlayer(ffaQueue[j].socket, nextId)
-          nextId++
-          addedPlayers++
-        }
-        if (addedPlayers >= openPlayerSlots) break
+      let openPlayerSlots = Math.min(maxLobbyPlayers - Object.keys(room.players).length, lobbyQueue.length)
+      for (let j = 0; j < openPlayerSlots; j++) {
+        lobbyQueue[j].socket.emit("roomJoinSuccess", i)
+        kickPlayer(lobbyQueue[j].id, lobbyQueue[j].socket)
+        room.addPlayer(lobbyQueue[j].socket, lobbyQueue[j].id)
+        ffaQueue.push({id: lobbyQueue[j].id, socket: lobbyQueue[j].socket})
       }
+      lobbyQueue.splice(0, openPlayerSlots)
     }
   }
+  
+  for (let i in rooms.ffaRooms) {
+    let room = rooms.ffaRooms[i]
+    if (Object.keys(room.players).length < maxFFAPlayers) {
+      let openPlayerSlots = Math.min(maxFFAPlayers - Object.keys(room.players).length, ffaQueue.length)
+      for (let j = 0; j < openPlayerSlots; j++) {
+        ffaQueue[j].socket.emit("roomJoinSuccess", i)
+        kickPlayer(ffaQueue[j].id, ffaQueue[j].socket)
+        room.addPlayer(ffaQueue[j].socket, ffaQueue[j].id)
+      }
+      ffaQueue.splice(0, openPlayerSlots)
+    }
+  }
+
+
+  for (let i in rooms.ffaRooms) rooms.ffaRooms[i].sendLeaderboard()
+  for (let i in rooms.privateRooms) rooms.privateRooms[i].sendLeaderboard()
+
+
+
 }, 1000)
 
 function kickPlayer(id, socket) {
@@ -889,7 +922,7 @@ function kickPlayer(id, socket) {
 
         let listeners = socket.eventNames()
         for (let k in listeners) {
-          if (listeners[k] != "joinRoom") socket.removeAllListeners(listeners[k])
+          if (listeners[k] != "joinRoom" && listeners[k] != "joinFFAQueue") socket.removeAllListeners(listeners[k])
         }
 
         socket.emit("stopTicking")
@@ -899,8 +932,6 @@ function kickPlayer(id, socket) {
       }
     }
 }
-
-var ffaQueue = []
 
 socketServer.on("connection", (socket) => {
   /*socket.emit("pingRequest")
@@ -945,8 +976,18 @@ socketServer.on("connection", (socket) => {
       // delete this player from their room
       kickPlayer(data.playerId, socket)
 
+      for (let i in lobbyQueue) {
+        if (lobbyQueue[i].id == data.playerId) {
+          lobbyQueue.splice(i, 1)
+          break
+        }
+      }
+
       for (let i in ffaQueue) {
-        if (ffaQueue[i].id == data.playerId) ffaQueue.splice(i, 1)
+        if (ffaQueue[i].id == data.playerId) {
+          ffaQueue.splice(i, 1)
+          break
+        }
       }
 
       // add this player to the new room
@@ -962,16 +1003,18 @@ socketServer.on("connection", (socket) => {
     console.log(data, "JOIN FAA")
     
 
+    let playerId
     if (data.playerId != null) { // if this player is joining from another room
       kickPlayer(data.playerId, socket)
-      ffaQueue.push({id: data.playerId, socket: socket, location: "waiting"})
+      playerId = data.playerId
     } else {
-      ffaQueue.push({id: nextId, socket: socket, location: "waiting"})
+      playerId = nextId
       nextId++
     }
 
+    lobbyQueue.push({id: playerId, socket: socket})
 
-    socket.emit("addedToFFAQueue", null)
+    socket.emit("addedToFFAQueue", {id: playerId})
 
 
   })
