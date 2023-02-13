@@ -48,3 +48,16 @@ Outline pipeline (in chosen resolution)
 
 make messages only be able to affect player sending them
 
+
+charge handling:
+Start charging 
+-> send "startedCharging" 
+-> server records startChargeTime and flips charging to true 
+-> send "newWeapon" 
+-> if (charging) shoot weapon with Math.max((Date.now() - startChargeTime) / chargeTime, 1) strength
+- charging gets set to false if:
+    - current weapon is changed,
+    - "stoppedCharging" is sent
+    - "newWeapon" is sent
+- charging can only be set to true when startChargeTime is set to Date.now()
+

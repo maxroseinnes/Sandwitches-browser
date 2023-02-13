@@ -159,7 +159,7 @@ const weaponSpecs = {
     speed: .0375,
     manaCost: 20,
     damage: 100,
-    chargeTime: 0,
+    chargeTime: 1000,
     burstCount: 1,
     burstInterval: .5
   },
@@ -381,7 +381,9 @@ class Room {
       position: position,
       health: 0,
       lastShotTime: 0,
-      lastShotWeapon: 0,
+      lastShotWeapon: "",
+      startChargeTime: 0,
+      charging: false,
       state: state,
       killCount: 0,
       socket: socket
@@ -425,6 +427,7 @@ class Room {
       if (this.players[data.id]) {
         this.players[data.id].position = data.position;
         this.players[data.id].state = data.state;
+        if (this.players[data.id].currentWeaponType != data.currentWeaponType) this.players[data.id].charging = false
         this.players[data.id].currentWeaponType = data.currentWeaponType;
       }
     })
@@ -440,18 +443,26 @@ class Room {
     // server: brodcast message with weapon id and data
 
     socket.on("newWeapon", (data) => {
-      console.log("new weapon")
       if (!this.players[data.ownerId]) return
-      if (this.players[data.ownerId].lastShotTime + getWeaponSpecs(this.players[data.ownerId].lastShotType).cooldown >= Date.now()) return
-      this.players[data.ownerId].lastShotTime = Date.now()
-      this.players[data.ownerId].lastShotType = data.type
-      
+      let player = this.players[data.ownerId]
 
       let weaponSpec = getWeaponSpecs(data.type)
+
+      if (weaponSpec.chargeTime > 0) {
+        if (!player.charging) return
+        if (Date.now() - player.startChargeTime < weaponSpec.chargeTime) return
+      }
+
+      player.charging = false
+      
+      if (player.lastShotTime + getWeaponSpecs(player.lastShotType).cooldown >= Date.now()) return
+      player.lastShotTime = Date.now()
+      player.lastShotType = data.type
+      
       let pitch = data.pitch
       let yaw = data.yaw
       if (weaponSpec.class == "projectile") pitch = -pitch + Math.PI / 16
-      else pitch = -pitch + Math.PI / 64
+      else pitch = -pitch
       if (pitch > Math.PI / 2) pitch = Math.PI / 2
       yaw = -yaw
 
@@ -481,6 +492,16 @@ class Room {
       }, null)
 
       nextWeaponId++
+    })
+    
+    socket.on("startedCharging", () => {
+      if (Date.now() - this.players[assignedId].lastShotTime < getWeaponSpecs(this.players[assignedId].lastShotWeapon).cooldown) return
+      this.players[assignedId].startChargeTime = Date.now()
+      this.players[assignedId].charging = true
+    })
+
+    socket.on("stoppedCharging", () => {
+      this.players[assignedId].charging = false
     })
 
     socket.on("weaponStates", (data) => {
@@ -557,6 +578,8 @@ class Room {
     }
     data.state = this.players[id].state
     data.currentWeaponType = this.players[id].currentWeaponType
+    data.startChargeTime = this.players[id].startChargeTime
+    data.charging = this.players[id].charging
     data.health = this.players[id].health
 
     return data

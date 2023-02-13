@@ -676,6 +676,8 @@ socket.on("playerUpdate", (playersData) => {
     for (let id in playersData) {
         // update player health and healthbar
         if (player && id == player.id) {
+            player.startChargeTime = playersData[id].startChargeTime
+            player.charging = playersData[id].charging
             if (playersData[id].health != player.health) {
                 player.health = playersData[id].health
                 document.getElementById("healthBar").style.width = playersData[id].health + "%"
@@ -703,6 +705,8 @@ socket.on("playerUpdate", (playersData) => {
                 if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
                 otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id])
             }
+            otherPlayers[id].startChargeTime = playersData[id].startChargeTime
+            otherPlayers[id].charging = playersData[id].charging
         }
     }
 })
@@ -1022,10 +1026,20 @@ function fixedUpdate() {
 
     if (leftClicking) {
         if (player.cooldownTimer <= 0) {
-            socket.emit("newWeapon", {
+            let currentWeapon = player.inventory.currentWeapon
+            let charged = true
+            if (currentWeapon.chargeTime > 0) {
+                if (!player.charging || Date.now() - player.startChargeTime < currentWeapon.chargeTime - 100) charged = false
+                if (!player.charging) {
+                    socket.emit("startedCharging", {})
+                    player.charging = true
+                }
+            }
+            if (charged) console.log("shoot")
+            if (charged) socket.emit("newWeapon", {
                 ownerId: player.id,
-                type: player.inventory.currentWeapon.type,
-                position: player.inventory.currentWeapon.position,
+                type: currentWeapon.type,
+                position: currentWeapon.position,
                 pitch: lookAngleX,
                 yaw: lookAngleY
             })
@@ -1659,12 +1673,21 @@ readSavedSettings()
 
 
 document.addEventListener("mousedown", function (event) {
-    if (running && event.which == 1 && menu.style.opacity == 0) leftClicking = true
+    if (running && event.which == 1 && menu.style.opacity == 0) {
+        leftClicking = true
+
+        socket.emit("startedCharging", {})
+        player.charging = true
+    }
     if (running && event.which == 3 && menu.style.opacity == 0) rightClicking = true
 
 })
 
 document.addEventListener("mouseup", function (event) {
-    if (running && event.which == 1) leftClicking = false
+    if (running && event.which == 1) {
+        leftClicking = false
+
+        socket.emit("stoppedCharging", {})
+    }
     if (running && event.which == 3) rightClicking = false
 })

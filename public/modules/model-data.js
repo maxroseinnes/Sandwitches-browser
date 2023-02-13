@@ -331,40 +331,42 @@ var generatePlatforms = (geometryInfo) => {
         if (longestVectorLength / shortestVectorLength > 5) vecToAlign = getSideVector(longestVector, true, 1)
         else vecToAlign = getSideVector(mostAxisAlignedVector, true, 1)
 
-        // roll only affects x and y
-        let xy = [vecToAlign[0], vecToAlign[1]]
-        normalize(xy, xy)
-        let roll = (xy[0] > 0) ? Math.asin(xy[1]) : -Math.asin(xy[1])
-
-        rotateZ(vecToAlign, vecToAlign, [0, 0, 0], -roll)
-
 
         let zx = [vecToAlign[2], vecToAlign[0]]
         normalize(zx, zx)
-        let yaw = (zx[0] > 0) ? -Math.acos(zx[1]) : Math.acos(zx[1])
+        let yaw = (zx[0] > 0) ? Math.asin(zx[1]) : -Math.asin(zx[1])
 
         rotateY(vecToAlign, vecToAlign, [0, 0, 0], -yaw)
 
+        let yz = [vecToAlign[1], vecToAlign[2]]
+        normalize(yz, yz)
+        let pitch = (yz[0] < 0) ? Math.acos(yz[1]) : -Math.acos(yz[1])
+
+        rotateX(vecToAlign, vecToAlign, [0, 0, 0], -pitch)
+
 
         let otherVecToAlign = getSideVector(mostAxisAlignedVector, true, -1)
-        rotateZ(otherVecToAlign, otherVecToAlign, [0, 0, 0], -roll)
         rotateY(otherVecToAlign, otherVecToAlign, [0, 0, 0], -yaw)
+        rotateX(otherVecToAlign, otherVecToAlign, [0, 0, 0], -pitch)
 
         // otherVecToAlign should be [0, y, z] -- rotate it's pitch to be [0, 0, 1]
 
-        let yz = [otherVecToAlign[1], otherVecToAlign[2]]
-        normalize(yz, yz)
-        let pitch = (yz[0] < 0) ? Math.acos(yz[1]) : -Math.acos(yz[1])
+        // roll only affects x and y
+        let xy = [otherVecToAlign[0], otherVecToAlign[1]]
+        normalize(xy, xy)
+        let roll = 0//(xy[0] > 0) ? Math.asin(xy[1]) : -Math.asin(xy[1])
 
         let center = [0, 0, 0]
         for (let i = 0; i < 3; i++) for (let j = 0; j < points.length; j++) center[i] += points[j][i] / points.length
 
+        console.log(center, Math.round(yaw * 180 / Math.PI), Math.round(pitch * 180 / Math.PI), Math.round(roll * 180 / Math.PI))
+
         let layedFlatPoints = []
         for (let i = 0; i < points.length; i++) {
             layedFlatPoints[i] = []
-            rotateZ(layedFlatPoints[i], points[i], center, -roll)
             rotateY(layedFlatPoints[i], layedFlatPoints[i], center, -yaw)
             rotateX(layedFlatPoints[i], layedFlatPoints[i], center, -pitch)
+            rotateZ(layedFlatPoints[i], points[i], center, -roll)
         }
 
         //console.log(layedFlatPoints)

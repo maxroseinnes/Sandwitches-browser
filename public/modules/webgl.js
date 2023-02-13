@@ -164,14 +164,12 @@ var webgl = {
     {
       name: "asparagus",
       url: "./assets/textures/asparagusTex.jpg",
-      normalMap: "./assets/normalMaps/13060-normal.jpg",
-      gloss: 1
+      normalMap: "./assets/normalMaps/flat.jpeg",
+      gloss: 10
     }
 
 
   ],
-
-  texturesLength: 22,
 
   canvas: undefined,
   ctx: undefined,
@@ -273,7 +271,7 @@ var webgl = {
       image.crossOrigin = "anonymous"
       image.onload = () => {
         this.loadedImages[this.textures[name].index] = image
-        if (this.loadedImages.length < this.texturesLength) return
+        if (this.loadedImages.length < this.textureInfo.length) return
         let loadedAll = true
         for (let j = 0; j < this.loadedImages.length; j++) if (this.loadedImages[j] == null) loadedAll = false
         if (loadedAll) this.mergeImages(this.gl, this.loadedImages, this.textureMap)
@@ -289,7 +287,7 @@ var webgl = {
       image.crossOrigin = "anonymous"
       image.onload = () => {
         this.loadedNormalMaps[this.textures[name].index] = image
-        if (this.loadedNormalMaps.length < this.texturesLength) return
+        if (this.loadedNormalMaps.length < this.textureInfo.length) return
         let loadedAll = true
         for (let j = 0; j < this.loadedNormalMaps.length; j++) if (this.loadedNormalMaps[j] == null) loadedAll = false
         if (loadedAll) this.mergeNormalMaps(this.gl, this.loadedNormalMaps, this.normalMap)
@@ -627,7 +625,7 @@ var webgl = {
 
       float gMagnitude = sqrt(pow(length(gx), 2.0) + pow(length(gy), 2.0));
       float gMagnitude2 = sqrt(gx2 * gx2 + gy2 * gy2);
-      float outline = (gMagnitude > 625.0 / sqrt(uCanvasHeight * uCanvasWidth) || gMagnitude2 > 25.0 / sqrt(uCanvasHeight * uCanvasWidth)) ? 0.45 : 1.0;
+      float outline = (gMagnitude > 1000.0 / sqrt(uCanvasHeight * uCanvasWidth) || gMagnitude2 > 25.0 / sqrt(uCanvasHeight * uCanvasWidth)) ? 0.45 : 1.0;
 
       vec4 fragColor = vec4(
         (texelColor.r * outline * lighting${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.r * ${this.settings.fogColorR} * uFogOpacity` : ` + .05 * ${this.settings.fogColorR}`}, 
@@ -1519,13 +1517,13 @@ var webgl = {
 
         if (parent.position) {
           mat4.translate(mMatrix, mMatrix, [parent.position.x, parent.position.y, parent.position.z]);
-          mat4.rotateZ(mMatrix, mMatrix, -parent.position.roll || 0);
           mat4.rotateY(mMatrix, mMatrix, -parent.position.yaw || 0);
           mat4.rotateX(mMatrix, mMatrix, -parent.position.pitch || 0);
+          mat4.rotateZ(mMatrix, mMatrix, -parent.position.roll || 0);
 
-          mat4.rotateZ(mnMatrix, mnMatrix, -parent.position.roll || 0);
           mat4.rotateY(mnMatrix, mnMatrix, -parent.position.yaw || 0);
           mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch || 0);
+          mat4.rotateZ(mnMatrix, mnMatrix, -parent.position.roll || 0);
         }
         if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
         if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
@@ -1566,13 +1564,13 @@ var webgl = {
 
       if (parent.position) {
         mat4.translate(mMatrix, mMatrix, [parent.position.x, parent.position.y, parent.position.z]);
-        mat4.rotateZ(mMatrix, mMatrix, -parent.position.roll || 0);
         mat4.rotateY(mMatrix, mMatrix, -parent.position.yaw || 0);
         mat4.rotateX(mMatrix, mMatrix, -parent.position.pitch || 0);
+        mat4.rotateZ(mMatrix, mMatrix, -parent.position.roll || 0);
 
-        mat4.rotateZ(mnMatrix, mnMatrix, -parent.position.roll || 0);
         mat4.rotateY(mnMatrix, mnMatrix, -parent.position.yaw || 0);
         mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch || 0);
+        mat4.rotateZ(mnMatrix, mnMatrix, -parent.position.roll || 0);
       }
       if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
       if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
@@ -2167,9 +2165,9 @@ class PhysicalObject {
       this.position.y, 
       this.position.z
     ]
-    vec3.rotateZ(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.roll || this.position.roll || 0)
     vec3.rotateY(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.yaw || this.position.yaw || 0)
     vec3.rotateX(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.pitch || this.position.pitch || 0)
+    vec3.rotateZ(centerPointPosition, centerPointPosition, sphereCenter, this.dimensions.roll || this.position.roll || 0)
 
 
     boxDimensions[0][0] = centerPointPosition[0] + this.dimensions.mx
@@ -2285,9 +2283,9 @@ class PhysicalObject {
 
       
 
+      vec3.rotateZ(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.roll || -this.position.roll || 0)
       vec3.rotateX(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.pitch || -this.position.pitch || 0)
       vec3.rotateY(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.yaw || -this.position.yaw || 0)
-      vec3.rotateZ(correctionVector, correctionVector, [0, 0, 0], -this.dimensions.roll || -this.position.roll || 0)
       
       parent.position.x += correctionVector[0]
       parent.position.y += correctionVector[1]
@@ -2361,8 +2359,8 @@ class GamerTag {
       ]
     }
 
-    this.textureIndex = webgl.texturesLength
-    webgl.texturesLength++
+    this.textureIndex = webgl.textureInfo.length
+    webgl.textureInfo.length++
 
     webgl.textures[this.name] = {
       index: this.textureIndex,
@@ -2540,6 +2538,9 @@ class Player extends PhysicalObject {
     this.cooldownTimer = 0
     this.currentCooldown = 1
 
+    this.startChargeTime = 0
+    this.charging = false
+    
     this.id = id
     this.alive = false
     this.name = name
@@ -2789,6 +2790,7 @@ class Weapon extends PhysicalObject {
   
           this.dimensions.radius = 1
 
+          this.chargeTime = 1000
           this.cooldown = .5
           this.manaCost = 5
           this.damage = 5
@@ -2823,10 +2825,10 @@ class Weapon extends PhysicalObject {
       this.position.pitch = (this.class == "missile") ? this.owner.position.lean : 0
     }
     this.position.yaw += ((this.class == "projectile") ? deltaTime / 1000 : 0)
+    this.position.roll += ((this.class == "missile") ? deltaTime / 1000 : 0)
     this.lastPosition = { x: this.position.x, y: this.position.y, z: this.position.z }
     if (!this.shooted) return
 
-    //this.position.roll += ((this.class == "missile") ? deltaTime / 1000 : 0)
 
     if (this.class == "projectile") this.velocity.y -= Weapon.gravity * deltaTime
 
