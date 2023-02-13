@@ -1027,16 +1027,13 @@ function fixedUpdate() {
     if (leftClicking) {
         if (player.cooldownTimer <= 0) {
             let currentWeapon = player.inventory.currentWeapon
-            let charged = true
             if (currentWeapon.chargeTime > 0) {
-                if (!player.charging || Date.now() - player.startChargeTime < currentWeapon.chargeTime - 100) charged = false
                 if (!player.charging) {
                     socket.emit("startedCharging", {})
                     player.charging = true
                 }
             }
-            if (charged) console.log("shoot")
-            if (charged) socket.emit("newWeapon", {
+            else socket.emit("newWeapon", {
                 ownerId: player.id,
                 type: currentWeapon.type,
                 position: currentWeapon.position,
@@ -1687,7 +1684,14 @@ document.addEventListener("mouseup", function (event) {
     if (running && event.which == 1) {
         leftClicking = false
 
-        socket.emit("stoppedCharging", {})
+        let currentWeapon = player.inventory.currentWeapon
+        socket.emit("newWeapon", {
+            ownerId: player.id,
+            type: currentWeapon.type,
+            position: currentWeapon.position,
+            pitch: lookAngleX,
+            yaw: lookAngleY
+        })
     }
     if (running && event.which == 3) rightClicking = false
 })

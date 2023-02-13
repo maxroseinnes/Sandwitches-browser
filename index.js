@@ -74,7 +74,7 @@ var weaponGeometry = {
   olive: {path: "weapons/low_poly_olive.obj"},
   pickle: {path: "weapons/small_horizontal_cylinder.obj"},
   sausage: {path: "weapons/sausage.obj"},
-  pan: {path: "weapons/lowpolyfryingpanwith_meat_.obj"},
+  pan: {path: "weapons/panbutbetterwithmeat.obj"},
   anchovy: {path: "weapons/anchovy_terrible.obj"},
   meatball: {path: "weapons/swagball.obj"},
   asparagus: {path: "weapons/CoolAsparagus.obj"}
@@ -444,54 +444,7 @@ class Room {
 
     socket.on("newWeapon", (data) => {
       if (!this.players[data.ownerId]) return
-      let player = this.players[data.ownerId]
-
-      let weaponSpec = getWeaponSpecs(data.type)
-
-      if (weaponSpec.chargeTime > 0) {
-        if (!player.charging) return
-        if (Date.now() - player.startChargeTime < weaponSpec.chargeTime) return
-      }
-
-      player.charging = false
-      
-      if (player.lastShotTime + getWeaponSpecs(player.lastShotType).cooldown >= Date.now()) return
-      player.lastShotTime = Date.now()
-      player.lastShotType = data.type
-      
-      let pitch = data.pitch
-      let yaw = data.yaw
-      if (weaponSpec.class == "projectile") pitch = -pitch + Math.PI / 16
-      else pitch = -pitch
-      if (pitch > Math.PI / 2) pitch = Math.PI / 2
-      yaw = -yaw
-
-      let velocity = [0, 0, -weaponSpec.speed]
-
-      rotateX(velocity, velocity, [0, 0, 0], pitch)
-      rotateY(velocity, velocity, [0, 0, 0], yaw)
-      
-    
-      this.weapons[nextWeaponId] = {
-        type: data.type,
-        damage: weaponSpec.damage,
-        class: weaponSpec.class,
-        radius: weaponSpec.radius,
-        ownerId: data.ownerId,
-        position: data.position,
-        velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
-      }
-
-      this.broadcast("newWeapon", {
-        id: nextWeaponId,
-        type: data.type,
-        ownerId: data.ownerId,
-        cooldown: weaponSpec.cooldown,
-        position: data.position,
-        velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
-      }, null)
-
-      nextWeaponId++
+      this.shootWeapon(data)
     })
     
     socket.on("startedCharging", () => {
@@ -636,6 +589,59 @@ class Room {
       if (rooms[i] == this) roomId = i
     }*/
     //console.log(roomId + "killcounts:", killCounts)
+  }
+
+  shootWeapon(data) {
+    
+    let player = this.players[data.ownerId]
+
+    let weaponSpec = getWeaponSpecs(data.type)
+
+    if (weaponSpec.chargeTime > 0) {
+      if (!player.charging) return
+      if (Date.now() - player.startChargeTime < weaponSpec.chargeTime) return
+    }
+
+    player.charging = false
+    
+    if (player.lastShotTime + getWeaponSpecs(player.lastShotType).cooldown >= Date.now()) return
+    
+    player.lastShotTime = Date.now()
+    player.lastShotType = data.type
+    
+    let pitch = data.pitch
+    let yaw = data.yaw
+    if (weaponSpec.class == "projectile") pitch = -pitch + Math.PI / 16
+    else pitch = -pitch
+    if (pitch > Math.PI / 2) pitch = Math.PI / 2
+    yaw = -yaw
+
+    let velocity = [0, 0, -weaponSpec.speed]
+
+    rotateX(velocity, velocity, [0, 0, 0], pitch)
+    rotateY(velocity, velocity, [0, 0, 0], yaw)
+    
+  
+    this.weapons[nextWeaponId] = {
+      type: data.type,
+      damage: weaponSpec.damage,
+      class: weaponSpec.class,
+      radius: weaponSpec.radius,
+      ownerId: data.ownerId,
+      position: data.position,
+      velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
+    }
+
+    this.broadcast("newWeapon", {
+      id: nextWeaponId,
+      type: data.type,
+      ownerId: data.ownerId,
+      cooldown: weaponSpec.cooldown,
+      position: data.position,
+      velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
+    }, null)
+
+    nextWeaponId++
   }
 
 

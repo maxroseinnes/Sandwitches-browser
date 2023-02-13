@@ -335,15 +335,14 @@ var generatePlatforms = (geometryInfo) => {
         let zx = [vecToAlign[2], vecToAlign[0]]
         normalize(zx, zx)
         let yaw = (zx[0] > 0) ? Math.asin(zx[1]) : -Math.asin(zx[1])
-
         rotateY(vecToAlign, vecToAlign, [0, 0, 0], -yaw)
 
         let yz = [vecToAlign[1], vecToAlign[2]]
         normalize(yz, yz)
-        let pitch = (yz[0] < 0) ? Math.acos(yz[1]) : -Math.acos(yz[1])
-
+        let pitch = (yz[0] < 0) ? -Math.acos(yz[1]) : Math.acos(yz[1])
         rotateX(vecToAlign, vecToAlign, [0, 0, 0], -pitch)
 
+        console.log(vecToAlign)
 
         let otherVecToAlign = getSideVector(mostAxisAlignedVector, true, -1)
         rotateY(otherVecToAlign, otherVecToAlign, [0, 0, 0], -yaw)
@@ -354,12 +353,12 @@ var generatePlatforms = (geometryInfo) => {
         // roll only affects x and y
         let xy = [otherVecToAlign[0], otherVecToAlign[1]]
         normalize(xy, xy)
-        let roll = 0//(xy[0] > 0) ? Math.asin(xy[1]) : -Math.asin(xy[1])
+        let roll = (xy[0] > 0) ? Math.acos(xy[1]) : -Math.acos(xy[1])
 
         let center = [0, 0, 0]
         for (let i = 0; i < 3; i++) for (let j = 0; j < points.length; j++) center[i] += points[j][i] / points.length
 
-        console.log(center, Math.round(yaw * 180 / Math.PI), Math.round(pitch * 180 / Math.PI), Math.round(roll * 180 / Math.PI))
+        //console.log(center, Math.round(yaw * 180 / Math.PI), Math.round(pitch * 180 / Math.PI), Math.round(roll * 180 / Math.PI))
 
         let layedFlatPoints = []
         for (let i = 0; i < points.length; i++) {
