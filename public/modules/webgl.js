@@ -103,14 +103,14 @@ var webgl = {
     },
     {
       name: "meat",
-      url: "./assets/textures/meatTex.png",
+      url: "./assets/textures/panWithMeatTex.png",
       normalMap: "./assets/normalMaps/13060-normal.jpg",
-      gloss: 5
+      gloss: 8
     },
     {
       name: "playerTomato",
       url: "./assets/textures/PlayerTomatoTex.png",
-      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      normalMap: "https://media.discordapp.net/attachments/1034127032570871939/1074736073143488552/pan_with_beef_normalmap.png",
       gloss: 5
     },
     {
@@ -2768,7 +2768,7 @@ class Weapon extends PhysicalObject {
         this.manaCost = 5
         this.damage = 5
 
-        this.scale = 1
+        this.scale = 5
         this.models.main = new Model(this, geometryInfos.pan, this.scale, this.texture, 0, 0, 0, 0.0)
         break
         case "meatball":
