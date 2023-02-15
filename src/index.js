@@ -109,7 +109,7 @@ const weaponSpecs = {
     speed: .0375,
     manaCost: 5,
     damage: 5,
-    chargeTime: 0,
+    chargeTime: 250,
     burstCount: 1,
     burstInterval: .5
   },
@@ -159,9 +159,9 @@ const weaponSpecs = {
   },
   asparagus: {
     class: "missile",
-    radius: 1,
-    cooldown: 2000,
-    speed: .0375,
+    radius: .25,
+    cooldown: 1000,
+    speed: .075,
     manaCost: 20,
     damage: 100,
     chargeTime: 1000,
@@ -604,11 +604,11 @@ class Room {
 
     if (weaponSpec.chargeTime > 0) {
       if (!player.charging) return
+      player.charging = false
       if (Date.now() - player.startChargeTime < weaponSpec.chargeTime) return
     }
-
     player.charging = false
-    
+
     if (player.lastShotTime + getWeaponSpecs(player.lastShotType).cooldown >= Date.now()) return
     
     player.lastShotTime = Date.now()
@@ -831,9 +831,9 @@ function collision(weaponRadius, weaponPosition, colliderDimensions, colliderPos
     colliderPosition.y, 
     colliderPosition.z
   ]
-  rotateZ(centerPointPosition, centerPointPosition, sphereCenter, colliderPosition.roll || colliderDimensions.roll || 0)
   rotateY(centerPointPosition, centerPointPosition, sphereCenter, colliderPosition.yaw || colliderDimensions.yaw || 0)
   rotateX(centerPointPosition, centerPointPosition, sphereCenter, colliderPosition.pitch || colliderDimensions.pitch || 0)
+  rotateZ(centerPointPosition, centerPointPosition, sphereCenter, colliderPosition.roll || colliderDimensions.roll || 0)
 
 
   boxDimensions[0][0] = centerPointPosition[0] + colliderDimensions.mx

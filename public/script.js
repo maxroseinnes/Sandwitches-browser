@@ -897,10 +897,15 @@ function update(now) {
                 roll: 0
             }
             otherPlayers[id].gamerTag.alive = otherPlayers[id].alive
-            if (otherPlayers[id].inventory.currentWeapon) otherPlayers[id].inventory.currentWeapon.alive = otherPlayers[id].alive
+            let currentWeapon = otherPlayers[id].inventory.currentWeapon
+            if (currentWeapon) currentWeapon.alive = otherPlayers[id].alive
 
-            if (otherPlayers[id].inventory.currentWeapon != null) {
-                if (otherPlayers[id].alive) otherPlayers[id].inventory.currentWeapon.calculatePosition(deltaTime)
+            if (currentWeapon != null) {
+                otherPlayers[id].chargeValue = 0
+                if (currentWeapon.chargeTime > 0 && otherPlayers[id].charging) {
+                    otherPlayers[id].chargeValue = Math.sin((Math.min((Date.now() - otherPlayers[id].startChargeTime) / currentWeapon.chargeTime, 1)-.5)*2*Math.PI)
+                }
+                if (otherPlayers[id].alive) currentWeapon.calculatePosition(deltaTime)
                 otherPlayers[id].updateCooldown(deltaTime)
             }
         }
@@ -913,7 +918,12 @@ function update(now) {
 
 
     if (player && player.inventory.currentWeapon != null) {
-        player.inventory.currentWeapon.calculatePosition(deltaTime, socket) // weapon collision updates need to be sent to the server in calculatePosition method
+        let currentWeapon = player.inventory.currentWeapon
+        player.chargeValue = Math.max(player.chargeValue - (Math.sin(player.chargeValue * Math.PI) * .0025 * (deltaTime || 1)), 0)
+        if (currentWeapon.chargeTime > 0 && player.charging) {
+            player.chargeValue = (-Math.cos((Math.min((Date.now() - player.startChargeTime) / currentWeapon.chargeTime, 1))*Math.PI) + 1) * .25
+        }
+        currentWeapon.calculatePosition(deltaTime)
 
     }
 
@@ -921,7 +931,7 @@ function update(now) {
     camera.position.yaw = player ? player.position.yaw : 0
     camera.position.lean = player ? player.position.lean : 0
 
-    webgl.renderFrame(player ? player.position : { x: 0, y: 0, z: 0 }, camera, cameraColliders, aimState, deltaTime);
+    webgl.renderFrame(player ? player.position : { x: 0, y: 0, z: 0 }, camera, cameraColliders, aimState, player ? player.chargeValue : 0, deltaTime);
     if (running) requestAnimationFrame(update)
 }
 update()
@@ -1030,7 +1040,6 @@ function fixedUpdate() {
             if (currentWeapon.chargeTime > 0) {
                 if (!player.charging) {
                     socket.emit("startedCharging", {})
-                    player.charging = true
                 }
             }
             else socket.emit("newWeapon", {
@@ -1071,7 +1080,7 @@ function fixedUpdate() {
     }
 
 
-    player.lastPosition = { x: player.position.x, y: player.position.y, z: player.position.z }
+    player.lastPosition = { x: player.position.x, y: player.position.y, z: player.position.z, yaw: player.position.yaw }
     player.lastOnGround = player.onGround
 
 
@@ -1081,7 +1090,8 @@ function fixedUpdate() {
         if (otherWeapons[id] != null) {
 
             if (otherWeapons[id].shooted) {
-                otherWeapons[id].calculatePosition(deltaTime, socket, otherWeapons[id].owner == player)
+                let owner = otherWeapons[id].owner
+                otherWeapons[id].calculatePosition(deltaTime, 1)
 
             }
         }
@@ -1674,7 +1684,6 @@ document.addEventListener("mousedown", function (event) {
         leftClicking = true
 
         socket.emit("startedCharging", {})
-        player.charging = true
     }
     if (running && event.which == 3 && menu.style.opacity == 0) rightClicking = true
 

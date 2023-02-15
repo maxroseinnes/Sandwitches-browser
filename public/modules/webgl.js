@@ -1173,7 +1173,7 @@ var webgl = {
 
   },
 
-  renderFrame: function (playerPosition, camera, cameraColliders, aimState, deltaTime) {
+  renderFrame: function (playerPosition, camera, cameraColliders, aimState, chargeValue, deltaTime) {
 
     this.updatePoints()
 
@@ -1199,7 +1199,7 @@ var webgl = {
     mat4.ortho(shadowPMatrix, -80, 80, -80, 80, .1, 150)
 
 
-  let tMatrix = mat4.create();
+    let tMatrix = mat4.create();
 
 
     let cameraPosition = [1.75, 1.5 + (.5 - (Math.cos(aimState * Math.PI) + 1) / 4), 8 * ((Math.cos(aimState * Math.PI) + 3) / 4)]
@@ -1269,10 +1269,12 @@ var webgl = {
     mat4.rotateY(tMatrix, tMatrix, camera.position.yaw);
     mat4.translate(tMatrix, tMatrix, [-cameraPosition[0], -cameraPosition[1], -cameraPosition[2]]);
 
+    let fov = this.fov + chargeValue / 3
+
     let pMatrix = mat4.create();
 
-    //                        fov        , aspect, near, far
-    mat4.perspective(pMatrix, this.fov, this.aspect, 1, 1000);
+    //                   fov        , aspect, near, far
+    mat4.perspective(pMatrix, fov, this.aspect, 1, 1000);
 
     let shadowMatrix = mat4.create()
     mat4.scale(shadowMatrix, shadowMatrix, [0.5, 0.5, 0.5])
@@ -1284,7 +1286,7 @@ var webgl = {
     let sMatrix = mat4.create();
 
     //                        fov        , aspect, near, far
-    mat4.perspective(sMatrix, 1 / this.fov, this.aspect, .1, 1000);
+    mat4.perspective(sMatrix, 1 / fov, this.aspect, .1, 1000);
 
     mat4.rotateY(sMatrix, sMatrix, camera.position.yaw / 1 + this.settings.sunAngleYaw - Math.PI);
     mat4.rotateX(sMatrix, sMatrix, camera.position.lean / 1);
@@ -2540,6 +2542,7 @@ class Player extends PhysicalObject {
 
     this.startChargeTime = 0
     this.charging = false
+    this.chargeValue = 0
     
     this.id = id
     this.alive = false
@@ -2611,9 +2614,9 @@ class Player extends PhysicalObject {
     }
 */
 
-    let velocityMagnitude = vec3.length([this.velocity.x, this.velocity.y, this.velocity.z]) * deltaTime
+    let velocityMagnitude = Math.hypot(this.velocity.x, this.velocity.y, this.velocity.z) * deltaTime
 
-    let intermediateSteps = Math.ceil(velocityMagnitude / 1)
+    let intermediateSteps = Math.ceil(velocityMagnitude / .25)
 
     if (intermediateSteps > 20) {
       this.velocity.x = 0
@@ -2706,6 +2709,8 @@ class Weapon extends PhysicalObject {
 
         this.dimensions.radius = .75
 
+
+        this.chargeTime = 250
         this.cooldown = .5
         this.manaCost = 5
         this.damage = 5
@@ -2771,33 +2776,33 @@ class Weapon extends PhysicalObject {
         this.scale = 5
         this.models.main = new Model(this, geometryInfos.pan, this.scale, this.texture, 0, 0, 0, 0.0)
         break
-        case "meatball":
-          this.class = "projectile"
-          this.texture = "meatball"
-  
-          this.dimensions.radius = 1
+      case "meatball":
+        this.class = "projectile"
+        this.texture = "meatball"
 
-          this.cooldown = .5
-          this.manaCost = 5
-          this.damage = 5
-  
-          this.scale = 1
-          this.models.main = new Model(this, geometryInfos.meatball, this.scale, this.texture, 0, 0, 0, 0.0)
-          break
-        case "asparagus":
-          this.class = "missile"
-          this.texture = "asparagus"
-  
-          this.dimensions.radius = 1
+        this.dimensions.radius = 1
 
-          this.chargeTime = 1000
-          this.cooldown = .5
-          this.manaCost = 5
-          this.damage = 5
-  
-          this.scale = 2
-          this.models.main = new Model(this, geometryInfos.asparagus, this.scale, this.texture, 0, 0, 0, 0.0)
-          break
+        this.cooldown = .5
+        this.manaCost = 5
+        this.damage = 5
+
+        this.scale = 1
+        this.models.main = new Model(this, geometryInfos.meatball, this.scale, this.texture, 0, 0, 0, 0.0)
+        break
+      case "asparagus":
+        this.class = "missile"
+        this.texture = "asparagus"
+
+        this.dimensions.radius = 1
+
+        this.chargeTime = 1000
+        this.cooldown = .5
+        this.manaCost = 5
+        this.damage = 5
+
+        this.scale = 2
+        this.models.main = new Model(this, geometryInfos.asparagus, this.scale, this.texture, 0, 0, 0, 0.0)
+        break
     }
 
 
@@ -2811,7 +2816,7 @@ class Weapon extends PhysicalObject {
 
   }
 
-  calculatePosition(deltaTime, socket, shotByClient) {
+  calculatePosition(deltaTime) {
 
     let distanceFromPlayer = 1.75 * (Math.cos(Math.PI * ((this.owner.currentCooldown - this.owner.cooldownTimer) / this.owner.currentCooldown - 1)) + 1) / 2
     if (!this.shooted) {
@@ -2824,9 +2829,11 @@ class Weapon extends PhysicalObject {
       this.position.yaw = this.owner.position.yaw + ((this.class == "projectile") ? Date.now() / 1000 : 0)
       this.position.pitch = (this.class == "missile") ? this.owner.position.lean : 0
     }
-    this.position.yaw += ((this.class == "projectile") ? deltaTime / 1000 : 0)
-    this.position.roll += ((this.class == "missile") ? deltaTime / 1000 : 0)
-    this.lastPosition = { x: this.position.x, y: this.position.y, z: this.position.z }
+    let rotateSpeed = ((!this.shooted ? this.owner.chargeValue : 1) / 2)
+    //if (this.class == "projectile") this.position.yaw += (this.owner.lastPosition.yaw - this.owner.position.yaw)// + rotateSpeed
+    //console.log(rotateSpeed)
+    if (this.class == "missile") this.position.roll += rotateSpeed
+    this.lastPosition = { x: this.position.x, y: this.position.y, z: this.position.z, pitch: this.position.pitch, yaw: this.position.yaw, roll: this.position.roll }
     if (!this.shooted) return
 
 
