@@ -151,6 +151,8 @@ const pauseNoise = new Audio("./assets/wet_wriggling_noises/smb_pause.wav")
 const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
 const headBumpNoise = new Audio("./assets/wet_wriggling_noises/head_bump.wav")
 const oofNoise = new Audio("./assets/wet_wriggling_noises/roblox_oof.mp3")
+const hitmarkerNoise = new Audio("./assets/wet_wriggling_noises/HITMARKER.mp3")
+
 
 var setVolume = () => {
     backgroundNoises.volume = .5 * volume
@@ -408,6 +410,12 @@ socket.on("ping", () => {
     }
 })*/
 
+socket.on("hitmarker", () => {
+    console.log("hitmarker")
+    hitmarkerNoise.currentTime = 0
+    hitmarkerNoise.play()
+})
+
 var tickInterval
 socket.on("startTicking", (TPS) => {
     tickInterval = setInterval(tick, 1000 / TPS);
@@ -626,7 +634,7 @@ socket.on("weaponStates", (data) => {
         otherWeapons[id].position = data.weaponData[id].position
         otherWeapons[id].velocity = data.weaponData[id].velocity
         otherWeapons[id].shooted = true
-        otherWeapons[id].shootSoundEffect.play()
+        //otherWeapons[id].shootSoundEffect.play()
         otherPlayers[data.ownerId].weapons.push(otherWeapons[id])
         otherPlayers[data.ownerId].cooldownTimer = otherPlayers[data.ownerId].currentCooldown
     }
@@ -655,7 +663,7 @@ socket.on("newWeapon", (data) => {
     otherWeapons[data.id].position = data.position
     otherWeapons[data.id].velocity = data.velocity
     otherWeapons[data.id].shooted = true
-    otherWeapons[data.id].shootSoundEffect.play()
+    //otherWeapons[data.id].shootSoundEffect.play()
 
     owner.weapons.push(otherWeapons[data.id])
 
@@ -1077,6 +1085,7 @@ function fixedUpdate() {
         splatNoise.currentTime = .1
         splatNoise.playbackRate = 1.5
         splatNoise.play()
+        console.log("test")
     }
 
 
@@ -1484,6 +1493,7 @@ document.getElementById("hud").addEventListener('touchmove', (event) => {
 
 // -- menu -- //
 startButton.onclick = () => {
+    console.log("click")
     if (!player) {
         //alert("join a room first")
         return
@@ -1534,8 +1544,8 @@ document.getElementById("settingsButton").onclick = () => {
 }
 
 var sensitivitySlider = document.getElementById("sensitivitySlider")
-sensitivitySlider.onchange = (calledManually = false) => {
-    if (!calledManually) updateSaveSettingsButton()
+sensitivitySlider.onchange = (calledManually) => {
+    if (calledManually != null) updateSaveSettingsButton()
     sensitivity = Math.PI / 4096 * Number(sensitivitySlider.value)
     console.log(sensitivity)
 }
@@ -1561,13 +1571,12 @@ for (let i = 0; i < settingsCheckboxes.length; i++) {
     }
 }
 
-overallGraphicsSelector.onchange = (calledManually = false) => {
-    if (!calledManually) updateSaveSettingsButton()
+overallGraphicsSelector.onchange = (calledManually) => {
     switch (overallGraphicsSelector.value) {
         case "low":
             webgl.settings.skybox = true
             webgl.settings.specularLighting = false
-            webgl.settings.shadows = false
+            webgl.settings.shadows = faflse
             webgl.settings.particles = false
             webgl.settings.volumetricLighting = false
             break
@@ -1589,11 +1598,14 @@ overallGraphicsSelector.onchange = (calledManually = false) => {
 
     for (let i = 0; i < settingsCheckboxes.length; i++) {
         for (let setting in webgl.settings) {
+            console.log(setting)
             if (settingsCheckboxes[i].id == setting) settingsCheckboxes[i].checked = webgl.settings[setting]
         }
     }
 
     webgl.initializeShaders()
+
+    if (calledManually != null) updateSaveSettingsButton()
 }
 
 function genSettingsJSON() {
@@ -1668,7 +1680,7 @@ function readSavedSettings() {
     // Update game
     sensitivitySlider.onchange(true)
     volumeSlider.onchange(true)
-    overallGraphicsSelector.onchange(true)
+    //overallGraphicsSelector.onchange(true)
     for (let settingsCheckbox in settingsCheckboxes) {
         webgl.settings[settingsCheckbox.id] = settingsCheckbox.checked
         webgl.initializeShaders()

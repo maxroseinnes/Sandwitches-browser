@@ -894,6 +894,7 @@ const collisionUpdate = setInterval(() => {
         let player = room.players[playerId]
         if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2 - player.state.crouchValue, mz: -.25, pz: .25}, player.position)) {
           room.broadcast("weaponHit", {weaponId: weaponId}, null)
+          room.players[weapon.ownerId].socket.emit("hitmarker")
           hit = true
           let newHealth = player.health - weapon.damage
           player.health = newHealth
