@@ -75,7 +75,7 @@ async function getModelData(name, out, seperateObjects) {
 }
 
 var weaponGeometry = {
-  tomato: {path: "weapons/tomato.obj"},
+  tomato: {path: "weapons/bestTomatoInTheWorld.obj"},
   olive: {path: "weapons/low_poly_olive.obj"},
   pickle: {path: "weapons/small_horizontal_cylinder.obj"},
   sausage: {path: "weapons/sausage.obj"},
