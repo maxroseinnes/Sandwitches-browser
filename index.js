@@ -80,9 +80,9 @@ var weaponGeometry = {
   pickle: {path: "weapons/small_horizontal_cylinder.obj"},
   sausage: {path: "weapons/sausage.obj"},
   pan: {path: "weapons/panbutbetterwithmeat.obj"},
-  anchovy: {path: "weapons/anchovy_terrible.obj"},
+  anchovy: {path: "weapons/newPeculiarAnchovy.obj"},
   meatball: {path: "weapons/swagball.obj"},
-  asparagus: {path: "weapons/CoolAsparagus.obj"}
+  asparagus: {path: "weapons/CoolAsparagus.obj"},
 }
 
 

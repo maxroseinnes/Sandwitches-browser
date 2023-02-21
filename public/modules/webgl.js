@@ -166,6 +166,12 @@ var webgl = {
       url: "./assets/textures/asparagusTex.jpg",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 10
+    },
+    {
+      name: "anchovy",
+      url: "./assets/textures/anchovyTex.png",
+      normalMap: "./assets/normalMaps/flat.jpeg",
+      gloss: 10
     }
 
 
@@ -1162,10 +1168,10 @@ var webgl = {
         newPosition.w = relativeIndex * 255.0;
       }
       if (movementType == 1) {
-        float angle = relativeIndex * 2.0 * 3.1415926;
-        newPosition.x += sin(angle) * .05;
-        newPosition.z += cos(angle) * .05;
-        newPosition.y += 0.05 * lifeCycle;
+        //float angle = relativeIndex * 2.0 * 3.1415926;
+        //newPosition.x += sin(angle) * .05;
+        //newPosition.z += cos(angle) * .05;
+        //newPosition.y += 0.05 * lifeCycle;
       }
       if (movementType == 2) {
         float angle = (relativeIndex) * 8.0 * 3.1415926;
@@ -1239,8 +1245,8 @@ var webgl = {
 
   
     void main() {
-      vec4 positionBig = texture2D(particlePositions, vec2((index + 0.0) / vertexArrayLength, 0.0));
-      vec4 positionSmall = texture2D(particlePositions, vec2((index + 0.5) / vertexArrayLength, 0.0));
+      vec4 positionBig = texture2D(particlePositions, vec2((index + 0.25) / vertexArrayLength, 0.0));
+      vec4 positionSmall = texture2D(particlePositions, vec2((index + 0.75) / vertexArrayLength, 0.0));
       vec4 position = positionBig * 255.0 + positionSmall;
       position.xyz -= 127.0;
       //position.x += 20.0 * (index + 0.5) / 100.0;
@@ -1265,7 +1271,7 @@ var webgl = {
       vec2 weirdOffsets = vec2(8.0, 8.0);
       vec2 screenPosition = (screenCoords + weirdOffsets) / (weirdOffsets * 2.0) * canvasDimensions;
       float distFromCenter = screenPosition.x / canvasDimensions.x;//distance(screenPosition, gl_FragCoord.xy) / 10.0;
-      gl_FragColor = vec4(distFromCenter, distFromCenter, distFromCenter, 1.0);//lifeCountdown / 256.0);
+      gl_FragColor = vec4(1.0, 0.0, 0.0, lifeCountdown / 256.0);
     }
     `
 
@@ -1692,7 +1698,7 @@ var webgl = {
     this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "uShadowDirection"), new Float32Array(shadowDirection))
 
     this.gl.activeTexture(this.gl.TEXTURE0)
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureMap)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureMap)//this.useFirstParticleFramebuffer ? this.particlesTexture1 : this.particlesTexture0)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uSampler"), 0)
 
     this.gl.activeTexture(this.gl.TEXTURE1)
@@ -3133,7 +3139,7 @@ class Weapon extends PhysicalObject {
         break
       case "anchovy":
         this.class = "missile"
-        this.texture = "jerry"
+        this.texture = "anchovy"
 
         this.cooldown = .5
         this.manaCost = 5
