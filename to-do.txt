@@ -61,3 +61,50 @@ Start charging
     - "newWeapon" is sent
 - charging can only be set to true when startChargeTime is set to Date.now()
 
+
+
+make raw points, normals, and texcoords arrays for geometryInfos
+
+
+
+Particle system:
+ideas:
+    - put circle texture with transparent edges on particles to make them round -- this may require manual ordering which may be no good
+    - do some post/pre-process to make particles glow -- convolution?
+
+implementation:
+    - make a ParticleEmitter object
+    - particles are stored in a framebuffer which is "rendered" every frame to update particle positions
+        - maybe make a new framebuffer per particle emmitter?
+            - this could make it so that particles can only be +- .5 with 1/128 accuracy
+            - particle movement would all be relative to emmitter
+                - this would mean a uniform vec3 needs to be passed when moving particles for emitter movement -- this would effect already existing particles
+            - emitter position is sent into rendering shader
+
+    - movement shader:
+        - xyz values are stored in rgb values of frambuffer, lifespan is stored in alpha value
+        - different movement shaders can be written depending on emitter type
+            - weapon -- swirls around weapon
+            - impact -- little explosiion, kinda like dust being displaced
+
+
+    - passing framebuffer to render shader program:
+        possibilities:
+            - use framebuffer as a texture to draw points (best)
+            - get data from framebuffer and put into point buffer with cpu (not best)
+            - set the pointsBuffer for the particle shader to be [0, 1, 2, 3...] for as many particles there are then use texture() in shader (should work and is good)
+                - maybe possible for shader to just know what point it is on?
+                    - gl_VertexID may work
+                - can the shader be run just however many times or does there have to be a buffer?
+            - array buffer only needs to be set when emitter is made
+                - hold static variables in ParticleEmitter that hold different [0, 1, 2, 3...]s for quick duplication
+
+    - looks like if statements are ok with uniforms
+
+    - 16 bit float implementation
+        - first pixel controls int (0-255), second controls float (0.0-255/256)
+        - texture is twice as long, particlesMovementBuffer is twice as long
+    
+    - priming a particle section for emitter:
+        - 
+

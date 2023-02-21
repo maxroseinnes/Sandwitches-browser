@@ -217,7 +217,7 @@ var webgl = {
 
     outlineResolution: 1024,
 
-    maxParticles: 5000,
+    maxParticles: 8000,
 
   },
 
@@ -639,6 +639,7 @@ var webgl = {
       //lowp vec4 texelColor = texture2D(uNormalRenderSampler, vec2(gl_FragCoord.x / uCanvasWidth, gl_FragCoord.y / uCanvasHeight));
       //texelColor = vec4((texelColor.xyz + .5) / 2.0, texelColor.a);
       lowp vec4 texelColor = texture2D(uSampler, vTextureCoord);
+      if (texelColor.a == 0.0) discard;
 
 
       vec3 gx;
@@ -1149,8 +1150,7 @@ var webgl = {
       vec4 newPosition = vec4(lastPosition.xyz - 127.0, lastPosition.w - deltaTime / 4.0);
 
       bool alive = newPosition.w > 0.0;
-      newPosition.xyz *= float(alive);               // reset position to 0 if !alive
-      newPosition.xyz += emitterPosition * float(!alive);
+      newPosition.xyz = newPosition.xyz * float(alive) + emitterPosition * float(!alive);               // reset position to emitterPosition if !alive
       newPosition.w += 256.0 * (1.0 - float(alive)); // set lifespan to 1 if !alive (+1 if dead, +0 if alive)
       
       float lifeCycle = newPosition.w / 256.0;
@@ -1158,9 +1158,7 @@ var webgl = {
       // change position however you want
       if (primeParticles) {
         // prime particles
-        newPosition.x = 0.0;
-        newPosition.y = 0.0;
-        newPosition.z = 0.0;
+        newPosition.xyz = emitterPosition;
         newPosition.w = relativeIndex * 255.0;
       }
       if (movementType == 1) {
@@ -1170,9 +1168,9 @@ var webgl = {
         newPosition.y += 0.05 * lifeCycle;
       }
       if (movementType == 2) {
-        float angle = relativeIndex * 2.0 * 3.1415926;
-        //newPosition.x += sin(angle) * .05;
-        //newPosition.z += cos(angle) * .05;
+        float angle = (relativeIndex) * 8.0 * 3.1415926;
+        newPosition.x += sin(angle) * .02;
+        newPosition.z += cos(angle) * .02;
       }
 
       newPosition.xyz += 127.0;
@@ -1216,7 +1214,7 @@ var webgl = {
     //this.gl.enableVertexAttribArray(particleAttribLocation);
 
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlesBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, ParticleEmitter.arrayBuffer1, this.gl.DYNAMIC_DRAW);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, ParticleEmitter.arrayBuffer1, this.gl.STATIC_DRAW);
 
     //let iPosAttribLocation = this.gl.getAttribLocation(this.particleMovementProgram, "index");
     //this.gl.vertexAttribPointer(iPosAttribLocation, 1, this.gl.FLOAT, false, 0, 0);
@@ -1236,6 +1234,8 @@ var webgl = {
     uniform mat4 tMatrix;
 
     varying float lifeCountdown;
+    varying vec2 screenCoords;
+    varying float pointSize;
 
   
     void main() {
@@ -1246,8 +1246,10 @@ var webgl = {
       //position.x += 20.0 * (index + 0.5) / 100.0;
       gl_Position = pMatrix * tMatrix * vec4(position.xyz, 1.0);
       vec4 orthoPosition = tMatrix * vec4(position.xyz, 1.0);
-      gl_PointSize = 200.0 / abs(orthoPosition.z);
+      gl_PointSize = 150.0 / abs(orthoPosition.z);
       lifeCountdown = position.w;
+      screenCoords = gl_Position.xy;
+      pointSize = gl_PointSize;
     }
     `
 
@@ -1255,9 +1257,15 @@ var webgl = {
     precision mediump float;
 
     varying float lifeCountdown;
+    varying vec2 screenCoords;
+    varying float pointSize;
 
     void main() {
-      gl_FragColor = vec4(1.0, 0.0, 0.0, lifeCountdown / 256.0);
+      vec2 canvasDimensions = vec2(${this.gl.canvas.width}.0, ${this.gl.canvas.height}.0);
+      vec2 weirdOffsets = vec2(8.0, 8.0);
+      vec2 screenPosition = (screenCoords + weirdOffsets) / (weirdOffsets * 2.0) * canvasDimensions;
+      float distFromCenter = screenPosition.x / canvasDimensions.x;//distance(screenPosition, gl_FragCoord.xy) / 10.0;
+      gl_FragColor = vec4(distFromCenter, distFromCenter, distFromCenter, 1.0);//lifeCountdown / 256.0);
     }
     `
 
@@ -1292,7 +1300,7 @@ var webgl = {
     //this.gl.enableVertexAttribArray(particleAttribLocation);
 
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlesDrawBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, ParticleEmitter.arrayBuffer0, this.gl.DYNAMIC_DRAW);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, ParticleEmitter.arrayBuffer0, this.gl.STATIC_DRAW);
 
 
 
@@ -3204,6 +3212,7 @@ class Weapon extends PhysicalObject {
     //console.log(rotateSpeed)
     if (this.class == "missile") this.position.roll += rotateSpeed
     this.lastPosition = { x: this.position.x, y: this.position.y, z: this.position.z, pitch: this.position.pitch, yaw: this.position.yaw, roll: this.position.roll }
+    this.particleEmitter.position = [this.position.x, this.position.y, this.position.z]
     if (!this.shooted) return
 
 
@@ -3216,7 +3225,6 @@ class Weapon extends PhysicalObject {
     this.particleSpawnCounter++
     if (webgl.settings.particles && this.particleSpawnCounter % 2 == 0 && this.shooted) for (let i = 0; i < 1; i++) new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
     
-    this.particleEmitter.position = [this.position.x, this.position.y, this.position.z]
   }
 
 
