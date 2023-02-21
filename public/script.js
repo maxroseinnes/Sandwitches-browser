@@ -13,6 +13,7 @@ import webglStuff from "./modules/webgl.js"
 var webgl = webglStuff.webgl
 var Point = webglStuff.Point
 var Model = webglStuff.Model
+var ParticleEmitter = webglStuff.ParticleEmitter
 var PhysicalObject = webglStuff.PhysicalObject
 var Particle = webglStuff.Particle
 var Player = webglStuff.Player
@@ -816,8 +817,8 @@ socket.on("roomJoinSuccess", (roomId) => {
 // TESTING //
 
 platforms.push(new Platform(platformGeometry, "doorTest", -10, 3, -20, 1))
-/*
-new Model({
+
+new Model(platforms[0], {
     positions: [[0, 0, -10], [0, 20, -10], [0, 20, 10], [0, 0, 10]],
     normals: [[0, 1, 0]],
     texcoords: [[0, 0], [0, 1], [1, 1], [1, 0]],
@@ -826,8 +827,9 @@ new Model({
         {vertexes: [0, 1, 2], normals: [0, 0, 0], texcoords: [0, 1, 2]},
         {vertexes: [2, 3, 0], normals: [0, 0, 0], texcoords: [2, 3, 0]},
     ]
-}, 1, null, 0, 0,)
-*/
+}, 1, null, 0, 0, 0, true, false)
+
+
 
 
 
@@ -1484,6 +1486,9 @@ document.getElementById("hud").addEventListener('touchmove', (event) => {
 
 // -- menu -- //
 startButton.onclick = () => {
+    if (menu.style.opacity == 0) return
+    for (let i in ParticleEmitter.allEmitters) ParticleEmitter.allEmitters[i].unprimed = true
+
     if (!player) {
         //alert("join a room first")
         return

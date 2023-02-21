@@ -217,6 +217,8 @@ var webgl = {
 
     outlineResolution: 1024,
 
+    maxParticles: 5000,
+
   },
 
 
@@ -437,6 +439,41 @@ var webgl = {
 
     this.gl.renderbufferStorage(this.gl.RENDERBUFFER, this.gl.DEPTH_COMPONENT16, this.gl.canvas.width, this.gl.canvas.height)
     this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.RENDERBUFFER, this.normalRenderMapDepthBuffer)
+
+
+
+    // MAKE TEXTURE AND FRAMEBUFFER FOR PARTICLES
+
+    this.particlesTexture0 = this.gl.createTexture()
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.particlesTexture0)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.maxParticles * 2, 1, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
+
+    this.particlesFramebuffer0 = this.gl.createFramebuffer()
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.particlesFramebuffer0)
+
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.particlesTexture0, 0)
+
+
+    this.particlesTexture1 = this.gl.createTexture()
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.particlesTexture1)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.maxParticles * 2, 1, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.CLAMP_TO_EDGE)
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE)
+
+    this.particlesFramebuffer1 = this.gl.createFramebuffer()
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.particlesFramebuffer1)
+
+    this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.particlesTexture1, 0)
+
+    this.useFirstParticleFramebuffer = true
 
 
 
@@ -777,9 +814,6 @@ var webgl = {
     // program //
     this.skyboxProgram = this.gl.createProgram()
 
-    // buffers //
-    this.skyboxPointsBuffer = this.gl.createBuffer()
-
     this.gl.shaderSource(this.skyboxVertexShader, this.skyboxVertexShaderText)
     this.gl.shaderSource(this.skyboxFragmentShader, this.skyboxFragmentShaderText)
 
@@ -794,21 +828,7 @@ var webgl = {
 
     if (!this.gl.getProgramParameter(this.skyboxProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the skybox shader program: ${this.gl.getProgramInfoLog(this.skyboxProgram)}`)
   
-    // set positions of skybox points (four corners of the screen)
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.skyboxPointsBuffer);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([
-      -1, -1,
-       1, -1,
-       1,  1,
-       1,  1,
-       1, -1,
-      -1, -1
-    ]), this.gl.STATIC_DRAW);
 
-    //let sPosAttribLocation = this.gl.getAttribLocation(this.skyboxProgram, "vertPosition");
-    //this.gl.vertexAttribPointer(sPosAttribLocation, 2, this.gl.FLOAT, false, 0, 0);
-    //this.gl.enableVertexAttribArray(sPosAttribLocation);
-    
     this.gl.useProgram(this.skyboxProgram)
 
     this.gl.uniform1f(this.gl.getUniformLocation(this.skyboxProgram, "uCanvasWidth"), this.gl.canvas.width)
@@ -1079,6 +1099,202 @@ var webgl = {
   
 
 
+    this.particleMovementVertexShaderText = `
+    precision mediump float;
+
+    attribute float index;
+
+    uniform float vertexArrayLength;
+
+    varying float texCoord;
+    varying float vertexID;
+    varying float vVertexArrayLength;
+
+  
+    void main() {
+      texCoord = (index + 0.5) / vertexArrayLength;
+      vertexID = index;
+      vVertexArrayLength = vertexArrayLength;
+      gl_Position = vec4(((index + 0.5) / vertexArrayLength) * 2.0 - 1.0, 0.0, 0.0, 1.0);
+      gl_PointSize = 1.0;
+    }
+    `
+
+    this.particleMovementFragmentShaderText = `
+    precision mediump float;
+
+    uniform float deltaTime;
+
+    uniform float batchSize;
+    uniform bool primeParticles;
+    uniform int movementType;
+    uniform vec3 emitterPositionChange;
+    uniform vec3 emitterPosition;
+
+    uniform sampler2D lastPositions;
+    varying float texCoord;
+    varying float vertexID;
+    varying float vVertexArrayLength;
+
+    void main() {
+
+      float bigOrSmall = mod(vertexID, 2.0); // 0 if big, 1 if small
+
+      // if (0): get 0, 1, if (1) get -1, 0
+      vec4 bigPosition = texture2D(lastPositions, vec2(texCoord - (bigOrSmall / vVertexArrayLength), 0));
+      vec4 smallPosition = texture2D(lastPositions, vec2(texCoord + ((1.0 - bigOrSmall) / vVertexArrayLength), 0));
+      
+      vec4 lastPosition = bigPosition * 255.0 + smallPosition; // xyz are position, w is life countdown
+      
+      vec4 newPosition = vec4(lastPosition.xyz - 127.0, lastPosition.w - deltaTime / 4.0);
+
+      bool alive = newPosition.w > 0.0;
+      newPosition.xyz *= float(alive);               // reset position to 0 if !alive
+      newPosition.xyz += emitterPosition * float(!alive);
+      newPosition.w += 256.0 * (1.0 - float(alive)); // set lifespan to 1 if !alive (+1 if dead, +0 if alive)
+      
+      float lifeCycle = newPosition.w / 256.0;
+      float relativeIndex = mod((vertexID - bigOrSmall) / 2.0, batchSize) / batchSize;
+      // change position however you want
+      if (primeParticles) {
+        // prime particles
+        newPosition.x = 0.0;
+        newPosition.y = 0.0;
+        newPosition.z = 0.0;
+        newPosition.w = relativeIndex * 255.0;
+      }
+      if (movementType == 1) {
+        float angle = relativeIndex * 2.0 * 3.1415926;
+        newPosition.x += sin(angle) * .05;
+        newPosition.z += cos(angle) * .05;
+        newPosition.y += 0.05 * lifeCycle;
+      }
+      if (movementType == 2) {
+        float angle = relativeIndex * 2.0 * 3.1415926;
+        //newPosition.x += sin(angle) * .05;
+        //newPosition.z += cos(angle) * .05;
+      }
+
+      newPosition.xyz += 127.0;
+
+
+      gl_FragColor = ((floor(newPosition) / 255.0) * (1.0 - bigOrSmall)) + ((newPosition - floor(newPosition)) * bigOrSmall);
+
+      
+
+    }
+    `
+
+
+    this.particlesBuffer = this.gl.createBuffer()
+
+    // shaders //
+    this.particleMovementVertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
+    this.particleMovementFragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
+
+
+    // program //
+    this.particleMovementProgram = this.gl.createProgram()
+
+
+    this.gl.shaderSource(this.particleMovementVertexShader, this.particleMovementVertexShaderText)
+    this.gl.shaderSource(this.particleMovementFragmentShader, this.particleMovementFragmentShaderText)
+
+    this.gl.compileShader(this.particleMovementVertexShader)
+    this.gl.compileShader(this.particleMovementFragmentShader)
+
+    this.gl.attachShader(this.particleMovementProgram, this.particleMovementVertexShader)
+    this.gl.attachShader(this.particleMovementProgram, this.particleMovementFragmentShader)
+    this.gl.linkProgram(this.particleMovementProgram)
+    this.gl.validateProgram(this.particleMovementProgram)
+
+
+    if (!this.gl.getProgramParameter(this.particleMovementProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the particleMovement shader program: ${this.gl.getProgramInfoLog(this.particleMovementProgram)}`)
+  
+    //let particleAttribLocation = this.gl.getAttribLocation(this.particleMovementProgram, "index");
+    //this.gl.vertexAttribPointer(particleAttribLocation, 1, this.gl.FLOAT, false, Float32Array.BYTES_PER_ELEMENT, 0);
+    //this.gl.enableVertexAttribArray(particleAttribLocation);
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlesBuffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, ParticleEmitter.arrayBuffer1, this.gl.DYNAMIC_DRAW);
+
+    //let iPosAttribLocation = this.gl.getAttribLocation(this.particleMovementProgram, "index");
+    //this.gl.vertexAttribPointer(iPosAttribLocation, 1, this.gl.FLOAT, false, 0, 0);
+    //this.gl.enableVertexAttribArray(iPosAttribLocation);
+    
+
+    this.particleDrawVertexShaderText = `
+    precision mediump float;
+
+    attribute float index;
+
+    uniform float vertexArrayLength;
+    uniform sampler2D particlePositions;
+
+
+    uniform mat4 pMatrix;
+    uniform mat4 tMatrix;
+
+    varying float lifeCountdown;
+
+  
+    void main() {
+      vec4 positionBig = texture2D(particlePositions, vec2((index + 0.0) / vertexArrayLength, 0.0));
+      vec4 positionSmall = texture2D(particlePositions, vec2((index + 0.5) / vertexArrayLength, 0.0));
+      vec4 position = positionBig * 255.0 + positionSmall;
+      position.xyz -= 127.0;
+      //position.x += 20.0 * (index + 0.5) / 100.0;
+      gl_Position = pMatrix * tMatrix * vec4(position.xyz, 1.0);
+      vec4 orthoPosition = tMatrix * vec4(position.xyz, 1.0);
+      gl_PointSize = 200.0 / abs(orthoPosition.z);
+      lifeCountdown = position.w;
+    }
+    `
+
+    this.particleDrawFragmentShaderText = `
+    precision mediump float;
+
+    varying float lifeCountdown;
+
+    void main() {
+      gl_FragColor = vec4(1.0, 0.0, 0.0, lifeCountdown / 256.0);
+    }
+    `
+
+
+    this.particlesDrawBuffer = this.gl.createBuffer()
+
+    // shaders //
+    this.particleDrawVertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
+    this.particleDrawFragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
+
+
+    // program //
+    this.particleDrawProgram = this.gl.createProgram()
+
+
+    this.gl.shaderSource(this.particleDrawVertexShader, this.particleDrawVertexShaderText)
+    this.gl.shaderSource(this.particleDrawFragmentShader, this.particleDrawFragmentShaderText)
+
+    this.gl.compileShader(this.particleDrawVertexShader)
+    this.gl.compileShader(this.particleDrawFragmentShader)
+
+    this.gl.attachShader(this.particleDrawProgram, this.particleDrawVertexShader)
+    this.gl.attachShader(this.particleDrawProgram, this.particleDrawFragmentShader)
+    this.gl.linkProgram(this.particleDrawProgram)
+    this.gl.validateProgram(this.particleDrawProgram)
+
+
+    if (!this.gl.getProgramParameter(this.particleDrawProgram, this.gl.LINK_STATUS)) console.log(`Unable to initialize the particleDraw shader program: ${this.gl.getProgramInfoLog(this.particleDrawProgram)}`)
+  
+    //let particleAttribLocation = this.gl.getAttribLocation(this.particleDrawProgram, "index");
+    //this.gl.vertexAttribPointer(particleAttribLocation, 1, this.gl.FLOAT, false, Float32Array.BYTES_PER_ELEMENT, 0);
+    //this.gl.enableVertexAttribArray(particleAttribLocation);
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlesDrawBuffer);
+    this.gl.bufferData(this.gl.ARRAY_BUFFER, ParticleEmitter.arrayBuffer0, this.gl.DYNAMIC_DRAW);
+
+
 
   },
 
@@ -1170,6 +1386,12 @@ var webgl = {
 
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.texCoordsBuffer);
     this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array(this.texCoords), this.gl.DYNAMIC_DRAW);
+
+    //this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlesBuffer);
+    //this.gl.bufferData(this.gl.ARRAY_BUFFER, ParticleEmitter.arrayBuffer0, this.gl.DYNAMIC_DRAW);
+
+    //this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlesDrawBuffer);
+    //this.gl.bufferData(this.gl.ARRAY_BUFFER, ParticleEmitter.arrayBuffer0, this.gl.DYNAMIC_DRAW);
 
   },
 
@@ -1291,7 +1513,18 @@ var webgl = {
     mat4.rotateY(sMatrix, sMatrix, camera.position.yaw / 1 + this.settings.sunAngleYaw - Math.PI);
     mat4.rotateX(sMatrix, sMatrix, camera.position.lean / 1);
 
+
+
+    
     // ---------------- RENDER SHADOW TEXTURE ---------------- //
+
+    let vSize = 3;
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.pointsBuffer);
+
+    let posAttribLocation = this.gl.getAttribLocation(this.program, "vertPosition");
+    this.gl.vertexAttribPointer(posAttribLocation, vSize, this.gl.FLOAT, false, vSize * Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(posAttribLocation);
 
     if (this.settings.shadows) {
       
@@ -1360,6 +1593,7 @@ var webgl = {
 
     }
     
+
 
     // ---------------- NORMAL RENDER ---------------- //
 
@@ -1482,6 +1716,69 @@ var webgl = {
     }, {
       endWithTransparent: true
     })
+    
+
+
+    // ---------------- MOVE PARTICLES ---------------- //
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlesBuffer);
+
+    this.gl.vertexAttribPointer(0, 1, this.gl.FLOAT, false, Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(0);
+
+    this.useFirstParticleFramebuffer = !this.useFirstParticleFramebuffer
+
+    this.gl.clearColor(0, 0, 0, 1)
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.useFirstParticleFramebuffer ? this.particlesFramebuffer0 : this.particlesFramebuffer1)
+    this.gl.viewport(0, 0, this.settings.maxParticles * 2, 1)
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT)
+
+    this.gl.disable(this.gl.BLEND)
+    
+    this.gl.useProgram(this.particleMovementProgram);
+
+
+    this.gl.uniform1f(this.gl.getUniformLocation(this.particleMovementProgram, "vertexArrayLength"), this.settings.maxParticles * 2);
+    
+    this.gl.uniform1f(this.gl.getUniformLocation(this.particleMovementProgram, "deltaTime"), deltaTime);
+
+    this.gl.activeTexture(this.gl.TEXTURE0)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.useFirstParticleFramebuffer ? this.particlesTexture1 : this.particlesTexture0)
+    this.gl.uniform1i(this.gl.getUniformLocation(this.program, "lastPositions"), 0)
+
+
+    for (let i in ParticleEmitter.allEmitters) ParticleEmitter.allEmitters[i].updateParticles(this.gl, this.particleMovementProgram)
+
+
+    this.gl.enable(this.gl.BLEND)
+
+
+    // ---------------- RENDER PARTICLES ---------------- //
+
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.particlesDrawBuffer);
+
+    this.gl.vertexAttribPointer(0, 1, this.gl.FLOAT, false, Float32Array.BYTES_PER_ELEMENT, 0);
+    this.gl.enableVertexAttribArray(0);
+
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null)
+    this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height)
+    
+    this.gl.useProgram(this.particleDrawProgram);
+
+
+    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.particleDrawProgram, "tMatrix"), false, tMatrix);
+    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.particleDrawProgram, "pMatrix"), false, pMatrix);
+    
+    this.gl.uniform1f(this.gl.getUniformLocation(this.particleDrawProgram, "vertexArrayLength"), this.settings.maxParticles);
+
+    this.gl.activeTexture(this.gl.TEXTURE0)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.useFirstParticleFramebuffer ? this.particlesTexture0 : this.particlesTexture1)
+    this.gl.uniform1i(this.gl.getUniformLocation(this.program, "particlePositions"), 0)
+
+    for (let i in ParticleEmitter.allEmitters) ParticleEmitter.allEmitters[i].drawParticles(this.gl, this.particleDrawProgram)
+
+
 
     // ---------------- CALCULATE COLLISION ---------------- //
 
@@ -1879,6 +2176,76 @@ class Model {
   }
 
 }
+
+
+
+class ParticleEmitter {
+  // premade array buffers
+  static arrayBuffer0 = new Float32Array(webgl.settings.maxParticles)
+  static arrayBuffer1 = new Float32Array(webgl.settings.maxParticles * 2)
+  static nextAvailableIndex = 0
+  static allEmitters = []
+  static availableIndexes = []
+
+  constructor(position, type, angle, lifespan) {
+    ParticleEmitter.allEmitters.push(this)
+    this.movementType = type
+
+    if (ParticleEmitter.availableIndexes.length > 0) {
+      this.startIndex = ParticleEmitter.availableIndexes[0] * 75
+      ParticleEmitter.availableIndexes.splice(0, 1)
+    }
+    else {
+      this.startIndex = ParticleEmitter.nextAvailableIndex * 75
+      ParticleEmitter.nextAvailableIndex++
+    }
+    this.particleCount = 75
+    this.functional = (this.startIndex + this.particleCount) <= webgl.settings.maxParticles
+    
+    this.position = position
+    this.lastPosition = position
+
+    this.unprimed = true
+  }
+  updateParticles(gl, particleMovementProgram) {
+    if (!this.functional) return
+    // update particle positions (run particle movement shader for particles in this emitters domain)
+    gl.uniform1f(gl.getUniformLocation(particleMovementProgram, "batchSize"), this.particleCount);
+    gl.uniform1i(gl.getUniformLocation(particleMovementProgram, "primeParticles"), this.unprimed ? 1 : 0);
+    gl.uniform1i(gl.getUniformLocation(particleMovementProgram, "movementType"), this.movementType);
+    let positionChange = []
+    vec3.sub(positionChange, this.position, this.lastPosition)
+    gl.uniform3fv(gl.getUniformLocation(particleMovementProgram, "emitterPositionChange"), new Float32Array(positionChange));
+
+    gl.uniform3fv(gl.getUniformLocation(particleMovementProgram, "emitterPosition"), new Float32Array(this.position));
+
+    gl.drawArrays(
+      gl.DOTS, 
+      this.startIndex * 2, 
+      this.particleCount * 2
+    )
+
+    if (this.unprimed) this.unprimed = false
+    this.lastPosition = this.position
+  }
+  drawParticles(gl, particleDrawProgram) {
+    if (!this.functional) return
+
+    gl.drawArrays(
+      gl.DOTS, 
+      this.startIndex, 
+      this.particleCount
+    )
+  }
+  remove() {
+    let index = ParticleEmitter.allEmitters.indexOf(this)
+    if (index != -1) ParticleEmitter.allEmitters.splice(index, 1)
+
+    ParticleEmitter.availableIndexes.push(this.startIndex / 75)
+  }
+}
+for (let i = 0; i < ParticleEmitter.arrayBuffer0.length; i++) ParticleEmitter.arrayBuffer0[i] = i
+for (let i = 0; i < ParticleEmitter.arrayBuffer1.length; i++) ParticleEmitter.arrayBuffer1[i] = i
 
 
 
@@ -2676,6 +3043,8 @@ class Weapon extends PhysicalObject {
 
     this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
     this.shootSoundEffect.currentTime = 0.25
+    
+    this.particleEmitter = new ParticleEmitter([0, 0, 0], 2, 0, 0)
 
     this.particleSpawnCounter = 0
 
@@ -2846,6 +3215,8 @@ class Weapon extends PhysicalObject {
     
     this.particleSpawnCounter++
     if (webgl.settings.particles && this.particleSpawnCounter % 2 == 0 && this.shooted) for (let i = 0; i < 1; i++) new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
+    
+    this.particleEmitter.position = [this.position.x, this.position.y, this.position.z]
   }
 
 
@@ -2855,6 +3226,7 @@ class Weapon extends PhysicalObject {
     super.remove()
     let ownerWeaponsIndex = this.owner.weapons.indexOf(this)
     if (ownerWeaponsIndex != -1) this.owner.weapons.splice(ownerWeaponsIndex, 1)
+    this.particleEmitter.remove()
   }
 
 
@@ -3048,4 +3420,4 @@ class Ground {
 
 
 
-export default { webgl, Point, Model, PhysicalObject, Particle, Player, Weapon, Platform, Ground }
+export default { webgl, Point, Model, ParticleEmitter, PhysicalObject, Particle, Player, Weapon, Platform, Ground }
