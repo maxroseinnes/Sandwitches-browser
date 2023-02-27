@@ -108,3 +108,8 @@ implementation:
     - priming a particle section for emitter:
         - 
 
+    idea: save velocities in a third texel:
+        - 
+
+    idea for outlining: save normals as two values: pitch and yaw, and save depth in other b and a values as 16 bits
+

@@ -227,7 +227,8 @@ var changeWeaponSelection = (selection) => {
     player.inventory.currentSelection = selection
     player.inventory.currentWeapon.remove()
 
-    player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[selection].value, [platforms, otherPlayers, [ground]], player)
+    player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[selection].value, [platforms, otherPlayers, [ground]], player, player.position)
+    player.inventory.currentWeapon.particleEmitter.remove()
     updateHUD()
 }
 
@@ -429,7 +430,7 @@ socket.on("assignPlayer", (playerInfo) => {
 
     player.inventory = {
         currentSelection: 0,
-        currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player),
+        currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player, player.position),
     }
     updateHUD()
 });
@@ -623,8 +624,7 @@ socket.on("weaponStates", (data) => {
     console.log("test")
     for (let id in data.weaponData) {
         console.log(weaponGeometry)
-        otherWeapons[id] = new Weapon(weaponGeometry, data.weaponData[id].type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId])
-        otherWeapons[id].position = data.weaponData[id].position
+        otherWeapons[id] = new Weapon(weaponGeometry, data.weaponData[id].type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId], data.weaponData[id].position)
         otherWeapons[id].velocity = data.weaponData[id].velocity
         otherWeapons[id].shooted = true
         otherWeapons[id].shootSoundEffect.play()
@@ -652,8 +652,7 @@ socket.on("newWeapon", (data) => {
     if (data.ownerId == player.id) owner = player
     else owner = otherPlayers[data.ownerId]
 
-    otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [player], [ground]], owner)
-    otherWeapons[data.id].position = data.position
+    otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [player], [ground]], owner, data.position)
     otherWeapons[data.id].velocity = data.velocity
     otherWeapons[data.id].shooted = true
     otherWeapons[data.id].shootSoundEffect.play()
@@ -704,7 +703,8 @@ socket.on("playerUpdate", (playersData) => {
             if (otherPlayers[id].currentWeaponType != playersData[id].currentWeaponType && playersData[id].currentWeaponType != undefined) {
                 otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
                 if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
-                otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id])
+                otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id], otherPlayers[id].position)
+                otherPlayers[id].inventory.currentWeapon.particleEmitter.remove()
             }
             otherPlayers[id].startChargeTime = playersData[id].startChargeTime
             otherPlayers[id].charging = playersData[id].charging
@@ -817,7 +817,7 @@ socket.on("roomJoinSuccess", (roomId) => {
 // TESTING //
 
 platforms.push(new Platform(platformGeometry, "doorTest", -10, 3, -20, 1))
-
+/*
 new Model(platforms[0], {
     positions: [[0, 0, -10], [0, 20, -10], [0, 20, 10], [0, 0, 10]],
     normals: [[0, 1, 0]],
@@ -828,8 +828,8 @@ new Model(platforms[0], {
         {vertexes: [2, 3, 0], normals: [0, 0, 0], texcoords: [2, 3, 0]},
     ]
 }, 1, null, 0, 0, 0, true, false)
-
-var testEmitter = new ParticleEmitter([0, 0, 0], 2, 0, 0)
+*/
+var testEmitter = new ParticleEmitter([0, 0, 0], 11, {color: [1, 1, 0], size: 100, type: 3, lifespan: 10000, primeType: 2, opacityType: 1})
 
 
 
@@ -1072,7 +1072,7 @@ function fixedUpdate() {
 
 
     if (player.alive) player.calculatePosition(deltaTime, headBumpNoise)
-    if (player) testEmitter.position = [player.position.x, player.position.y+3.25, player.position.z]
+    //if (player) testEmitter.position = [player.position.x, player.position.y+3.25, player.position.z]
 
     if (!player.lastOnGround && player.onGround) {
         let splatVolume = Math.abs(player.lastVelocity.y) * 50 - .75
@@ -1339,12 +1339,10 @@ window.onresize = () => {
 
 
     webgl.gl.useProgram(webgl.program)
-    webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.program, "uCanvasWidth"), webgl.gl.canvas.width)
-    webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.program, "uCanvasHeight"), webgl.gl.canvas.height)
+    webgl.gl.uniform2fv(webgl.gl.getUniformLocation(webgl.program, "uCanvasDimensions"), new Float32Array([webgl.gl.canvas.width, webgl.gl.canvas.height]))
 
     webgl.gl.useProgram(webgl.skyboxProgram)
-    webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasWidth"), webgl.gl.canvas.width)
-    webgl.gl.uniform1f(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasHeight"), webgl.gl.canvas.height)
+    webgl.gl.uniform2fv(webgl.gl.getUniformLocation(webgl.skyboxProgram, "uCanvasDimensions"), new Float32Array([webgl.gl.canvas.width, webgl.gl.canvas.height]))
 
     webgl.gl.bindTexture(webgl.gl.TEXTURE_2D, webgl.normalRenderMap)
     webgl.gl.texImage2D(webgl.gl.TEXTURE_2D, 0, webgl.gl.RGBA, webgl.gl.canvas.width, webgl.gl.canvas.height, 0, webgl.gl.RGBA, webgl.gl.UNSIGNED_BYTE, null)
@@ -1489,7 +1487,7 @@ document.getElementById("hud").addEventListener('touchmove', (event) => {
 // -- menu -- //
 startButton.onclick = () => {
     if (menu.style.opacity == 0) return
-    for (let i in ParticleEmitter.allEmitters) ParticleEmitter.allEmitters[i].unprimed = true
+    window.setTimeout(() => {testEmitter.unprimed = true}, 10);
 
     if (!player) {
         //alert("join a room first")

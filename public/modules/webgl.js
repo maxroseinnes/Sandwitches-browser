@@ -223,7 +223,8 @@ var webgl = {
 
     outlineResolution: 1024,
 
-    maxParticles: 8000,
+    maxParticles: 8192,
+    maxParticleRows: 13,
 
   },
 
@@ -452,7 +453,7 @@ var webgl = {
 
     this.particlesTexture0 = this.gl.createTexture()
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.particlesTexture0)
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.maxParticles * 2, 1, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.maxParticles * 2, this.settings.maxParticleRows, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
 
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
@@ -467,7 +468,7 @@ var webgl = {
 
     this.particlesTexture1 = this.gl.createTexture()
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.particlesTexture1)
-    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.maxParticles * 2, 1, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.settings.maxParticles * 2, this.settings.maxParticleRows, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null)
 
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST)
     this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST)
@@ -500,7 +501,7 @@ var webgl = {
 
   initializeShaders() {
 
-    this.vertexShaderText = `
+    let vertexShaderText = `
     precision mediump float;
   
     attribute vec4 vertPosition;
@@ -557,7 +558,7 @@ var webgl = {
     }
     `
 
-    this.fragmentShaderText = `
+    let fragmentShaderText = `
     precision mediump float;
 
     varying lowp vec2 vTextureCoord;
@@ -576,8 +577,7 @@ var webgl = {
     uniform bool uShadowable;
     uniform float uFogOpacity;
     uniform vec3 uShadowDirection;
-    uniform float uCanvasWidth;
-    uniform float uCanvasHeight;
+    uniform vec2 uCanvasDimensions;
 
     uniform mat4 nMatrix;
 
@@ -614,14 +614,15 @@ var webgl = {
       highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
       highp float lighting = 0.75 + 0.5 * directional;
       ${this.settings.shadows ? `
-      bool inRange = (vProjectedCoord.x >= 0.0 && vProjectedCoord.x <= 1.0 && vProjectedCoord.y >= 0.0 && vProjectedCoord.y <= 1.0 && vProjectedCoord.z >= 0.0 && vProjectedCoord.z <= 1.0);
+      //float inRange = float(vProjectedCoord.x >= 0.0 && vProjectedCoord.x <= 1.0 && vProjectedCoord.y >= 0.0 && vProjectedCoord.y <= 1.0 && vProjectedCoord.z >= 0.0 && vProjectedCoord.z <= 1.0);
       float inShadowValue = 0.0;
+      float shadowable = float(uShadowable);
 
       float shadowTexelSize = 1.0 / ${this.settings.shadowMapResolution}.0;
       for (int i = -${this.settings.shadowMapSmoothing}; i <= ${this.settings.shadowMapSmoothing}; i++) {
         for (int j = -${this.settings.shadowMapSmoothing}; j <= ${this.settings.shadowMapSmoothing}; j++) {
-          bool inShadow = texture2D(uShadowSampler, vProjectedCoord.xy + vec2(i, j) * shadowTexelSize).r < vProjectedCoord.z - ${1.75 / this.settings.shadowMapResolution};
-          inShadowValue += ((!inShadow && inRange) || !uShadowable) ? 1.0 : 0.625;
+          float inShadow = float(texture2D(uShadowSampler, vProjectedCoord.xy + vec2(i, j) * shadowTexelSize).r < vProjectedCoord.z - ${1.75 / this.settings.shadowMapResolution});
+          inShadowValue += 1.0 - 0.375 * (inShadow * shadowable);
         }
       }
 
@@ -635,15 +636,13 @@ var webgl = {
       float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
       for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
         for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
-          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / uCanvasWidth, gl_FragCoord.y / uCanvasHeight) + vec2(i, j) * volumetricTexelSize).rgb;
+          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x, gl_FragCoord.y) / uCanvasDimensions + vec2(i, j) * volumetricTexelSize).rgb;
         }
       }
 
       fogColor /= ${Math.pow(this.settings.volumetricMapSmoothing * 2 + 1, 2)}.0;
       ` : ``}
 
-      //lowp vec4 texelColor = texture2D(uNormalRenderSampler, vec2(gl_FragCoord.x / uCanvasWidth, gl_FragCoord.y / uCanvasHeight));
-      //texelColor = vec4((texelColor.xyz + .5) / 2.0, texelColor.a);
       lowp vec4 texelColor = texture2D(uSampler, vTextureCoord);
       if (texelColor.a == 0.0) discard;
 
@@ -652,8 +651,8 @@ var webgl = {
       vec3 gy;
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-          gx += sx[i][j] * texture2D(uNormalRenderSampler, vec2((gl_FragCoord.x + float(i)-1.0) / uCanvasWidth, (gl_FragCoord.y + float(j)-1.0) / uCanvasHeight)).rgb;
-          gy += sy[i][j] * texture2D(uNormalRenderSampler, vec2((gl_FragCoord.x + float(i)-1.0) / uCanvasWidth, (gl_FragCoord.y + float(j)-1.0) / uCanvasHeight)).rgb;
+          gx += sx[i][j] * texture2D(uNormalRenderSampler, vec2(gl_FragCoord.x + float(i)-1.0, gl_FragCoord.y + float(j)-1.0) / uCanvasDimensions).rgb;
+          gy += sy[i][j] * texture2D(uNormalRenderSampler, vec2(gl_FragCoord.x + float(i)-1.0, gl_FragCoord.y + float(j)-1.0) / uCanvasDimensions).rgb;
         }
       }
 
@@ -662,14 +661,15 @@ var webgl = {
       float gy2;
       for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-          gx2 += sx[i][j] * texture2D(uNormalRenderSampler, vec2((gl_FragCoord.x + float(i)-1.0) / uCanvasWidth, (gl_FragCoord.y + float(j)-1.0) / uCanvasHeight)).a;
-          gy2 += sy[i][j] * texture2D(uNormalRenderSampler, vec2((gl_FragCoord.x + float(i)-1.0) / uCanvasWidth, (gl_FragCoord.y + float(j)-1.0) / uCanvasHeight)).a;
+          gx2 += sx[i][j] * texture2D(uNormalRenderSampler, vec2(gl_FragCoord.x + float(i)-1.0, gl_FragCoord.y + float(j)-1.0) / uCanvasDimensions).a;
+          gy2 += sy[i][j] * texture2D(uNormalRenderSampler, vec2(gl_FragCoord.x + float(i)-1.0, gl_FragCoord.y + float(j)-1.0) / uCanvasDimensions).a;
         }
       }
 
       float gMagnitude = sqrt(pow(length(gx), 2.0) + pow(length(gy), 2.0));
       float gMagnitude2 = sqrt(gx2 * gx2 + gy2 * gy2);
-      float outline = (gMagnitude > 1000.0 / sqrt(uCanvasHeight * uCanvasWidth) || gMagnitude2 > 25.0 / sqrt(uCanvasHeight * uCanvasWidth)) ? 0.45 : 1.0;
+      bool isOutlined = (gMagnitude > 1000.0 / sqrt(uCanvasDimensions.y * uCanvasDimensions.x) || gMagnitude2 > 25.0 / sqrt(uCanvasDimensions.y * uCanvasDimensions.x));
+      float outline = 1.0 - (float(isOutlined) * 0.55);
 
       vec4 fragColor = vec4(
         (texelColor.r * outline * lighting${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.r * ${this.settings.fogColorR} * uFogOpacity` : ` + .05 * ${this.settings.fogColorR}`}, 
@@ -677,10 +677,6 @@ var webgl = {
         (texelColor.b * outline * lighting${this.settings.specularLighting ? ` + specularLight * 0.5` : ``})${this.settings.shadows ? ` * inShadowValue ` : ``}${this.settings.volumetricLighting ? ` + fogColor.b * ${this.settings.fogColorB} * uFogOpacity` : ` + .05 * ${this.settings.fogColorB}`}, 
         texelColor.a
       );
-
-      //fragColor.r -= mod(fragColor.r, .025);
-      //fragColor.g -= mod(fragColor.g, .025);
-      //fragColor.b -= mod(fragColor.b, .025);
 
       gl_FragColor = fragColor;
     }
@@ -696,8 +692,8 @@ var webgl = {
     // 1: 2, 3: 4, 5: 8, 7: 16
 
     // shaders //
-    this.vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
-    this.fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
+    let vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER)
+    let fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER)
 
     // program //
     this.program = this.gl.createProgram()
@@ -708,14 +704,14 @@ var webgl = {
     this.texCoordsBuffer = this.gl.createBuffer()
 
 
-    this.gl.shaderSource(this.vertexShader, this.vertexShaderText)
-    this.gl.shaderSource(this.fragmentShader, this.fragmentShaderText)
+    this.gl.shaderSource(vertexShader, vertexShaderText)
+    this.gl.shaderSource(fragmentShader, fragmentShaderText)
 
-    this.gl.compileShader(this.vertexShader)
-    this.gl.compileShader(this.fragmentShader)
+    this.gl.compileShader(vertexShader)
+    this.gl.compileShader(fragmentShader)
 
-    this.gl.attachShader(this.program, this.vertexShader)
-    this.gl.attachShader(this.program, this.fragmentShader)
+    this.gl.attachShader(this.program, vertexShader)
+    this.gl.attachShader(this.program, fragmentShader)
     this.gl.linkProgram(this.program)
     this.gl.validateProgram(this.program)
 
@@ -751,8 +747,7 @@ var webgl = {
     
     this.gl.useProgram(this.program)
 
-    this.gl.uniform1f(this.gl.getUniformLocation(this.program, "uCanvasWidth"), this.gl.canvas.width)
-    this.gl.uniform1f(this.gl.getUniformLocation(this.program, "uCanvasHeight"), this.gl.canvas.height)
+    this.gl.uniform2fv(this.gl.getUniformLocation(this.program, "uCanvasDimensions"), new Float32Array([this.gl.canvas.width, this.gl.canvas.height]))
 
 
     
@@ -780,8 +775,7 @@ var webgl = {
 
     uniform sampler2D uVolumetricSampler;
     uniform float uFogOpacity;
-    uniform float uCanvasWidth;
-    uniform float uCanvasHeight;
+    uniform vec2 uCanvasDimensions;
   
     varying lowp vec4 vPosition;
   
@@ -794,7 +788,7 @@ var webgl = {
       float volumetricTexelSize = 1.0 / ${this.settings.volumetricMapResolution}.0;
       for (int i = -${this.settings.volumetricMapSmoothing}; i <= ${this.settings.volumetricMapSmoothing}; i++) {
         for (int j = -${this.settings.volumetricMapSmoothing}; j <= ${this.settings.volumetricMapSmoothing}; j++) {
-          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x / uCanvasWidth, gl_FragCoord.y / uCanvasHeight) + vec2(i, j) * volumetricTexelSize).rgb;
+          fogColor += texture2D(uVolumetricSampler, vec2(gl_FragCoord.x, gl_FragCoord.y) / uCanvasDimensions + vec2(i, j) * volumetricTexelSize).rgb;
         }
       }
 
@@ -838,8 +832,7 @@ var webgl = {
 
     this.gl.useProgram(this.skyboxProgram)
 
-    this.gl.uniform1f(this.gl.getUniformLocation(this.skyboxProgram, "uCanvasWidth"), this.gl.canvas.width)
-    this.gl.uniform1f(this.gl.getUniformLocation(this.skyboxProgram, "uCanvasHeight"), this.gl.canvas.height)
+    this.gl.uniform2fv(this.gl.getUniformLocation(this.skyboxProgram, "uCanvasDimensions"), new Float32Array([this.gl.canvas.width, this.gl.canvas.height]))
 
     // Make shadow map program
 
@@ -982,7 +975,7 @@ var webgl = {
   
         vec4 projectedCoord = shadowMatrix * realWorldPosition;
         bool inShadow = texture2D(uShadowSampler, projectedCoord.xy).r < projectedCoord.z - .0015;
-        if (!inShadow) brightness += distance * ${this.settings.fogIntensity};
+        brightness += (1.0 - float(inShadow)) * distance * ${this.settings.fogIntensity};
       }
       brightness /= ${this.settings.volumetricSampleResolution}.0;
       ` : `
@@ -1112,17 +1105,20 @@ var webgl = {
     attribute float index;
 
     uniform float vertexArrayLength;
+    uniform float numRows;
 
-    varying float texCoord;
+    varying vec2 texCoord;
     varying float vertexID;
     varying float vVertexArrayLength;
 
   
     void main() {
-      texCoord = (index + 0.5) / vertexArrayLength;
-      vertexID = index;
+      float rowIndex = mod(index, vertexArrayLength);
+      float row = (index - rowIndex) / vertexArrayLength;
+      texCoord = vec2((rowIndex + 0.5) / vertexArrayLength, row / numRows);
+      vertexID = rowIndex;
       vVertexArrayLength = vertexArrayLength;
-      gl_Position = vec4(((index + 0.5) / vertexArrayLength) * 2.0 - 1.0, 0.0, 0.0, 1.0);
+      gl_Position = vec4(((rowIndex + 0.5) / vertexArrayLength) * 2.0 - 1.0, ((row + 0.5) / numRows) * 2.0 - 1.0, 0.0, 1.0);
       gl_PointSize = 1.0;
     }
     `
@@ -1133,13 +1129,15 @@ var webgl = {
     uniform float deltaTime;
 
     uniform float batchSize;
-    uniform bool primeParticles;
+    uniform float lifespan; // milliseconds
+    uniform int primeParticles;
+    uniform bool produceNewParticles;
     uniform int movementType;
     uniform vec3 emitterPositionChange;
     uniform vec3 emitterPosition;
 
     uniform sampler2D lastPositions;
-    varying float texCoord;
+    varying vec2 texCoord;
     varying float vertexID;
     varying float vVertexArrayLength;
 
@@ -1147,36 +1145,72 @@ var webgl = {
 
       float bigOrSmall = mod(vertexID, 2.0); // 0 if big, 1 if small
 
-      // if (0): get 0, 1, if (1) get -1, 0
-      vec4 bigPosition = texture2D(lastPositions, vec2(texCoord - (bigOrSmall / vVertexArrayLength), 0));
-      vec4 smallPosition = texture2D(lastPositions, vec2(texCoord + ((1.0 - bigOrSmall) / vVertexArrayLength), 0));
+      vec4 bigPosition = texture2D(lastPositions, vec2(texCoord.x - (bigOrSmall / vVertexArrayLength), texCoord.y));
+      vec4 smallPosition = texture2D(lastPositions, vec2(texCoord.x + ((1.0 - bigOrSmall) / vVertexArrayLength), texCoord.y));
       
       vec4 lastPosition = bigPosition * 255.0 + smallPosition; // xyz are position, w is life countdown
       
-      vec4 newPosition = vec4(lastPosition.xyz - 127.0, lastPosition.w - deltaTime / 4.0);
+      vec4 newPosition = vec4(lastPosition.xyz - 127.0, lastPosition.w - deltaTime * 256.0 / lifespan);
 
-      bool alive = newPosition.w > 0.0;
-      newPosition.xyz = newPosition.xyz * float(alive) + emitterPosition * float(!alive);               // reset position to emitterPosition if !alive
+      bool alive = newPosition.w > 0.0;             // reset position to emitterPosition if !alive
       newPosition.w += 256.0 * (1.0 - float(alive)); // set lifespan to 1 if !alive (+1 if dead, +0 if alive)
       
       float lifeCycle = newPosition.w / 256.0;
       float relativeIndex = mod((vertexID - bigOrSmall) / 2.0, batchSize) / batchSize;
       // change position however you want
-      if (primeParticles) {
+      if (primeParticles == 1) {
         // prime particles
-        newPosition.xyz = emitterPosition;
+        newPosition.y = -127.0;
         newPosition.w = relativeIndex * 255.0;
       }
+      if (primeParticles == 2) {
+        // prime particles
+        newPosition.y = -127.0;
+        newPosition.w = (sin(relativeIndex * 3.1415926 * 64.0) + 1.0) * 128.0;//mod(relativeIndex * 255.0 * 1982.0, 255.0);
+      }
       if (movementType == 1) {
-        //float angle = relativeIndex * 2.0 * 3.1415926;
-        //newPosition.x += sin(angle) * .05;
-        //newPosition.z += cos(angle) * .05;
-        //newPosition.y += 0.05 * lifeCycle;
+        float angle = relativeIndex * 2.0 * 3.1415926;
+        newPosition.x += sin(angle) * .05;
+        newPosition.z += cos(angle) * .05;
+        newPosition.y += 0.05 * lifeCycle;
       }
       if (movementType == 2) {
-        float angle = (relativeIndex) * 8.0 * 3.1415926;
-        newPosition.x += sin(angle) * .02;
-        newPosition.z += cos(angle) * .02;
+        newPosition.xyz = newPosition.xyz * float(alive) + (produceNewParticles ? emitterPosition : vec3(0.0, -127, 0.0)) * float(!alive);
+
+        float pitch = relativeIndex * 18.0 * 3.1415926;
+        newPosition.y += cos(pitch) * .001 * deltaTime;
+        float changeZ = sin(pitch) * .001 * deltaTime;
+
+        float yaw = relativeIndex * 74.0 * 3.1415926;
+        newPosition.z += (changeZ * sin(yaw));
+        newPosition.x += (changeZ * cos(yaw));
+        
+        
+      }
+      if (movementType == 3) {
+        float num = relativeIndex * batchSize;
+        //vec3 respawnPosition = vec3(
+          //(num - mod(num, pow(batchSize, 2.0/3.0))) / batchSize, 
+          //(mod(num, pow(batchSize, 2.0/3.0)) - mod(num, pow(batchSize, 1.0/3.0))) / pow(batchSize, 2.0/3.0), 
+          //mod(num, pow(batchSize, 1.0/3.0)) / pow(batchSize, 1.0/3.0));
+        vec3 respawnPosition = vec3(
+          (mod(num, batchSize) - mod(num, pow(batchSize, 0.5))) / batchSize, 
+          0.51, 
+          mod(num, pow(batchSize, 0.5)) / pow(batchSize, 0.5)
+        );
+        respawnPosition = (respawnPosition - 0.5) * 128.0;
+        //respawnPosition.y = pow((respawnPosition.y + 128.0) * .005, 4.0);
+        newPosition.xyz = newPosition.xyz * float(alive) + respawnPosition * float(!alive);
+
+        float pitch = relativeIndex * 7422.0 * 3.1415926;
+        newPosition.y += cos(pitch) * .0005 * deltaTime;
+        float changeZ = sin(pitch) * .0005 * deltaTime;
+
+        float yaw = relativeIndex * 12466.0 * 3.1415926;
+        newPosition.z += (changeZ * sin(yaw));
+        newPosition.x += (changeZ * cos(yaw));
+        
+        
       }
 
       newPosition.xyz += 127.0;
@@ -1233,45 +1267,44 @@ var webgl = {
     attribute float index;
 
     uniform float vertexArrayLength;
+    uniform float numRows;
     uniform sampler2D particlePositions;
-
+    uniform float size;
+    uniform int opacityType;
 
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
 
     varying float lifeCountdown;
-    varying vec2 screenCoords;
-    varying float pointSize;
-
   
     void main() {
-      vec4 positionBig = texture2D(particlePositions, vec2((index + 0.25) / vertexArrayLength, 0.0));
-      vec4 positionSmall = texture2D(particlePositions, vec2((index + 0.75) / vertexArrayLength, 0.0));
+      float rowIndex = mod(index, vertexArrayLength);
+      float row = (index - rowIndex) / vertexArrayLength;
+      vec4 positionBig = texture2D(particlePositions, vec2((rowIndex + 0.25) / vertexArrayLength, (row + 0.25) / numRows));
+      vec4 positionSmall = texture2D(particlePositions, vec2((rowIndex + 0.75) / vertexArrayLength, (row + 0.25) / numRows));
       vec4 position = positionBig * 255.0 + positionSmall;
       position.xyz -= 127.0;
-      //position.x += 20.0 * (index + 0.5) / 100.0;
+      //position.x += 20.0 * (rowIndex + 0.5) / 100.0;
       gl_Position = pMatrix * tMatrix * vec4(position.xyz, 1.0);
       vec4 orthoPosition = tMatrix * vec4(position.xyz, 1.0);
-      gl_PointSize = 150.0 / abs(orthoPosition.z);
-      lifeCountdown = position.w;
-      screenCoords = gl_Position.xy;
-      pointSize = gl_PointSize;
+      gl_PointSize = size / abs(orthoPosition.z);
+      if (opacityType == 0) lifeCountdown = position.w;
+      if (opacityType == 1) {
+        lifeCountdown = (pow(sin(2.0 * 3.1415926 * position.w / 256.0), 2.0) - 0.75) * 256.0;
+        lifeCountdown = lifeCountdown / abs(orthoPosition.z) * 8.0;
+      }
     }
     `
 
     this.particleDrawFragmentShaderText = `
     precision mediump float;
 
+    uniform vec3 color;
+
     varying float lifeCountdown;
-    varying vec2 screenCoords;
-    varying float pointSize;
 
     void main() {
-      vec2 canvasDimensions = vec2(${this.gl.canvas.width}.0, ${this.gl.canvas.height}.0);
-      vec2 weirdOffsets = vec2(8.0, 8.0);
-      vec2 screenPosition = (screenCoords + weirdOffsets) / (weirdOffsets * 2.0) * canvasDimensions;
-      float distFromCenter = screenPosition.x / canvasDimensions.x;//distance(screenPosition, gl_FragCoord.xy) / 10.0;
-      gl_FragColor = vec4(1.0, 0.0, 0.0, lifeCountdown / 256.0);
+      gl_FragColor = vec4(color, lifeCountdown / 256.0);
     }
     `
 
@@ -1744,7 +1777,7 @@ var webgl = {
 
     this.gl.clearColor(0, 0, 0, 1)
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.useFirstParticleFramebuffer ? this.particlesFramebuffer0 : this.particlesFramebuffer1)
-    this.gl.viewport(0, 0, this.settings.maxParticles * 2, 1)
+    this.gl.viewport(0, 0, this.settings.maxParticles * 2, this.settings.maxParticleRows)
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT)
 
     this.gl.disable(this.gl.BLEND)
@@ -1753,6 +1786,7 @@ var webgl = {
 
 
     this.gl.uniform1f(this.gl.getUniformLocation(this.particleMovementProgram, "vertexArrayLength"), this.settings.maxParticles * 2);
+    this.gl.uniform1f(this.gl.getUniformLocation(this.particleMovementProgram, "numRows"), this.settings.maxParticleRows);
     
     this.gl.uniform1f(this.gl.getUniformLocation(this.particleMovementProgram, "deltaTime"), deltaTime);
 
@@ -1785,6 +1819,7 @@ var webgl = {
     this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.particleDrawProgram, "pMatrix"), false, pMatrix);
     
     this.gl.uniform1f(this.gl.getUniformLocation(this.particleDrawProgram, "vertexArrayLength"), this.settings.maxParticles);
+    this.gl.uniform1f(this.gl.getUniformLocation(this.particleDrawProgram, "numRows"), this.settings.maxParticleRows);
 
     this.gl.activeTexture(this.gl.TEXTURE0)
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.useFirstParticleFramebuffer ? this.particlesTexture0 : this.particlesTexture1)
@@ -2195,37 +2230,45 @@ class Model {
 
 class ParticleEmitter {
   // premade array buffers
-  static arrayBuffer0 = new Float32Array(webgl.settings.maxParticles)
-  static arrayBuffer1 = new Float32Array(webgl.settings.maxParticles * 2)
-  static nextAvailableIndex = 0
+  static arrayBuffer0 = new Float32Array(webgl.settings.maxParticles * webgl.settings.maxParticleRows)
+  static arrayBuffer1 = new Float32Array(webgl.settings.maxParticles * 2 * webgl.settings.maxParticleRows)
+  static nextAvailableIndex = []
   static allEmitters = []
   static availableIndexes = []
 
-  constructor(position, type, angle, lifespan) {
+  constructor(position, row, options) {
     ParticleEmitter.allEmitters.push(this)
-    this.movementType = type
+    this.row = row
+    this.color = options.color || [1, 1, 1]
+    this.size = options.size || 100
+    this.movementType = options.type || 0
+    this.lifespan = options.lifespan || 1000
+    this.primeType = options.primeType || 0
+    this.opacityType = options.opacityType || 0
 
-    if (ParticleEmitter.availableIndexes.length > 0) {
-      this.startIndex = ParticleEmitter.availableIndexes[0] * 75
-      ParticleEmitter.availableIndexes.splice(0, 1)
+    if (ParticleEmitter.availableIndexes[this.row].length > 0) {
+      this.startIndex = ParticleEmitter.availableIndexes[this.row].splice(0, 1)[0] * Math.pow(2, this.row)
     }
     else {
-      this.startIndex = ParticleEmitter.nextAvailableIndex * 75
-      ParticleEmitter.nextAvailableIndex++
+      ParticleEmitter.nextAvailableIndex[this.row]++
+      this.startIndex = ParticleEmitter.nextAvailableIndex[this.row] * Math.pow(2, this.row)
     }
-    this.particleCount = 75
+    this.particleCount = Math.pow(2, this.row)
     this.functional = (this.startIndex + this.particleCount) <= webgl.settings.maxParticles
     
     this.position = position
     this.lastPosition = position
 
     this.unprimed = true
+    this.producing = true
   }
   updateParticles(gl, particleMovementProgram) {
     if (!this.functional) return
     // update particle positions (run particle movement shader for particles in this emitters domain)
     gl.uniform1f(gl.getUniformLocation(particleMovementProgram, "batchSize"), this.particleCount);
-    gl.uniform1i(gl.getUniformLocation(particleMovementProgram, "primeParticles"), this.unprimed ? 1 : 0);
+    gl.uniform1f(gl.getUniformLocation(particleMovementProgram, "lifespan"), this.lifespan);
+    gl.uniform1i(gl.getUniformLocation(particleMovementProgram, "primeParticles"), this.unprimed ? this.primeType : 0);
+    gl.uniform1i(gl.getUniformLocation(particleMovementProgram, "produceNewParticles"), this.producing ? 1 : 0);
     gl.uniform1i(gl.getUniformLocation(particleMovementProgram, "movementType"), this.movementType);
     let positionChange = []
     vec3.sub(positionChange, this.position, this.lastPosition)
@@ -2233,9 +2276,10 @@ class ParticleEmitter {
 
     gl.uniform3fv(gl.getUniformLocation(particleMovementProgram, "emitterPosition"), new Float32Array(this.position));
 
+
     gl.drawArrays(
       gl.DOTS, 
-      this.startIndex * 2, 
+      this.startIndex * 2 + (this.row * webgl.settings.maxParticles * 2), 
       this.particleCount * 2
     )
 
@@ -2244,22 +2288,37 @@ class ParticleEmitter {
   }
   drawParticles(gl, particleDrawProgram) {
     if (!this.functional) return
+    gl.uniform3fv(gl.getUniformLocation(particleDrawProgram, "color"), new Float32Array(this.color));
+    gl.uniform1f(gl.getUniformLocation(particleDrawProgram, "size"), this.size);
+    gl.uniform1i(gl.getUniformLocation(particleDrawProgram, "opacityType"), this.opacityType);
 
     gl.drawArrays(
       gl.DOTS, 
-      this.startIndex, 
+      this.startIndex + (this.row * webgl.settings.maxParticles), 
       this.particleCount
     )
   }
   remove() {
-    let index = ParticleEmitter.allEmitters.indexOf(this)
-    if (index != -1) ParticleEmitter.allEmitters.splice(index, 1)
+    this.producing = false
+    window.setTimeout(() => {
+        
+      let index = ParticleEmitter.allEmitters.indexOf(this)
+      if (index != -1) ParticleEmitter.allEmitters.splice(index, 1)
 
-    ParticleEmitter.availableIndexes.push(this.startIndex / 75)
+      if (!this.functional) return
+
+      ParticleEmitter.availableIndexes[this.row].push(this.startIndex / Math.pow(2, this.row))
+      ParticleEmitter.availableIndexes[this.row].sort((a, b) => {return b-a})
+      for (let i = ParticleEmitter.availableIndexes[this.row].length - 1; i >= 1; i--) {
+        if (ParticleEmitter.availableIndexes[this.row][i] == ParticleEmitter.availableIndexes[this.row][i-1]) ParticleEmitter.availableIndexes[this.row].splice(i, 1)
+      }
+    }, this.lifespan)
   }
 }
 for (let i = 0; i < ParticleEmitter.arrayBuffer0.length; i++) ParticleEmitter.arrayBuffer0[i] = i
 for (let i = 0; i < ParticleEmitter.arrayBuffer1.length; i++) ParticleEmitter.arrayBuffer1[i] = i
+for (let i = 0; i < webgl.settings.maxParticleRows; i++) ParticleEmitter.nextAvailableIndex.push(0)
+for (let i = 0; i < webgl.settings.maxParticleRows; i++) ParticleEmitter.availableIndexes.push([])
 
 
 
@@ -3052,13 +3111,16 @@ class Player extends PhysicalObject {
 
 class Weapon extends PhysicalObject {
   static gravity = 0.00001
-  constructor(geometryInfos, type, collidableObjects, owner) {
-    super(0, 0, 0, 0, 0, { center: [0, 0, 0], radius: .5 }, "sphere", collidableObjects)
+  constructor(geometryInfos, type, collidableObjects, owner, position) {
+    super(position.x, position.y, position.z, 0, 0, { center: [0, 0, 0], radius: .5 }, "sphere", collidableObjects)
+    this.position.pitch = position.pitch || 0
+    this.position.yaw = position.yaw || 0
+    this.position.roll = position.roll || 0
 
     this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
     this.shootSoundEffect.currentTime = 0.25
     
-    this.particleEmitter = new ParticleEmitter([0, 0, 0], 2, 0, 0)
+    this.particleEmitter = new ParticleEmitter([position.x, position.y, position.z], 7, {color: [1, 0, 0], size: 150, type: 2, lifespan: 1000, primeType: 1, opacityType: 0})
 
     this.particleSpawnCounter = 0
 
@@ -3111,6 +3173,8 @@ class Weapon extends PhysicalObject {
         this.cooldown = .15
         this.manaCost = 5
         this.damage = 10
+
+        this.particleEmitter.color = [.4, .5, 0]
 
         this.scale = .35//.925
         this.models.main = new Model(this, geometryInfos.olive, this.scale, this.texture, 0, 0, 0, 0.0)
@@ -3218,7 +3282,6 @@ class Weapon extends PhysicalObject {
     //console.log(rotateSpeed)
     if (this.class == "missile") this.position.roll += rotateSpeed
     this.lastPosition = { x: this.position.x, y: this.position.y, z: this.position.z, pitch: this.position.pitch, yaw: this.position.yaw, roll: this.position.roll }
-    this.particleEmitter.position = [this.position.x, this.position.y, this.position.z]
     if (!this.shooted) return
 
 
@@ -3228,6 +3291,7 @@ class Weapon extends PhysicalObject {
     this.position.y += this.velocity.y * deltaTime
     this.position.z += this.velocity.z * deltaTime
     
+    if (this.particleEmitter) this.particleEmitter.position = [this.position.x, this.position.y, this.position.z]
     this.particleSpawnCounter++
     if (webgl.settings.particles && this.particleSpawnCounter % 2 == 0 && this.shooted) for (let i = 0; i < 1; i++) new Particle(this.texture, this.position.x, this.position.y, this.position.z, { x: Math.random() - .5, y: Math.random() - .5, z: Math.random() - .5 }, 1500, [])
     
@@ -3240,7 +3304,7 @@ class Weapon extends PhysicalObject {
     super.remove()
     let ownerWeaponsIndex = this.owner.weapons.indexOf(this)
     if (ownerWeaponsIndex != -1) this.owner.weapons.splice(ownerWeaponsIndex, 1)
-    this.particleEmitter.remove()
+    if (this.particleEmitter) this.particleEmitter.remove()
   }
 
 
