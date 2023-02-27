@@ -1,8 +1,8 @@
 const path = require("path")
 
-const config = {
+module.exports = {
     mode: "development",
-    entry: "./src/index.js",
+    entry: "./src",
     target: "node",
     output: {
         path: path.resolve(__dirname, "dist"),
@@ -12,10 +12,8 @@ const config = {
         rules: [
             {
                 test: /\.node$/,
-                loader: "node-loader"
+                loader: "file-loader"
             }
         ]
     }
 }
-
-module.exports = config
