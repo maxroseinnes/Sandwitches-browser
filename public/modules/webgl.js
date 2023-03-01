@@ -1115,10 +1115,10 @@ var webgl = {
     void main() {
       float rowIndex = mod(index, vertexArrayLength);
       float row = (index - rowIndex) / vertexArrayLength;
-      texCoord = vec2((rowIndex + 0.5) / vertexArrayLength, row / numRows);
+      texCoord = vec2((rowIndex + 0.5) / vertexArrayLength, (row + 0.5) / numRows);
       vertexID = rowIndex;
       vVertexArrayLength = vertexArrayLength;
-      gl_Position = vec4(((rowIndex + 0.5) / vertexArrayLength) * 2.0 - 1.0, ((row + 0.5) / numRows) * 2.0 - 1.0, 0.0, 1.0);
+      gl_Position = vec4(((rowIndex + 0.5) / vertexArrayLength) * 2.0 - 1.0, ((row + 1.0) / numRows) * 2.0 - 1.0, 0.0, 1.0);
       gl_PointSize = 1.0;
     }
     `
@@ -1280,8 +1280,8 @@ var webgl = {
     void main() {
       float rowIndex = mod(index, vertexArrayLength);
       float row = (index - rowIndex) / vertexArrayLength;
-      vec4 positionBig = texture2D(particlePositions, vec2((rowIndex + 0.25) / vertexArrayLength, (row + 0.25) / numRows));
-      vec4 positionSmall = texture2D(particlePositions, vec2((rowIndex + 0.75) / vertexArrayLength, (row + 0.25) / numRows));
+      vec4 positionBig = texture2D(particlePositions, vec2((rowIndex + 0.25) / vertexArrayLength, (row + 0.5) / numRows));
+      vec4 positionSmall = texture2D(particlePositions, vec2((rowIndex + 0.75) / vertexArrayLength, (row + 0.5) / numRows));
       vec4 position = positionBig * 255.0 + positionSmall;
       position.xyz -= 127.0;
       //position.x += 20.0 * (rowIndex + 0.5) / 100.0;
