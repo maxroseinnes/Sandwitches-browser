@@ -817,7 +817,7 @@ socket.on("roomJoinSuccess", (roomId) => {
 // TESTING //
 
 platforms.push(new Platform(platformGeometry, "doorTest", -10, 3, -20, 1))
-
+/*
 new Model(platforms[0], {
     positions: [[0, 0, -10], [0, 20, -10], [0, 20, 10], [0, 0, 10]],
     normals: [[0, 1, 0]],
@@ -828,7 +828,7 @@ new Model(platforms[0], {
         {vertexes: [2, 3, 0], normals: [0, 0, 0], texcoords: [2, 3, 0]},
     ]
 }, 1, null, 0, 0, 0, true, false)
-
+*/
 var testEmitter = new ParticleEmitter([0, 0, 0], 11, {color: [1, 1, 0], size: 100, type: 3, lifespan: 10000, primeType: 2, opacityType: 1})
 
 

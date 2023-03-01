@@ -223,7 +223,7 @@ var webgl = {
 
     outlineResolution: 1024,
 
-    maxParticles: 800,
+    maxParticles: 8192,
     maxParticleRows: 13,
 
   },
@@ -1215,11 +1215,8 @@ var webgl = {
 
       newPosition.xyz += 127.0;
 
-
+      
       gl_FragColor = ((floor(newPosition) / 255.0) * (1.0 - bigOrSmall)) + ((newPosition - floor(newPosition)) * bigOrSmall);
-
-      gl_FragColor = vec4(newPosition.w, newPosition.w, newPosition.w, 1.0);
-
       
 
     }
@@ -1733,7 +1730,7 @@ var webgl = {
     this.gl.uniform3fv(this.gl.getUniformLocation(this.program, "uShadowDirection"), new Float32Array(shadowDirection))
 
     this.gl.activeTexture(this.gl.TEXTURE0)
-    this.gl.bindTexture(this.gl.TEXTURE_2D, this.useFirstParticleFramebuffer ? this.particlesTexture1 : this.particlesTexture0)
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.textureMap)//this.useFirstParticleFramebuffer ? this.particlesTexture1 : this.particlesTexture0)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uSampler"), 0)
 
     this.gl.activeTexture(this.gl.TEXTURE1)

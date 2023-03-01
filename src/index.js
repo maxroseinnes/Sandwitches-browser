@@ -1,7 +1,7 @@
-import { QMainWindow } from "@nodegui/nodegui";
-const window = new QMainWindow()
-window.setWindowTitle("Sandwitches Admin Console")
-window.show()
+//import { QMainWindow } from "@nodegui/nodegui";
+//const window = new QMainWindow()
+//window.setWindowTitle("Sandwitches Admin Console")
+//window.show()
 
 // "npm install" to install all dependencies (package.json)
 const express = require("express");
