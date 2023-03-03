@@ -1287,7 +1287,7 @@ var webgl = {
       gl_Position = pMatrix * tMatrix * vec4(position.xyz, 1.0);
       vec4 orthoPosition = tMatrix * vec4(position.xyz, 1.0);
       gl_PointSize = size / abs(orthoPosition.z);
-      if (opacityType == 0) lifeCountdown = position.w;
+      if (opacityType == 0) lifeCountdown = position.w - 64.0;
       if (opacityType == 1) {
         lifeCountdown = (pow(sin(2.0 * 3.1415926 * position.w / 256.0), 2.0) - 0.75) * 256.0;
         lifeCountdown = lifeCountdown / abs(orthoPosition.z) * 8.0;
@@ -2287,7 +2287,6 @@ class ParticleEmitter {
   }
   drawParticles(gl, particleDrawProgram) {
     if (!this.functional) return
-    console.log("running")
     gl.uniform3fv(gl.getUniformLocation(particleDrawProgram, "color"), new Float32Array(this.color));
     gl.uniform1f(gl.getUniformLocation(particleDrawProgram, "size"), this.size);
     gl.uniform1i(gl.getUniformLocation(particleDrawProgram, "opacityType"), this.opacityType);
