@@ -3141,7 +3141,7 @@ class Weapon extends PhysicalObject {
 
     this.chargeTime = 0 // seconds
 
-    this.burstCount = 1
+    this.projectileCount = 1
     this.burstInterval = .5 // time between shots of bursts, seconds
 
     this.scale = 1
@@ -3209,7 +3209,7 @@ class Weapon extends PhysicalObject {
         this.damage = 25
         this.speed = .01
 
-        this.scale = 1
+        this.scale = .675
         this.models.main = new Model(this, geometryInfos.anchovy, this.scale, this.texture, 0, 0, 0, 0.0)
         break
       case "pan":

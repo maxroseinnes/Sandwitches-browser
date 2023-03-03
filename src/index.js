@@ -99,7 +99,7 @@ const weaponSpecs = {
     manaCost: 20,
     damage: 10,
     chargeTime: 0, // milliseconds
-    burstCount: 1,
+    projectileCount: 1,
     burstInterval: .5 // time between shots of bursts, seconds
   },
   tomato: {
@@ -110,7 +110,7 @@ const weaponSpecs = {
     manaCost: 5,
     damage: 5,
     chargeTime: 250,
-    burstCount: 1,
+    projectileCount: 1,
     burstInterval: .5
   },
   olive: {
@@ -121,7 +121,7 @@ const weaponSpecs = {
     manaCost: 5,
     damage: 10,
     chargeTime: 0,
-    burstCount: 1,
+    projectileCount: 5,
     burstInterval: .5
   },
   pickle: {
@@ -132,7 +132,7 @@ const weaponSpecs = {
     manaCost: 5,
     damage: 5,
     chargeTime: 0,
-    burstCount: 1,
+    projectileCount: 1,
     burstInterval: .5
   },
   anchovy: {
@@ -143,7 +143,7 @@ const weaponSpecs = {
     manaCost: 20,
     damage: 25,
     chargeTime: 0,
-    burstCount: 1,
+    projectileCount: 1,
     burstInterval: .5
   },
   meatball: {
@@ -154,7 +154,7 @@ const weaponSpecs = {
     manaCost: 20,
     damage: 50,
     chargeTime: 0,
-    burstCount: 1,
+    projectileCount: 1,
     burstInterval: .5
   },
   asparagus: {
@@ -165,7 +165,7 @@ const weaponSpecs = {
     manaCost: 20,
     damage: 100,
     chargeTime: 1000,
-    burstCount: 1,
+    projectileCount: 5,
     burstInterval: .5
   },
 }
@@ -315,7 +315,7 @@ var maps = {
   testMap4: {
     floorTexture: "",
     platforms: [],
-    mapFile: "full_starting_map.obj"
+    mapFile: "full_starting_map (5).obj"
   }
 
 
@@ -616,39 +616,46 @@ class Room {
     player.lastShotTime = Date.now()
     player.lastShotType = data.type
     
-    let pitch = data.pitch
-    let yaw = data.yaw
-    if (weaponSpec.class == "projectile") pitch = -pitch + Math.PI / 16
-    else pitch = -pitch
-    if (pitch > Math.PI / 2) pitch = Math.PI / 2
-    yaw = -yaw
+    for (let i = 0; i < weaponSpec.projectileCount; i++) {
+      let pitch = data.pitch
+      let yaw = data.yaw + Math.PI / 4 * (i - (weaponSpec.projectileCount - 1) / 2) / weaponSpec.projectileCount
+      if (weaponSpec.class == "projectile") pitch = -pitch + Math.PI / 16
+      else pitch = -pitch
+      if (pitch > Math.PI / 2) pitch = Math.PI / 2
+      yaw = -yaw
 
-    let velocity = [0, 0, -weaponSpec.speed]
+      data.position.pitch = pitch
+      data.position.yaw = yaw
 
-    rotateX(velocity, velocity, [0, 0, 0], pitch)
-    rotateY(velocity, velocity, [0, 0, 0], yaw)
+      let velocity = [0, 0, -weaponSpec.speed]
+
+      rotateX(velocity, velocity, [0, 0, 0], pitch)
+      rotateY(velocity, velocity, [0, 0, 0], yaw)
+      
     
-  
-    this.weapons[nextWeaponId] = {
-      type: data.type,
-      damage: weaponSpec.damage,
-      class: weaponSpec.class,
-      radius: weaponSpec.radius,
-      ownerId: data.ownerId,
-      position: data.position,
-      velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
+      this.weapons[nextWeaponId] = {
+        type: data.type,
+        damage: weaponSpec.damage,
+        class: weaponSpec.class,
+        radius: weaponSpec.radius,
+        ownerId: data.ownerId,
+        position: data.position,
+        velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
+      }
+
+      this.broadcast("newWeapon", {
+        id: nextWeaponId,
+        type: data.type,
+        ownerId: data.ownerId,
+        cooldown: weaponSpec.cooldown,
+        position: data.position,
+        velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
+      }, null)
+
+      nextWeaponId++
+
     }
 
-    this.broadcast("newWeapon", {
-      id: nextWeaponId,
-      type: data.type,
-      ownerId: data.ownerId,
-      cooldown: weaponSpec.cooldown,
-      position: data.position,
-      velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
-    }, null)
-
-    nextWeaponId++
   }
 
 
@@ -877,6 +884,7 @@ const collisionUpdate = setInterval(() => {
       weapon.position.y += weapon.velocity.y * deltaTime
       weapon.position.z += weapon.velocity.z * deltaTime
       if (Math.abs(weapon.position.x) > 100 || Math.abs(weapon.position.z) > 100 || Math.abs(weapon.position.y) > 1000) {
+      if (weaponId == 1) console.log(weapon.position)
         room.broadcast("weaponHit", {weaponId: weaponId}, null)
         room.weapons[weaponId] = null
         continue
