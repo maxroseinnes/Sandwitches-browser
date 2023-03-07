@@ -1,8 +1,3 @@
-//import { QMainWindow } from "@nodegui/nodegui";
-//const window = new QMainWindow()
-//window.setWindowTitle("Sandwitches Admin Console")
-//window.show()
-
 // "npm install" to install all dependencies (package.json)
 const express = require("express");
 const app = express();
@@ -925,10 +920,15 @@ const collisionUpdate = setInterval(() => {
             
           }
         }
+
         for (let playerId in room.players) if (room.players[playerId] && room.players[playerId].health > 0 && playerId != weapon.ownerId) {
           let player = room.players[playerId]
           if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2 - player.state.crouchValue, mz: -.25, pz: .25}, player.position)) {
-            room.broadcast("weaponHit", {weaponId: weaponId}, null)
+            // broadcast weapon id and owner id for hitmarker
+            room.broadcast("weaponHit", {
+              weaponId: weaponId, 
+              ownerId: room.weapons[weaponId].ownerId }, null)
+
             hit = true
             let newHealth = player.health - weapon.damage
             player.health = newHealth

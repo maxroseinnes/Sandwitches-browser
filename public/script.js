@@ -152,6 +152,7 @@ const pauseNoise = new Audio("./assets/wet_wriggling_noises/smb_pause.wav")
 const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
 const headBumpNoise = new Audio("./assets/wet_wriggling_noises/head_bump.wav")
 const oofNoise = new Audio("./assets/wet_wriggling_noises/roblox_oof.mp3")
+const hitmarkerNoise = new Audio("./assets/wet_wriggling_noises/hitmarker.mp3")
 
 var setVolume = () => {
     backgroundNoises.volume = .5 * volume
@@ -180,11 +181,27 @@ var updateCrosshair = () => {
     let width = effectsCanvas.width
     let height = effectsCanvas.height
 
+    let crosshairColor =  "rgba(255, 255, 255, " + (aimState * 2 - 1) + ")"
+
+    // regular crosshair
+    ctx.fillStyle = crosshairColor
     ctx.clearRect(width / 2 - 11, height / 2 - 11, 22, 22)
     ctx.fillStyle = "rgba(255, 255, 255, " + (aimState * 2 - 1) + ")"
     ctx.fillRect(width / 2 - 10, height / 2 - 1, 20, 2)
     ctx.fillRect(width / 2 - 1, height / 2 - 10, 2, 20)
 
+    // draw hitmarker overlay
+    if (hitmarkerCrosshairTimer > 0) {
+        ctx.strokeStyle = crosshairColor
+        ctx.strokeWidth = 3
+        ctx.beginPath()
+        ctx.moveTo(width / 2 - 10, height / 2 + 10)
+        ctx.lineTo(width / 2 + 10, height / 2 - 10)
+        ctx.moveTo(width / 2 - 10, height / 2 - 10)
+        ctx.lineTo(width / 2 + 10, height / 2 + 10)
+        ctx.stroke()
+        //ctx.clearRect(width / 2 - 3, height / 2 - 3, 6, 6)
+    }
 }
 
 var weaponsContainer = document.getElementById("weaponsContainer")
@@ -633,10 +650,17 @@ socket.on("weaponStates", (data) => {
     }
 })
 
+var hitmarkerCrosshairTimer = 0 // milliseconds
+
 socket.on("weaponHit", (data) => {
     if (otherWeapons[data.weaponId]) {
         otherWeapons[data.weaponId].shooted = false
         otherWeapons[data.weaponId].remove()
+    }
+    console.log(player.id, data.ownerId)
+    if (player.id == data.ownerId) {
+        hitmarkerNoise.play()
+        hitmarkerCrosshairTimer = 1000
     }
 })
 
@@ -1062,6 +1086,12 @@ function fixedUpdate() {
     if (rightClicking) aimState = Math.min(1, aimState + .005 * deltaTime)
     else aimState = Math.max(0, aimState - .005 * deltaTime)
     updateCrosshair()
+    hitmarkerCrosshairTimer -= deltaTime
+    
+    if (hitmarkerCrosshairTimer < 0) {
+        hitmarkerCrosshairTimer = 0
+    }
+    console.log(hitmarkerCrosshairTimer)
 
 
     // normalize movement vector //
