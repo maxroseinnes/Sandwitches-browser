@@ -228,7 +228,7 @@ var changeWeaponSelection = (selection) => {
     player.inventory.currentWeapon.remove()
 
     player.inventory.currentWeapon = new Weapon(weaponGeometry, weaponSelectors[selection].value, [platforms, otherPlayers, [ground]], player, player.position)
-    player.inventory.currentWeapon.particleEmitter.remove()
+    if (player.inventory.currentWeapon.particleEmitter) player.inventory.currentWeapon.particleEmitter.remove()
     updateHUD()
 }
 
@@ -627,7 +627,7 @@ socket.on("weaponStates", (data) => {
         otherWeapons[id] = new Weapon(weaponGeometry, data.weaponData[id].type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId], data.weaponData[id].position)
         otherWeapons[id].velocity = data.weaponData[id].velocity
         otherWeapons[id].shooted = true
-        otherWeapons[id].shootSoundEffect.play()
+        //otherWeapons[id].shootSoundEffect.play()
         otherPlayers[data.ownerId].weapons.push(otherWeapons[id])
         otherPlayers[data.ownerId].cooldownTimer = otherPlayers[data.ownerId].currentCooldown
     }
@@ -647,20 +647,23 @@ socket.on("newPlayer", (newPlayer) => {
     addPlayerToHUD(newPlayer.id, newPlayer.name)
 })
 
-socket.on("newWeapon", (data) => {
-    let owner
-    if (data.ownerId == player.id) owner = player
-    else owner = otherPlayers[data.ownerId]
+socket.on("newWeapons", (data) => {
+    for (let i in data) {
+        let currentWeapon = data[i]
+        let owner
+        if (currentWeapon.ownerId == player.id) owner = player
+        else owner = otherPlayers[currentWeapon.ownerId]
 
-    otherWeapons[data.id] = new Weapon(weaponGeometry, data.type, [platforms, otherPlayers, [player], [ground]], owner, data.position)
-    otherWeapons[data.id].velocity = data.velocity
-    otherWeapons[data.id].shooted = true
-    otherWeapons[data.id].shootSoundEffect.play()
+        otherWeapons[currentWeapon.id] = new Weapon(weaponGeometry, currentWeapon.type, [platforms, otherPlayers, [player], [ground]], owner, currentWeapon.position)
+        otherWeapons[currentWeapon.id].velocity = currentWeapon.velocity
+        otherWeapons[currentWeapon.id].shooted = true
+        //otherWeapons[currentWeapon.id].shootSoundEffect.play()
 
-    owner.weapons.push(otherWeapons[data.id])
+        owner.weapons.push(otherWeapons[currentWeapon.id])
 
-    owner.currentCooldown = data.cooldown / 1000
-    owner.cooldownTimer = owner.currentCooldown
+        owner.currentCooldown = currentWeapon.cooldown / 1000
+        owner.cooldownTimer = owner.currentCooldown
+    }
 })
 
 socket.on("playerLeave", (id) => {
@@ -704,7 +707,7 @@ socket.on("playerUpdate", (playersData) => {
                 otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
                 if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
                 otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id], otherPlayers[id].position)
-                otherPlayers[id].inventory.currentWeapon.particleEmitter.remove()
+                if (otherPlayers[id].inventory.currentWeapon.particleEmitter) otherPlayers[id].inventory.currentWeapon.particleEmitter.remove()
             }
             otherPlayers[id].startChargeTime = playersData[id].startChargeTime
             otherPlayers[id].charging = playersData[id].charging
@@ -906,7 +909,7 @@ function update(now) {
             if (currentWeapon != null) {
                 otherPlayers[id].chargeValue = 0
                 if (currentWeapon.chargeTime > 0 && otherPlayers[id].charging) {
-                    otherPlayers[id].chargeValue = Math.sin((Math.min((Date.now() - otherPlayers[id].startChargeTime) / currentWeapon.chargeTime, 1)-.5)*2*Math.PI)
+                    otherPlayers[id].chargeValue = (-Math.cos((Math.min((Date.now() - otherPlayers[id].startChargeTime) / currentWeapon.chargeTime, 1))*Math.PI) + 1) * .25
                 }
                 if (otherPlayers[id].alive) currentWeapon.calculatePosition(deltaTime)
                 otherPlayers[id].updateCooldown(deltaTime)
@@ -1040,6 +1043,8 @@ function fixedUpdate() {
     if (leftClicking) {
         if (player.cooldownTimer <= 0) {
             let currentWeapon = player.inventory.currentWeapon
+            let projectileType = currentWeapon.type
+            if (currentWeapon.type == "pan") projectileType = "groundBeef"
             if (currentWeapon.chargeTime > 0) {
                 if (!player.charging) {
                     socket.emit("startedCharging", {})
@@ -1047,7 +1052,7 @@ function fixedUpdate() {
             }
             else socket.emit("newWeapon", {
                 ownerId: player.id,
-                type: currentWeapon.type,
+                type: projectileType,
                 position: currentWeapon.position,
                 pitch: lookAngleX,
                 yaw: lookAngleY
@@ -1699,9 +1704,11 @@ document.addEventListener("mouseup", function (event) {
         leftClicking = false
 
         let currentWeapon = player.inventory.currentWeapon
+        let projectileType = currentWeapon.type
+        if (currentWeapon.type == "pan") projectileType = "groundBeef"
         socket.emit("newWeapon", {
             ownerId: player.id,
-            type: currentWeapon.type,
+            type: projectileType,
             position: currentWeapon.position,
             pitch: lookAngleX,
             yaw: lookAngleY

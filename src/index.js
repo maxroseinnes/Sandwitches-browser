@@ -83,6 +83,7 @@ var weaponGeometry = {
   anchovy: {path: "weapons/newPeculiarAnchovy.obj"},
   meatball: {path: "weapons/swagball.obj"},
   asparagus: {path: "weapons/CoolAsparagus.obj"},
+  groundBeef: {path: "weapons/cube.obj"},
 }
 
 
@@ -143,7 +144,7 @@ const weaponSpecs = {
     manaCost: 20,
     damage: 25,
     chargeTime: 0,
-    projectileCount: 1,
+    projectileCount: 10,
     burstInterval: .5
   },
   meatball: {
@@ -166,6 +167,17 @@ const weaponSpecs = {
     damage: 100,
     chargeTime: 1000,
     projectileCount: 5,
+    burstInterval: .5
+  },
+  groundBeef: {
+    class: "projectile",
+    radius: .1,
+    cooldown: 1000,
+    speed: .075,
+    manaCost: 20,
+    damage: 10,
+    chargeTime: 0,
+    projectileCount: 10,
     burstInterval: .5
   },
 }
@@ -615,23 +627,39 @@ class Room {
     
     player.lastShotTime = Date.now()
     player.lastShotType = data.type
+
+    let newWeaponData = []
     
     for (let i = 0; i < weaponSpec.projectileCount; i++) {
       let pitch = data.pitch
-      let yaw = data.yaw + Math.PI / 4 * (i - (weaponSpec.projectileCount - 1) / 2) / weaponSpec.projectileCount
+      let yaw = data.yaw
+      if (weaponSpec.projectileCount > 1) {
+        let randAngle = (Math.random() - .5) * Math.PI * 4
+        let randRadius = Math.sqrt(Math.random()) * Math.PI / 32
+        pitch += Math.cos(randAngle) * randRadius
+        yaw += Math.sin(randAngle) * randRadius
+      }
       if (weaponSpec.class == "projectile") pitch = -pitch + Math.PI / 16
       else pitch = -pitch
       if (pitch > Math.PI / 2) pitch = Math.PI / 2
       yaw = -yaw
 
-      data.position.pitch = pitch
-      data.position.yaw = yaw
+      data.position.pitch = -pitch
+      data.position.yaw = -yaw
 
       let velocity = [0, 0, -weaponSpec.speed]
 
       rotateX(velocity, velocity, [0, 0, 0], pitch)
       rotateY(velocity, velocity, [0, 0, 0], yaw)
       
+      newWeaponData.push({
+        id: nextWeaponId,
+        type: data.type,
+        ownerId: data.ownerId,
+        cooldown: weaponSpec.cooldown,
+        position: data.position,
+        velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
+      })
     
       this.weapons[nextWeaponId] = {
         type: data.type,
@@ -639,23 +667,16 @@ class Room {
         class: weaponSpec.class,
         radius: weaponSpec.radius,
         ownerId: data.ownerId,
-        position: data.position,
+        position: {x: data.position.x, y: data.position.y, z: data.position.z, pitch: pitch, yaw: yaw, roll: 0, lean: 0},
         velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
       }
 
-      this.broadcast("newWeapon", {
-        id: nextWeaponId,
-        type: data.type,
-        ownerId: data.ownerId,
-        cooldown: weaponSpec.cooldown,
-        position: data.position,
-        velocity: {x: velocity[0], y: velocity[1], z: velocity[2]}
-      }, null)
+      
 
       nextWeaponId++
 
     }
-
+    this.broadcast("newWeapons", newWeaponData, null)
   }
 
 
@@ -880,47 +901,56 @@ const collisionUpdate = setInterval(() => {
       let weapon = room.weapons[weaponId]
       if (weapon.class == "projectile") weapon.velocity.y -= 0.00001 * deltaTime
 
-      weapon.position.x += weapon.velocity.x * deltaTime
-      weapon.position.y += weapon.velocity.y * deltaTime
-      weapon.position.z += weapon.velocity.z * deltaTime
-      if (Math.abs(weapon.position.x) > 100 || Math.abs(weapon.position.z) > 100 || Math.abs(weapon.position.y) > 1000) {
-      if (weaponId == 1) console.log(weapon.position)
-        room.broadcast("weaponHit", {weaponId: weaponId}, null)
-        room.weapons[weaponId] = null
-        continue
-      }
-      
-      // calculate collision with players
-      let hit = false
-      for (let j in room.platforms) {
-        let platform = room.platforms[j]
-        if (collision(weapon.radius, weapon.position, platform.dimensions, platform.position)) {
+      let velocityMagnitude = Math.hypot(weapon.velocity.x, weapon.velocity.y, weapon.velocity.z) * deltaTime
+      let intermediateSteps = 1//Math.ceil(velocityMagnitude / 1)
+
+      for (let step = 0; step < intermediateSteps; step++) {
+
+        weapon.position.x += weapon.velocity.x * deltaTime / intermediateSteps
+        weapon.position.y += weapon.velocity.y * deltaTime / intermediateSteps
+        weapon.position.z += weapon.velocity.z * deltaTime / intermediateSteps
+        if (Math.abs(weapon.position.x) > 100 || Math.abs(weapon.position.z) > 100 || Math.abs(weapon.position.y) > 1000) {
           room.broadcast("weaponHit", {weaponId: weaponId}, null)
-          hit = true
-          
+          room.weapons[weaponId] = null
+          continue
         }
-      }
-      for (let playerId in room.players) if (room.players[playerId] && room.players[playerId].health > 0 && playerId != weapon.ownerId) {
-        let player = room.players[playerId]
-        if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2 - player.state.crouchValue, mz: -.25, pz: .25}, player.position)) {
-          room.broadcast("weaponHit", {weaponId: weaponId}, null)
-          hit = true
-          let newHealth = player.health - weapon.damage
-          player.health = newHealth
-          if (newHealth > 0) {
-            //console.log("health: " + newHealth)
-          } else {
-            if (room.players[weapon.ownerId]) {
-              room.players[weapon.ownerId].killCount++
-              let deathMessage = player.name + " was killed by " + room.players[weapon.ownerId].name
-              room.broadcast("chatMessage", deathMessage, null)
-            }
-            player.socket.emit("youDied", {id: playerId, cause: "killed"})
+        
+        // calculate collision with players
+        let hit = false
+        for (let j in room.platforms) {
+          let platform = room.platforms[j]
+          if (collision(weapon.radius, weapon.position, platform.dimensions, platform.position)) {
+            room.broadcast("weaponHit", {weaponId: weaponId}, null)
+            hit = true
+            
           }
         }
+        for (let playerId in room.players) if (room.players[playerId] && room.players[playerId].health > 0 && playerId != weapon.ownerId) {
+          let player = room.players[playerId]
+          if (collision(weapon.radius, weapon.position, {radius: 2.5, mx: -1, px: 1, my: 0, py: 2 - player.state.crouchValue, mz: -.25, pz: .25}, player.position)) {
+            room.broadcast("weaponHit", {weaponId: weaponId}, null)
+            hit = true
+            let newHealth = player.health - weapon.damage
+            player.health = newHealth
+            if (newHealth > 0) {
+              //console.log("health: " + newHealth)
+            } else {
+              if (room.players[weapon.ownerId]) {
+                room.players[weapon.ownerId].killCount++
+                let deathMessage = player.name + " was killed by " + room.players[weapon.ownerId].name
+                room.broadcast("chatMessage", deathMessage, null)
+              }
+              player.socket.emit("youDied", {id: playerId, cause: "killed"})
+            }
+          }
+        }
+        if (hit) {
+          delete room.weapons[weaponId]
+          break
+        }
+        
       }
-      if (hit) delete room.weapons[weaponId]
-      
+
     }
   }
 

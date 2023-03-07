@@ -113,3 +113,12 @@ implementation:
 
     idea for outlining: save normals as two values: pitch and yaw, and save depth in other b and a values as 16 bits
 
+
+WEAPON TYPE/TRAIT IDEAS:
+    - for pan - all pan stuff runs client side, pan movement towards flinging correlates with chargeUp time, pan cooldown correlates with actual cooldown
+    - for sausage - have server shoot weapon perpindicular to player yaw which gets deleted after traveling x units (timer or other implementation)
+        - this means sausage wouldn't do anything when not swinging
+        - all sausage stuff is client side
+        - have "sausageCollider" as weaponType on server side
+        
+

@@ -515,6 +515,8 @@ var webgl = {
     uniform float uLean;
     uniform mat4 mMatrix;
     uniform mat4 mnMatrix;
+    uniform vec2 uTextureLocation;
+    uniform float uTextureMapWidth;
 
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
@@ -551,7 +553,7 @@ var webgl = {
       gl_Position = pMatrix * tMatrix * position;
 
   
-      vTextureCoord = aTexCoord;
+      vTextureCoord = (aTexCoord + uTextureLocation) / uTextureMapWidth;
       vNormal = normal;
       vPosition = position.xyz;
       ${this.settings.shadows ? `vProjectedCoord = shadowMatrix * position;` : ``}
@@ -1748,6 +1750,8 @@ var webgl = {
     this.gl.activeTexture(this.gl.TEXTURE4)
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.normalRenderMap)
     this.gl.uniform1i(this.gl.getUniformLocation(this.program, "uNormalRenderSampler"), 4)
+    
+    this.gl.uniform1f(this.gl.getUniformLocation(this.program, "uTextureMapWidth"), this.squareWidth)
 
     if (!this.settings.heaven) this.drawModels({
       mMatrix: this.gl.getUniformLocation(this.program, "mMatrix"),
@@ -1758,7 +1762,8 @@ var webgl = {
       scale: this.gl.getUniformLocation(this.program, "uScale"),
       offset: this.gl.getUniformLocation(this.program, "uOffset"),
       glossValue: this.gl.getUniformLocation(this.program, "uGlossValue"),
-      shadowable: this.gl.getUniformLocation(this.program, "uShadowable")
+      shadowable: this.gl.getUniformLocation(this.program, "uShadowable"),
+      textureLocation: this.gl.getUniformLocation(this.program, "uTextureLocation")
     }, {
       endWithTransparent: true
     })
@@ -1885,12 +1890,13 @@ var webgl = {
 
         if (locations.glossValue) this.gl.uniform1f(locations.glossValue, Model.allModels[i].texture.gloss)
         if (locations.shadowable) this.gl.uniform1f(locations.shadowable, Model.allModels[i].shadowable)
+        if (locations.textureLocation) this.gl.uniform2fv(locations.textureLocation, new Float32Array(Model.allModels[i].textureLocation))
 
 
         this.gl.drawArrays(
           this.gl.TRIANGLES, 
-          Model.allModels[i].pointIndices[0][0] + Model.allModels[i].indexOffset, 
-          Model.allModels[i].pointIndices.length * 3
+          Model.allModels[i].startIndex + Model.allModels[i].indexOffset, 
+          Model.allModels[i].indexCount * 3
         )
 
       }
@@ -1932,12 +1938,13 @@ var webgl = {
 
       if (locations.glossValue) this.gl.uniform1f(locations.glossValue, transparentModels[i].texture.gloss)
       if (locations.shadowable) this.gl.uniform1f(locations.shadowable, transparentModels[i].shadowable)
+      if (locations.textureLocation) this.gl.uniform2fv(locations.textureLocation, new Float32Array(transparentModels[i].textureLocation))
 
 
       this.gl.drawArrays(
         this.gl.TRIANGLES, 
-        transparentModels[i].pointIndices[0][0] + transparentModels[i].indexOffset, 
-        transparentModels[i].pointIndices.length * 3
+        transparentModels[i].startIndex + transparentModels[i].indexOffset, 
+        transparentModels[i].indexCount * 3
       )
 
     }
@@ -2022,13 +2029,12 @@ class Model {
 
     let squareWidth = webgl.squareWidth
 
-    let textureLocationY
-    let textureLocationX
+    this.textureLocation = [0, 0]
     
     if (texture == null) {
       squareWidth = 1
-      textureLocationX = 0
-      textureLocationY = 0
+      this.textureLocation[0] = 0
+      this.textureLocation[1] = 0
       this.texture = {
         gloss: 0
       }
@@ -2036,8 +2042,8 @@ class Model {
     else {
       this.texture = webgl.textures[texture]
 
-      textureLocationY = (squareWidth - 1) - (parseInt(this.texture.index / webgl.squareWidth, 10))
-      textureLocationX = (this.texture.index - (parseInt(this.texture.index / webgl.squareWidth, 10)) * webgl.squareWidth)
+      this.textureLocation[1] = (squareWidth - 1) - (parseInt(this.texture.index / webgl.squareWidth, 10))
+      this.textureLocation[0] = (this.texture.index - (parseInt(this.texture.index / webgl.squareWidth, 10)) * webgl.squareWidth)
 
 
     }
@@ -2054,38 +2060,21 @@ class Model {
 
     this.transparent = transparent || false
 
-    let positions = geometryInfo.positions
-    let normals = geometryInfo.normals
-    let texcoords = geometryInfo.texcoords
-    let smooth = geometryInfo.smooth
-    let indices = geometryInfo.indices
-
     this.geometryInfo = geometryInfo
-
-    // for each triangle: make three new points and a poly
 
     this.indexOffset = 0
 
-    this.pointIndices = []
+    this.startIndex = webgl.points.length / 3
+    this.indexCount = geometryInfo.premadePointCount / 3
 
-    for (let i = 0; i < this.geometryInfo.indices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
+    webgl.points = webgl.points.concat(geometryInfo.premadePoints)
+    webgl.pointNormals = webgl.pointNormals.concat(geometryInfo.premadeNormals)
+    webgl.texCoords = webgl.texCoords.concat(geometryInfo.premadeTexcoords)
 
-      let currentPointIndices = []
-      for (let j = 0; j < 3; j++) {
+    webgl.pointCount += geometryInfo.premadePointCount * 3
 
-        currentPointIndices.push(webgl.points.length / 3)
-
-        webgl.points.push(positions[indices[i].vertexes[j]][0], positions[indices[i].vertexes[j]][1], positions[indices[i].vertexes[j]][2])
-        webgl.pointNormals.push(normals[indices[i].normals[j]][0], normals[indices[i].normals[j]][1], normals[indices[i].normals[j]][2])
-        webgl.texCoords.push((texcoords[indices[i].texcoords[j]][0] + textureLocationX) / squareWidth, (texcoords[indices[i].texcoords[j]][1] + textureLocationY) / squareWidth)
-
-        webgl.pointCount++
-      }
-
-      this.pointIndices.push(currentPointIndices)
-    }
-
-
+    if (!geometryInfo.premadePoints) console.log(this)
+    //console.log(geometryInfo.premadePoints.length, geometryInfo.premadePointCount)
 
 
     //heheheheheh goblin mdode
@@ -2093,106 +2082,6 @@ class Model {
 
   }
 
-
-  setPosition(yaw, lean, pitch, roll, x, y, z, walkCycle, crouchValue, slideValue) {
-    // lean is used only for player models leaning
-
-
-
-    let geometryInfo = this.geometryInfo
-    let indices = geometryInfo.indices
-
-    let matrix = mat4.create()
-    mat4.translate(matrix, matrix, [x, y, z])
-    mat4.rotateY(matrix, matrix, -yaw || 0)
-    mat4.rotateX(matrix, matrix, -pitch || 0)
-    mat4.rotateZ(matrix, matrix, roll || 0)
-    //mat4.translate(matrix, matrix, [this.offsetX, this.offsetY, this.offsetZ])
-
-    // ** save walk in w slot? **
-
-    let normalMatrix = mat4.create()
-    mat4.rotateY(normalMatrix, normalMatrix, -yaw || 0)
-    mat4.rotateX(normalMatrix, normalMatrix, -pitch || 0)
-    mat4.rotateZ(normalMatrix, normalMatrix, roll || 0)
-
-    let modelX, modelY, modelZ, modelN1, modelN2, modelN3
-    let walkY, walkZ, wRotatedN3, wRotatedN2
-    let lRotatedZ, lRotatedY, walkN3, walkN2
-
-    for (let i = 0; i < this.pointIndices.length; i++) if (!isNaN(this.geometryInfo.indices[i].vertexes[0]) && !isNaN(this.geometryInfo.indices[i].vertexes[1]) && !isNaN(this.geometryInfo.indices[i].vertexes[2]) && !isNaN(this.geometryInfo.indices[i].normals[0]) && !isNaN(this.geometryInfo.indices[i].normals[1]) && !isNaN(this.geometryInfo.indices[i].normals[2]) && !isNaN(this.geometryInfo.indices[i].texcoords[0]) && !isNaN(this.geometryInfo.indices[i].texcoords[1])) {
-      for (let j = 0; j < this.pointIndices[i].length; j++) {
-
-        modelX = this.geometryInfo.positions[this.geometryInfo.indices[i].vertexes[j]][0] * this.scale + this.offsetX
-        modelY = this.geometryInfo.positions[this.geometryInfo.indices[i].vertexes[j]][1] * this.scale + this.offsetY
-        modelZ = this.geometryInfo.positions[this.geometryInfo.indices[i].vertexes[j]][2] * this.scale + this.offsetZ
-
-
-        modelN1 = this.geometryInfo.normals[this.geometryInfo.indices[i].normals[j]][0]
-        modelN2 = this.geometryInfo.normals[this.geometryInfo.indices[i].normals[j]][1]
-        modelN3 = this.geometryInfo.normals[this.geometryInfo.indices[i].normals[j]][2]
-
-        walkY = modelY
-        walkZ = modelZ
-        wRotatedN3 = modelN3
-        wRotatedN2 = modelN2
-
-        if (walkCycle || crouchValue) {
-          let walk = Math.sin(walkCycle) * (2 - modelY) * Math.sin(modelX * 2)
-          walkY = modelY * (1 - (crouchValue / 2)) + modelY * Math.sin(modelX * 2) * Math.sin(walkCycle) * .025
-          walkZ = modelZ + .2 * walk
-
-          wRotatedN3 = modelN3 * Math.cos(.2 * walk) - modelN2 * Math.sin(.2 * walk)
-          wRotatedN2 = modelN3 * Math.sin(.2 * walk) + modelN2 * Math.cos(.2 * walk)
-        }
-
-        lRotatedZ = walkZ
-        lRotatedY = walkY
-        walkN3 = wRotatedN3
-        walkN2 = wRotatedN2
-        
-        if (lean) {
-          lRotatedZ = walkZ * Math.cos(lean * modelY / 3) - walkY * Math.sin(lean * modelY / 3)
-          lRotatedY = walkZ * Math.sin(lean * modelY / 3) + walkY * Math.cos(lean * modelY / 3)
-
-          walkN3 = modelN3 * Math.cos(lean * modelY / 3) - modelN2 * Math.sin(lean * modelY / 3)
-          walkN2 = modelN3 * Math.sin(lean * modelY / 3) + modelN2 * Math.cos(lean * modelY / 3)
-        }
-
-        let transformedPosition = vec4.create()
-        vec4.transformMat4(transformedPosition, [
-          modelX,
-          lRotatedY,
-          lRotatedZ,
-          1
-        ], matrix)
-
-        webgl.points.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3,
-          transformedPosition[0],
-          transformedPosition[1],
-          transformedPosition[2]
-        )
-
-
-        let transformedNormal = vec4.create()
-        vec4.transformMat4(transformedNormal, [
-          modelN1,
-          walkN2,
-          walkN3,
-          1
-        ], normalMatrix)
-
-        webgl.pointNormals.splice((this.pointIndices[i][j] + this.indexOffset) * 3, 3,
-          transformedNormal[0],
-          transformedNormal[1],
-          transformedNormal[2]
-        )
-      }
-
-    }
-
-
-  }
 
   lerp(a, b, x) {
     return a + (b - a) * x
@@ -2206,11 +2095,11 @@ class Model {
       return
     }
 
-    let deletedPoints = this.pointIndices.length * 3
+    let deletedPoints = this.indexCount * 3
 
-    webgl.points.splice((this.pointIndices[0][0] + this.indexOffset) * 3, deletedPoints * 3)
-    webgl.pointNormals.splice((this.pointIndices[0][0] + this.indexOffset) * 3, deletedPoints * 3)
-    webgl.texCoords.splice((this.pointIndices[0][0] + this.indexOffset) * 2, deletedPoints * 2)
+    webgl.points.splice((this.startIndex + this.indexOffset) * 3, deletedPoints * 3)
+    webgl.pointNormals.splice((this.startIndex + this.indexOffset) * 3, deletedPoints * 3)
+    webgl.texCoords.splice((this.startIndex + this.indexOffset) * 2, deletedPoints * 2)
 
     webgl.pointCount -= deletedPoints
 
@@ -2220,7 +2109,7 @@ class Model {
     }
     Model.allModels.splice(Model.allModels.indexOf(this), 1)
 
-    this.pointIndices = []
+    this.indexCount = 0
   }
 
 }
@@ -2801,6 +2690,22 @@ class GamerTag {
       ]
     }
 
+    this.geometryInfo.premadePoints = []
+    this.geometryInfo.premadeNormals = []
+    this.geometryInfo.premadeTexcoords = []
+    this.geometryInfo.premadePointCount = 0
+
+    for (let i = 0; i < this.geometryInfo.indices.length; i++)  {
+      for (let j = 0; j < 3; j++) {
+          this.geometryInfo.premadePoints.push(this.geometryInfo.positions[this.geometryInfo.indices[i].vertexes[j]][0], this.geometryInfo.positions[this.geometryInfo.indices[i].vertexes[j]][1], this.geometryInfo.positions[this.geometryInfo.indices[i].vertexes[j]][2])
+          this.geometryInfo.premadeNormals.push(this.geometryInfo.normals[this.geometryInfo.indices[i].normals[j]][0], this.geometryInfo.normals[this.geometryInfo.indices[i].normals[j]][1], this.geometryInfo.normals[this.geometryInfo.indices[i].normals[j]][2])
+          this.geometryInfo.premadeTexcoords.push(this.geometryInfo.texcoords[this.geometryInfo.indices[i].texcoords[j]][0], this.geometryInfo.texcoords[this.geometryInfo.indices[i].texcoords[j]][1])
+
+          this.geometryInfo.premadePointCount++
+      }
+
+  }
+
     this.textureIndex = webgl.textureInfo.length
     webgl.textureInfo.length++
 
@@ -3116,11 +3021,9 @@ class Weapon extends PhysicalObject {
     this.position.yaw = position.yaw || 0
     this.position.roll = position.roll || 0
 
-    this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
-    this.shootSoundEffect.currentTime = 0.25
+    //this.shootSoundEffect = new Audio("./assets/wet_wriggling_noises/breeze-of-blood-122253.mp3")
+    //this.shootSoundEffect.currentTime = 0.25
     
-    this.particleEmitter = new ParticleEmitter([position.x, position.y, position.z], 7, {color: [1, 0, 0], size: 150, type: 2, lifespan: 1000, primeType: 1, opacityType: 0})
-
     this.particleSpawnCounter = 0
 
     this.geometryInfos = geometryInfos
@@ -3173,7 +3076,7 @@ class Weapon extends PhysicalObject {
         this.manaCost = 5
         this.damage = 10
 
-        this.particleEmitter.color = [.4, .5, 0]
+        this.particleEmitter = new ParticleEmitter([position.x, position.y, position.z], 6, {color: [.4, .5, 0], size: 150, type: 2, lifespan: 1000, primeType: 1, opacityType: 0})
 
         this.scale = .35//.925
         this.models.main = new Model(this, geometryInfos.olive, this.scale, this.texture, 0, 0, 0, 0.0)
@@ -3213,15 +3116,16 @@ class Weapon extends PhysicalObject {
         this.models.main = new Model(this, geometryInfos.anchovy, this.scale, this.texture, 0, 0, 0, 0.0)
         break
       case "pan":
-        this.class = "projectile"
+        this.class = "flinger"
         this.texture = "meat"
 
-        this.cooldown = .5
+        this.chargeTime = 0
+        this.cooldown = 1
         this.manaCost = 5
         this.damage = 5
 
-        this.scale = 5
-        this.models.main = new Model(this, geometryInfos.pan, this.scale, this.texture, 0, 0, 0, 0.0)
+        this.scale = .75
+        this.models.main = new Model(this, geometryInfos.pan, this.scale, this.texture, 0, 0, -.5, 0.0)
         break
       case "meatball":
         this.class = "projectile"
@@ -3245,11 +3149,24 @@ class Weapon extends PhysicalObject {
         this.chargeTime = 1000
         this.cooldown = .5
         this.manaCost = 5
-        this.damage = 5
 
         this.scale = 2
         this.models.main = new Model(this, geometryInfos.asparagus, this.scale, this.texture, 0, 0, 0, 0.0)
         break
+        case "groundBeef":
+          this.class = "projectile"
+          this.texture = "meat"
+  
+          this.dimensions.radius = .1
+  
+          this.cooldown = .5
+          this.manaCost = 5
+  
+          this.particleEmitter = new ParticleEmitter([position.x, position.y, position.z], 4, {color: [.3, .1, 0], size: 75, type: 2, lifespan: 1000, primeType: 1, opacityType: 0})
+
+          this.scale = .1
+          this.models.main = new Model(this, geometryInfos.groundBeef, this.scale, this.texture, 0, 0, 0, 0.0)
+          break
     }
 
 
@@ -3265,21 +3182,39 @@ class Weapon extends PhysicalObject {
 
   calculatePosition(deltaTime) {
 
-    let distanceFromPlayer = 1.75 * (Math.cos(Math.PI * ((this.owner.currentCooldown - this.owner.cooldownTimer) / this.owner.currentCooldown - 1)) + 1) / 2
     if (!this.shooted) {
+      let distanceFromPlayer = 1.75 * (Math.cos(Math.PI * ((this.owner.currentCooldown - this.owner.cooldownTimer) / this.owner.currentCooldown - 1)) + 1) / 2
+      let relativeYaw = 0
+      let pitch = 0
+      let relativeY = 1.5
+      if (this.class == "flinger") {
+        distanceFromPlayer = 1.75
+        if (this.owner.cooldownTimer == 0) pitch = -this.owner.position.lean + this.owner.chargeValue * -Math.PI
+        else pitch = -this.owner.position.lean + (1 - Math.cos(this.owner.cooldownTimer / this.cooldown * Math.PI / 2)) * -Math.PI / 2
+        relativeYaw = Math.PI
+        relativeY = 1
+      }
+      if (this.class == "projectile") {
+        relativeYaw = Date.now() / 1000
+      }
+      if (this.class == "missile") {
+        pitch = this.owner.position.lean
+      }
+      
       this.models.main.scale = this.scale * distanceFromPlayer / 1.75
 
       this.position.x = this.owner.position.x + Math.cos(this.owner.position.yaw) * distanceFromPlayer
-      this.position.y = this.owner.position.y + 1.5
+      this.position.y = this.owner.position.y + relativeY
       this.position.z = this.owner.position.z + Math.sin(this.owner.position.yaw) * distanceFromPlayer
 
-      this.position.yaw = this.owner.position.yaw + ((this.class == "projectile") ? Date.now() / 1000 : 0)
-      this.position.pitch = (this.class == "missile") ? this.owner.position.lean : 0
+      this.position.yaw = this.owner.position.yaw + relativeYaw
+      this.position.pitch = pitch
     }
     let rotateSpeed = ((!this.shooted ? this.owner.chargeValue : 1) / 2)
     //if (this.class == "projectile") this.position.yaw += (this.owner.lastPosition.yaw - this.owner.position.yaw)// + rotateSpeed
-    //console.log(rotateSpeed)
     if (this.class == "missile") this.position.roll += rotateSpeed
+
+
     this.lastPosition = { x: this.position.x, y: this.position.y, z: this.position.z, pitch: this.position.pitch, yaw: this.position.yaw, roll: this.position.roll }
     if (!this.shooted) return
 

@@ -189,6 +189,31 @@ var obj = {
         }
     }
 
+    for (let name in objects) {
+        objects[name].premadePoints = []
+        objects[name].premadeNormals = []
+        objects[name].premadeTexcoords = []
+        objects[name].premadePointCount = 0
+
+        let positions = objects[name].positions
+        let normals = objects[name].normals
+        let texcoords = objects[name].texcoords
+        let indices = objects[name].indices
+    
+        for (let i = 0; i < indices.length; i++) if (!isNaN(indices[i].vertexes[0]) && !isNaN(indices[i].vertexes[1]) && !isNaN(indices[i].vertexes[2]) && !isNaN(indices[i].normals[0]) && !isNaN(indices[i].normals[1]) && !isNaN(indices[i].normals[2]) && !isNaN(indices[i].texcoords[0]) && !isNaN(indices[i].texcoords[1])) {
+
+            for (let j = 0; j < 3; j++) {
+                objects[name].premadePoints.push(positions[indices[i].vertexes[j]][0], positions[indices[i].vertexes[j]][1], positions[indices[i].vertexes[j]][2])
+                objects[name].premadeNormals.push(normals[indices[i].normals[j]][0], normals[indices[i].normals[j]][1], normals[indices[i].normals[j]][2])
+                objects[name].premadeTexcoords.push(texcoords[indices[i].texcoords[j]][0], texcoords[indices[i].texcoords[j]][1])
+        
+                objects[name].premadePointCount++
+            }
+    
+        }
+
+    }
+
     if (seperateObjects) return objects
     else return Object.values(objects)[0]
 
