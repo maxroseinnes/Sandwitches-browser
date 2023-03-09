@@ -182,17 +182,13 @@ var updateCrosshair = () => {
     let height = effectsCanvas.height
 
     let crosshairColor =  "rgba(255, 255, 255, " + (aimState * 2 - 1) + ")"
+    let hitmarkerColor = "rgba(255, 255, 255)"
 
-    // regular crosshair
-    ctx.fillStyle = crosshairColor
     ctx.clearRect(width / 2 - 11, height / 2 - 11, 22, 22)
-    ctx.fillStyle = "rgba(255, 255, 255, " + (aimState * 2 - 1) + ")"
-    ctx.fillRect(width / 2 - 10, height / 2 - 1, 20, 2)
-    ctx.fillRect(width / 2 - 1, height / 2 - 10, 2, 20)
 
     // draw hitmarker overlay
     if (hitmarkerCrosshairTimer > 0) {
-        ctx.strokeStyle = crosshairColor
+        ctx.strokeStyle = hitmarkerColor
         ctx.strokeWidth = 3
         ctx.beginPath()
         ctx.moveTo(width / 2 - 10, height / 2 + 10)
@@ -200,8 +196,13 @@ var updateCrosshair = () => {
         ctx.moveTo(width / 2 - 10, height / 2 - 10)
         ctx.lineTo(width / 2 + 10, height / 2 + 10)
         ctx.stroke()
-        //ctx.clearRect(width / 2 - 3, height / 2 - 3, 6, 6)
+        ctx.clearRect(width / 2 - 5, height / 2 - 5, 10, 10)
     }
+
+    // regular crosshair
+    ctx.fillStyle = crosshairColor
+    ctx.fillRect(width / 2 - 10, height / 2 - 1, 20, 2)
+    ctx.fillRect(width / 2 - 1, height / 2 - 10, 2, 20)
 }
 
 var weaponsContainer = document.getElementById("weaponsContainer")
@@ -660,7 +661,7 @@ socket.on("weaponHit", (data) => {
     console.log(player.id, data.ownerId)
     if (player.id == data.ownerId) {
         hitmarkerNoise.play()
-        hitmarkerCrosshairTimer = 1000
+        hitmarkerCrosshairTimer = 200
     }
 })
 
