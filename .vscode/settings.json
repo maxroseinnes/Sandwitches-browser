@@ -1,4 +1,8 @@
 {
     "liveServer.settings.AdvanceCustomBrowserCmdLine": "",
-    "liveServer.settings.port": 5501
+    "liveServer.settings.port": 5501,
+    "files.associations": {
+        "filesystem": "cpp",
+        "iostream": "cpp"
+    }
 }
