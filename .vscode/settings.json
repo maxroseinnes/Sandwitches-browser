@@ -3,6 +3,16 @@
     "liveServer.settings.port": 5501,
     "files.associations": {
         "filesystem": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "*.ipp": "cpp",
+        "array": "cpp",
+        "exception": "cpp",
+        "iosfwd": "cpp",
+        "memory": "cpp",
+        "map": "cpp",
+        "unordered_set": "cpp",
+        "ostream": "cpp",
+        "functional": "cpp",
+        "vector": "cpp"
     }
 }

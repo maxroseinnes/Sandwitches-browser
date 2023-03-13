@@ -1,27 +1,21 @@
 
 #include <iostream>
+#include <fstream>
 #include <stdio.h>
 #include <math.h>
 #include <string>
 #include <sstream>
 #include <chrono>
 #include <map>
+#include <mutex>
+#include <unordered_set>
 
-//#include <websocketpp/config/core.hpp>
-//#include <websocketpp/config/asio_no_tls.hpp>
-//#include <websocketpp/server.hpp>
-
-#include "weaponInfo.hpp"
+#include "crow.h"
+#include "types.hpp"
 
 using namespace std;
 
-//typedef websocketpp::server<websocketpp::config::asio> server;
 
-//using websocketpp::lib::placeholders::_1;
-//using websocketpp::lib::placeholders::_2;
-//using websocketpp::lib::bind;
-
-//typedef server::message_ptr messsage_ptr;
 
 
 unsigned int nextId = 0;
@@ -29,59 +23,15 @@ unsigned int nextWeaponId = 0;
 
 const int TPS = 20;
 
-struct position {
-    float x = 0;
-    float y = 0;
-    float z = 0;
-    float pitch = 0;
-    float yaw = 0;
-    float roll = 0;
-    float lean = 0;
-};
-
-struct velocity {
-    float x = 0;
-    float y = 0;
-    float z = 0;
-};
-
-struct state {
-    float walkCycle = 0;
-    float crouchValue = 0;
-    float slideValue = 0;
-};
-
-struct player {
-    string name;
-    position position;
-    float health = 0;
-    int lastShotTime = 0;
-    string lastShotWeapon;
-    int startChargeTime = 0;
-    bool charging = false;
-    state state;
-    unsigned int killCount = 0;
-    // socket -- I'm not sure what type it is
-};
-
-struct weapon {
-    string type;
-    float damage;
-    weaponVariety variety;
-    float radius;
-    unsigned int ownerId;
-    position position;
-    velocity velocity;
-};
-
 class Room {
     private: 
+    
+    public: 
         string mapFile;
         map<unsigned int, player> players;
         map<unsigned int, weapon> weapons;
-    
-    public: 
 
+        Room() {}
         Room(string mapFileName) {
             mapFile = mapFileName;
 
@@ -92,13 +42,29 @@ class Room {
 
         }
 
-        void addPlayer(/*socket socket*/int socket, unsigned int assignedId) {
+        void addPlayer(websocket* socket) {
+            player newPlayer;
+            newPlayer.socket = socket;
+            players[nextId] = newPlayer;
+            nextId++;
 
+            map<string, string> testData;
+            testData["message"] = "hi";
+            newPlayer.socket->emit("sup", testData);
+            newPlayer.socket->on("answerMe", [](map<string, string> data) {
+                cout << "the key is: " << data["key"] << endl;
+            });
+
+            //map<string, string> testMap = {
+            //    {"key", "ehllldskjfl"}
+            //};
+            //newPlayer.socket.websocketCallbacks["answerMe"](testMap);
         }
 
         void respawnPlayer(unsigned int id) {
             //if (players.)
         }
+
 
         
 };
@@ -111,13 +77,69 @@ struct {
 } rooms;
 
 
-
 int main() {
     initWeaponSpecs();
 
     rooms.privateRooms[1] = Room("full_starting_map (5).obj");
 
-    printf("-\n-\n-\n-\nSTARTING SERVER\n");
+
+    printf("----------------------\nSTARTING SERVER\n");
+
+
+
+    crow::SimpleApp app;
+    mutex mtx;
+
+    crow::logger::setLogLevel(crow::LogLevel::WARNING);
+
+    CROW_WEBSOCKET_ROUTE(app, "/socket")
+    .onopen([&](crow::websocket::connection& connection) {
+        
+
+        cout << "new connection: " << &connection << endl;
+
+        lock_guard<mutex> _(mtx);
+
+        websocket newSocket(&connection);
+
+        rooms.privateRooms[1].addPlayer(&newSocket);
+        allSockets.add(&newSocket);
+
+        allSockets.sockets[0]->websocketCallbacks["answerMe"]({{"key", "test5"}});
+        cout << &allSockets.sockets[0]->websocketCallbacks << endl;
+        
+
+
+        
+    })
+    .onmessage([&](crow::websocket::connection& connection, const string& data, bool inBinary) {
+        cout << data << "from: " << &connection << endl;
+
+        lock_guard<mutex> _(mtx);
+        
+        cout << &allSockets.sockets[0]->websocketCallbacks << endl;
+        allSockets.sockets[0]->websocketCallbacks["answerMe"]({{"key", "test4"}});
+        allSockets.runCallback(&connection, data);
+
+        
+    })
+    .onclose([&](crow::websocket::connection& connection, const string& reason) {
+        cout << "connection closed: " << &connection << endl;
+        allSockets.removeByConnection(&connection);
+
+    });
+
+
+
+    CROW_ROUTE(app, "/<path>")([](string filename) {
+        return getFileText("public/" + filename);
+    });
+
+    app.port(8080).multithreaded().run();
+
+
+    
+
     
 }
 

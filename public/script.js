@@ -1,7 +1,7 @@
 
 //// ---- MAIN SCRIPT ---- ////
 console.log("starting script")
-import modelStuff from "./modules/model-data.js"
+/*import modelStuff from "./modules/model-data.js"
 
 var modelData = modelStuff.modelData
 var fetchObj = modelStuff.fetchObj
@@ -20,7 +20,7 @@ var Player = webglStuff.Player
 var Weapon = webglStuff.Weapon
 var Platform = webglStuff.Platform
 var Ground = webglStuff.Ground
-
+*/
 
 
 
@@ -70,7 +70,7 @@ var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
 var lobbyId
-var socket = io();
+var webSocket = new WebSocket("ws://localhost:8080/socket");
 var otherPlayers = {};
 var otherWeapons = {}
 var leaderboard = {}
@@ -377,444 +377,477 @@ var player
 
 // SERVER STUFF //
 
-var ticks = 0;
-function tick() {
-    ticks++;
-    if (player != null) {
-        socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, currentWeaponType: player.inventory.currentWeapon.type });
+var websocketCallbacks = {}
+
+var socket
+
+webSocket.onopen = () => {
+    socket = {
+        on: (event, callback) => {
+            websocketCallbacks[event] = callback
+        },
+        emit: (event, data) => {
+            data.type = event
+            webSocket.send(JSON.stringify(data))
+        }
     }
-    //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
-    lastTickTimes.splice(0, 0, currentTickTime)
-    currentTickTime = Date.now()
-}
 
-// Socket events //
-/*var time;
-var pingTests = [];
-socket.on("pingRequest", () => {
-    socket.emit("ping");
-    time = new Date().getTime();
-})
+    webSocket.onmessage = (msg) => {
+        let message = JSON.parse(msg.data)
+        console.log(message)
+        if (Object.keys(websocketCallbacks).includes(message.type)) {
+            websocketCallbacks[message.type](message.data)
+        }
+    }
 
-socket.on("ping", () => {
-    if (pingTests.length < 5) {
-        pingTests.push(new Date().getTime() - time);
-        time = new Date().getTime();
+    window.setTimeout(() => {
+        socket.emit("answerMe", {key: "yayyy"})
+        console.log("sent")
+    }, 1500)
+
+
+    var ticks = 0;
+    function tick() {
+        ticks++;
+        if (player != null) {
+            socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, currentWeaponType: player.inventory.currentWeapon.type });
+        }
+        //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
+        lastTickTimes.splice(0, 0, currentTickTime)
+        currentTickTime = Date.now()
+    }
+
+    // Socket events //
+    /*var time;
+    var pingTests = [];
+    socket.on("pingRequest", () => {
         socket.emit("ping");
-    } else {
-        var sum = 0
-        for (let i = 0; i < pingTests.length; i++) {
-            sum += pingTests[i];
-        }
-        socket.emit("pingTestComplete", sum / pingTests.length)
-    }
-})*/
+        time = new Date().getTime();
+    })
 
-var tickInterval
-socket.on("startTicking", (TPS) => {
-    tickInterval = setInterval(tick, 1000 / TPS);
-    ticksPerSecond = TPS
-})
-
-socket.on("stopTicking", () => {
-    clearInterval(tickInterval)
-})
-
-socket.on("assignPlayer", (playerInfo) => {
-    player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, otherPlayers, [ground]]);
-    startButton.disabled = false
-
-    document.getElementById("nameField").value = player.name
-
-    addPlayerToHUD(player.id, player.name)
-
-    player.inventory = {
-        currentSelection: 0,
-        currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player, player.position),
-    }
-    updateHUD()
-});
-
-socket.on("weaponGeometry", (data) => {
-    weaponGeometry = data
-    console.log(weaponGeometry)
-})
-
-function distanceFromAxisAligned(angle) {
-    let remainder = (angle % (Math.PI / 2)) / (Math.PI / 2)
-    return Math.abs(Math.round(remainder) - remainder) * (Math.PI / 2)
-}
-
-socket.on("map", (mapInfo) => {
-    for (let i = 0; i < mapInfo.platforms.length; i++) {
-        let platform = new Platform(platformGeometry,
-            mapInfo.platforms[i].type,
-            mapInfo.platforms[i].x,
-            mapInfo.platforms[i].y,
-            mapInfo.platforms[i].z,
-            mapInfo.platforms[i].scale
-        )
-        platforms.push(platform)
-    }
-
-    if (mapInfo.mapFile != undefined) {
-        let mapObj = fetchObj(mapInfo.mapFile)
-        let faceGeometry = obj.parseWavefront(mapObj, false, false)
-        let colliders = generatePlatforms(faceGeometry)
-        for (let i in colliders) {
-            let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
-            platform.dimensions = colliders[i].dimensions
-            platforms.push(platform)
-        }
-        for (let i in faceGeometry.indices) {
-            if (distanceFromAxisAligned(colliders[i].dimensions.pitch) + distanceFromAxisAligned(colliders[i].dimensions.roll) > .1) continue
-            let dimensions = [[Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY], [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY]]
-            for (let j in faceGeometry.indices[i].vertexes) {
-                let vertex = faceGeometry.indices[i].vertexes[j]
-                for (let k = 0; k < 3; k++) {
-                    if (faceGeometry.positions[vertex][k] < dimensions[0][k]) dimensions[0][k] = faceGeometry.positions[vertex][k]
-                    if (faceGeometry.positions[vertex][k] > dimensions[1][k]) dimensions[1][k] = faceGeometry.positions[vertex][k]
-                }
-            }
-            let allowed = false
-            for (let j = 0; j < 3; j++) if (Math.abs(dimensions[0][j] - dimensions[1][j]) < .1) allowed = true
-            if (!allowed) continue
-            let platform = new Platform(null, null, 0, 0, 0, 1)
-            platform.dimensions = {
-                mx: dimensions[0][0],
-                px: dimensions[1][0],
-                my: dimensions[0][1],
-                py: dimensions[1][1],
-                mz: dimensions[0][2],
-                pz: dimensions[1][2]
-            }
-            cameraColliders.push(platform)
-        }
-
-        let mapModelGeometry = obj.parseWavefront(mapObj, true, true)
-        for (let name in mapModelGeometry) {
-            let texture = "wood"
-            if (name.indexOf("Tree") != -1) texture = "tree"
-            if (name.indexOf("Plane") != -1) texture = "grass"
-            if (name.indexOf("Road") != -1) texture = "asphalt"
-            if (name.indexOf("Barn") != -1) texture = "barnWood"
-            if (name.indexOf("Fence") != -1) texture = "whiteWood"
-            if (name.indexOf("Building") != -1) texture = "houseWood"
-            if (name.indexOf("Cube") != -1) texture = "barnWood"
-            if (name.indexOf("Ladder") != -1) texture = "whiteWood"
-            if (name.indexOf("Loft") != -1) texture = "barnWood"
-            if (name.indexOf("BigBuilding") != -1) texture = "barnWood"
-            mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
-
-        }
-
-        console.log(mapModelGeometry)
-
-
-
-    }
-
-    if (mapInfo.floorTexture != "") {
-        ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, true))
-        let colliders = generatePlatforms(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, false))
-        for (let i in colliders) {
-            let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
-            platform.dimensions = colliders[i].dimensions
-            platforms.push(platform)
-        }
-    }
-
-})
-
-// receive necessary info about the other connected players upon joining
-socket.on("otherPlayers", (otherPlayersInfo) => {
-    for (let id in otherPlayersInfo) {
-        otherPlayers[id] = new Player(
-            playerGeometry,
-            otherPlayersInfo[id].position.x,
-            otherPlayersInfo[id].position.y,
-            otherPlayersInfo[id].position.z,
-            otherPlayersInfo[id].position.yaw,
-            otherPlayersInfo[id].position.lean,
-            otherPlayersInfo[id].health,
-            id,
-            otherPlayersInfo[id].name)
-
-        addPlayerToHUD(id, otherPlayersInfo[id].name)
-    }
-})
-
-
-
-socket.on("leaderboard", (leaderboardInfo) => {
-    var leaderboardList = document.getElementById("leaderboard")
-    leaderboardList.innerHTML = ""
-
-    //console.log(leaderboardInfo)
-    // Need to make the list order itself every time
-    /*for (let i = 0; i < leaderboardInfo.length; i++) {
-        let playerInfo = leaderboardInfo[i]
-        
-        if (otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) continue
-
-        console.log(otherPlayers[playerInfo.id]  ? true : false)
-        let name
-        if (playerInfo.id == player.id) {
-            name = player.name
-        } else if (!otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) {
-            continue
+    socket.on("ping", () => {
+        if (pingTests.length < 5) {
+            pingTests.push(new Date().getTime() - time);
+            time = new Date().getTime();
+            socket.emit("ping");
         } else {
-            console.log("test")
-            name = otherPlayers[playerInfo.id].name
-        }
-
-        changePlayerStringInHUD(playerInfo.id, name + ": " + playerInfo.killCount + " 💀")
-    }*/
-    for (let i = leaderboardInfo.length - 1; i >= 0; i--) {
-        let playerInfo = leaderboardInfo[i]
-        let listItem = document.createElement("li")
-        let name
-        //console.log(playerInfo.id == player.id)
-        if (playerInfo.id == player.id) {
-            name = player.name
-        } else if (otherPlayers[playerInfo.id] != null) {
-            name = otherPlayers[playerInfo.id].name
-        }
-
-        let skulls = ""
-        for (let i = 0; i < playerInfo.killCount; i++) {
-            skulls += "💀"
-        }
-        listItem.textContent = name + ": " + playerInfo.killCount + " kills " + skulls
-        leaderboardList.appendChild(listItem)
-    }
-})
-
-socket.on("weaponStatesRequest", (recipientId) => {
-    var weaponStates = {}
-    for (let id in player.weapons) {
-        if (player.weapons[id].shooted) {
-            console.log(player.weapons[id].position)
-            weaponStates[id] = {
-                position: {
-                    x: player.weapons[id].position.x,
-                    y: player.weapons[id].position.y,
-                    z: player.weapons[id].position.z,
-                    yaw: player.weapons[id].yaw,
-                    pitch: player.weapons[id].pitch
-                },
-                velocity: {
-                    x: player.weapons[id].velocity.x,
-                    y: player.weapons[id].velocity.y,
-                    z: player.weapons[id].velocity.z
-                }
+            var sum = 0
+            for (let i = 0; i < pingTests.length; i++) {
+                sum += pingTests[i];
             }
-
+            socket.emit("pingTestComplete", sum / pingTests.length)
         }
-    }
+    })*/
 
-    socket.emit("weaponStates", {
-        recipientId: recipientId, // so server doesn't forget who needs the weapon info
-        ownerId: player.id,
-        states: weaponStates
+
+    var tickInterval
+    socket.on("startTicking", (TPS) => {
+        tickInterval = setInterval(tick, 1000 / TPS);
+        ticksPerSecond = TPS
     })
-})
 
-socket.on("weaponStates", (data) => {
-    console.log("test")
-    for (let id in data.weaponData) {
+    socket.on("stopTicking", () => {
+        clearInterval(tickInterval)
+    })
+
+    socket.on("assignPlayer", (playerInfo) => {
+        player = new Player(playerGeometry, playerInfo.position.x, playerInfo.position.y, playerInfo.position.z, 0, 0, playerInfo.health, playerInfo.id, playerInfo.name, [platforms, otherPlayers, [ground]]);
+        startButton.disabled = false
+
+        document.getElementById("nameField").value = player.name
+
+        addPlayerToHUD(player.id, player.name)
+
+        player.inventory = {
+            currentSelection: 0,
+            currentWeapon: new Weapon(weaponGeometry, "anchovy", [platforms, otherPlayers, [ground]], player, player.position),
+        }
+        updateHUD()
+    });
+
+    socket.on("weaponGeometry", (data) => {
+        weaponGeometry = data
         console.log(weaponGeometry)
-        otherWeapons[id] = new Weapon(weaponGeometry, data.weaponData[id].type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId], data.weaponData[id].position)
-        otherWeapons[id].velocity = data.weaponData[id].velocity
-        otherWeapons[id].shooted = true
-        //otherWeapons[id].shootSoundEffect.play()
-        otherPlayers[data.ownerId].weapons.push(otherWeapons[id])
-        otherPlayers[data.ownerId].cooldownTimer = otherPlayers[data.ownerId].currentCooldown
+    })
+
+    function distanceFromAxisAligned(angle) {
+        let remainder = (angle % (Math.PI / 2)) / (Math.PI / 2)
+        return Math.abs(Math.round(remainder) - remainder) * (Math.PI / 2)
     }
-})
 
-socket.on("weaponHit", (data) => {
-    if (otherWeapons[data.weaponId]) {
-        otherWeapons[data.weaponId].shooted = false
-        otherWeapons[data.weaponId].remove()
-    }
-})
-
-socket.on("newPlayer", (newPlayer) => {
-    displayChatMessage(newPlayer.name + " spawned in at x: " + newPlayer.position.x + ", y: " + newPlayer.position.y + ", z: " + newPlayer.position.z);
-    otherPlayers[newPlayer.id] = new Player(playerGeometry, newPlayer.position.x, newPlayer.position.y, newPlayer.position.z, newPlayer.position.yaw, newPlayer.position.lean, newPlayer.health, newPlayer.id, newPlayer.name);
-    console.log(otherPlayers[newPlayer.id])
-    addPlayerToHUD(newPlayer.id, newPlayer.name)
-})
-
-socket.on("newWeapons", (data) => {
-    for (let i in data) {
-        let currentWeapon = data[i]
-        let owner
-        if (currentWeapon.ownerId == player.id) owner = player
-        else owner = otherPlayers[currentWeapon.ownerId]
-
-        otherWeapons[currentWeapon.id] = new Weapon(weaponGeometry, currentWeapon.type, [platforms, otherPlayers, [player], [ground]], owner, currentWeapon.position)
-        otherWeapons[currentWeapon.id].velocity = currentWeapon.velocity
-        otherWeapons[currentWeapon.id].shooted = true
-        //otherWeapons[currentWeapon.id].shootSoundEffect.play()
-
-        owner.weapons.push(otherWeapons[currentWeapon.id])
-
-        owner.currentCooldown = currentWeapon.cooldown / 1000
-        owner.cooldownTimer = owner.currentCooldown
-    }
-})
-
-socket.on("playerLeave", (id) => {
-    if (otherPlayers[id] == null) return
-    displayChatMessage(otherPlayers[id].name + " left")
-    otherPlayers[id].remove()
-    otherPlayers[id] = null
-    removePlayerFromHUD(id)
-})
-
-socket.on("playerUpdate", (playersData) => {
-
-    for (let id in playersData) {
-        // update player health and healthbar
-        if (player && id == player.id) {
-            player.startChargeTime = playersData[id].startChargeTime
-            player.charging = playersData[id].charging
-            if (playersData[id].health != player.health) {
-                player.health = playersData[id].health
-                document.getElementById("healthBar").style.width = playersData[id].health + "%"
-                document.getElementById("healthBar").style.backgroundColor = "rgb(" + (2.55 * (100 - player.health)) + ", " + (2.55 * player.health * .75) + ", 0)"
-            }
-            player.alive = playersData[id].health > 0
+    socket.on("map", (mapInfo) => {
+        for (let i = 0; i < mapInfo.platforms.length; i++) {
+            let platform = new Platform(platformGeometry,
+                mapInfo.platforms[i].type,
+                mapInfo.platforms[i].x,
+                mapInfo.platforms[i].y,
+                mapInfo.platforms[i].z,
+                mapInfo.platforms[i].scale
+            )
+            platforms.push(platform)
         }
 
-        if (otherPlayers[id] != null) {
-            otherPlayers[id].health = playersData[id].health
-            otherPlayers[id].alive = playersData[id].health > 0
-            if (!playersData[id].respawnedThisTick) {
-                otherPlayers[id].lastPosition = otherPlayers[id].serverPosition
-                otherPlayers[id].lastState = otherPlayers[id].serverState
+        if (mapInfo.mapFile != undefined) {
+            let mapObj = fetchObj(mapInfo.mapFile)
+            let faceGeometry = obj.parseWavefront(mapObj, false, false)
+            let colliders = generatePlatforms(faceGeometry)
+            for (let i in colliders) {
+                let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
+                platform.dimensions = colliders[i].dimensions
+                platforms.push(platform)
+            }
+            for (let i in faceGeometry.indices) {
+                if (distanceFromAxisAligned(colliders[i].dimensions.pitch) + distanceFromAxisAligned(colliders[i].dimensions.roll) > .1) continue
+                let dimensions = [[Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY], [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY]]
+                for (let j in faceGeometry.indices[i].vertexes) {
+                    let vertex = faceGeometry.indices[i].vertexes[j]
+                    for (let k = 0; k < 3; k++) {
+                        if (faceGeometry.positions[vertex][k] < dimensions[0][k]) dimensions[0][k] = faceGeometry.positions[vertex][k]
+                        if (faceGeometry.positions[vertex][k] > dimensions[1][k]) dimensions[1][k] = faceGeometry.positions[vertex][k]
+                    }
+                }
+                let allowed = false
+                for (let j = 0; j < 3; j++) if (Math.abs(dimensions[0][j] - dimensions[1][j]) < .1) allowed = true
+                if (!allowed) continue
+                let platform = new Platform(null, null, 0, 0, 0, 1)
+                platform.dimensions = {
+                    mx: dimensions[0][0],
+                    px: dimensions[1][0],
+                    my: dimensions[0][1],
+                    py: dimensions[1][1],
+                    mz: dimensions[0][2],
+                    pz: dimensions[1][2]
+                }
+                cameraColliders.push(platform)
+            }
+
+            let mapModelGeometry = obj.parseWavefront(mapObj, true, true)
+            for (let name in mapModelGeometry) {
+                let texture = "wood"
+                if (name.indexOf("Tree") != -1) texture = "tree"
+                if (name.indexOf("Plane") != -1) texture = "grass"
+                if (name.indexOf("Road") != -1) texture = "asphalt"
+                if (name.indexOf("Barn") != -1) texture = "barnWood"
+                if (name.indexOf("Fence") != -1) texture = "whiteWood"
+                if (name.indexOf("Building") != -1) texture = "houseWood"
+                if (name.indexOf("Cube") != -1) texture = "barnWood"
+                if (name.indexOf("Ladder") != -1) texture = "whiteWood"
+                if (name.indexOf("Loft") != -1) texture = "barnWood"
+                if (name.indexOf("BigBuilding") != -1) texture = "barnWood"
+                mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
+
+            }
+
+            console.log(mapModelGeometry)
+
+
+
+        }
+
+        if (mapInfo.floorTexture != "") {
+            ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, true))
+            let colliders = generatePlatforms(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, false))
+            for (let i in colliders) {
+                let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
+                platform.dimensions = colliders[i].dimensions
+                platforms.push(platform)
+            }
+        }
+
+    })
+
+    // receive necessary info about the other connected players upon joining
+    socket.on("otherPlayers", (otherPlayersInfo) => {
+        for (let id in otherPlayersInfo) {
+            otherPlayers[id] = new Player(
+                playerGeometry,
+                otherPlayersInfo[id].position.x,
+                otherPlayersInfo[id].position.y,
+                otherPlayersInfo[id].position.z,
+                otherPlayersInfo[id].position.yaw,
+                otherPlayersInfo[id].position.lean,
+                otherPlayersInfo[id].health,
+                id,
+                otherPlayersInfo[id].name)
+
+            addPlayerToHUD(id, otherPlayersInfo[id].name)
+        }
+    })
+
+
+
+    socket.on("leaderboard", (leaderboardInfo) => {
+        var leaderboardList = document.getElementById("leaderboard")
+        leaderboardList.innerHTML = ""
+
+        //console.log(leaderboardInfo)
+        // Need to make the list order itself every time
+        /*for (let i = 0; i < leaderboardInfo.length; i++) {
+            let playerInfo = leaderboardInfo[i]
+            
+            if (otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) continue
+
+            console.log(otherPlayers[playerInfo.id]  ? true : false)
+            let name
+            if (playerInfo.id == player.id) {
+                name = player.name
+            } else if (!otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) {
+                continue
             } else {
-                // if current player just respawned, set "last" variables to be equivalent to current
-                otherPlayers[id].lastPosition = playersData[id].position
-                otherPlayers[id].lastState = playersData[id].state
-                otherPlayers[id].clearSmoothing()
+                console.log("test")
+                name = otherPlayers[playerInfo.id].name
             }
-            for (let i in playersData[id].position) otherPlayers[id].serverPosition[i] = playersData[id].position[i]
-            for (let i in playersData[id].state) otherPlayers[id].serverState[i] = playersData[id].state[i]
-            if (otherPlayers[id].currentWeaponType != playersData[id].currentWeaponType && playersData[id].currentWeaponType != undefined) {
-                otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
-                if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
-                otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id], otherPlayers[id].position)
-                if (otherPlayers[id].inventory.currentWeapon.particleEmitter) otherPlayers[id].inventory.currentWeapon.particleEmitter.remove()
+
+            changePlayerStringInHUD(playerInfo.id, name + ": " + playerInfo.killCount + " 💀")
+        }*/
+        for (let i = leaderboardInfo.length - 1; i >= 0; i--) {
+            let playerInfo = leaderboardInfo[i]
+            let listItem = document.createElement("li")
+            let name
+            //console.log(playerInfo.id == player.id)
+            if (playerInfo.id == player.id) {
+                name = player.name
+            } else if (otherPlayers[playerInfo.id] != null) {
+                name = otherPlayers[playerInfo.id].name
             }
-            otherPlayers[id].startChargeTime = playersData[id].startChargeTime
-            otherPlayers[id].charging = playersData[id].charging
+
+            let skulls = ""
+            for (let i = 0; i < playerInfo.killCount; i++) {
+                skulls += "💀"
+            }
+            listItem.textContent = name + ": " + playerInfo.killCount + " kills " + skulls
+            leaderboardList.appendChild(listItem)
         }
+    })
+
+    socket.on("weaponStatesRequest", (recipientId) => {
+        var weaponStates = {}
+        for (let id in player.weapons) {
+            if (player.weapons[id].shooted) {
+                console.log(player.weapons[id].position)
+                weaponStates[id] = {
+                    position: {
+                        x: player.weapons[id].position.x,
+                        y: player.weapons[id].position.y,
+                        z: player.weapons[id].position.z,
+                        yaw: player.weapons[id].yaw,
+                        pitch: player.weapons[id].pitch
+                    },
+                    velocity: {
+                        x: player.weapons[id].velocity.x,
+                        y: player.weapons[id].velocity.y,
+                        z: player.weapons[id].velocity.z
+                    }
+                }
+
+            }
+        }
+
+        socket.emit("weaponStates", {
+            recipientId: recipientId, // so server doesn't forget who needs the weapon info
+            ownerId: player.id,
+            states: weaponStates
+        })
+    })
+
+    socket.on("weaponStates", (data) => {
+        console.log("test")
+        for (let id in data.weaponData) {
+            console.log(weaponGeometry)
+            otherWeapons[id] = new Weapon(weaponGeometry, data.weaponData[id].type, [platforms, otherPlayers, [player], [ground]], otherPlayers[data.ownerId], data.weaponData[id].position)
+            otherWeapons[id].velocity = data.weaponData[id].velocity
+            otherWeapons[id].shooted = true
+            //otherWeapons[id].shootSoundEffect.play()
+            otherPlayers[data.ownerId].weapons.push(otherWeapons[id])
+            otherPlayers[data.ownerId].cooldownTimer = otherPlayers[data.ownerId].currentCooldown
+        }
+    })
+
+    socket.on("weaponHit", (data) => {
+        if (otherWeapons[data.weaponId]) {
+            otherWeapons[data.weaponId].shooted = false
+            otherWeapons[data.weaponId].remove()
+        }
+    })
+
+    socket.on("newPlayer", (newPlayer) => {
+        displayChatMessage(newPlayer.name + " spawned in at x: " + newPlayer.position.x + ", y: " + newPlayer.position.y + ", z: " + newPlayer.position.z);
+        otherPlayers[newPlayer.id] = new Player(playerGeometry, newPlayer.position.x, newPlayer.position.y, newPlayer.position.z, newPlayer.position.yaw, newPlayer.position.lean, newPlayer.health, newPlayer.id, newPlayer.name);
+        console.log(otherPlayers[newPlayer.id])
+        addPlayerToHUD(newPlayer.id, newPlayer.name)
+    })
+
+    socket.on("newWeapons", (data) => {
+        for (let i in data) {
+            let currentWeapon = data[i]
+            let owner
+            if (currentWeapon.ownerId == player.id) owner = player
+            else owner = otherPlayers[currentWeapon.ownerId]
+
+            otherWeapons[currentWeapon.id] = new Weapon(weaponGeometry, currentWeapon.type, [platforms, otherPlayers, [player], [ground]], owner, currentWeapon.position)
+            otherWeapons[currentWeapon.id].velocity = currentWeapon.velocity
+            otherWeapons[currentWeapon.id].shooted = true
+            //otherWeapons[currentWeapon.id].shootSoundEffect.play()
+
+            owner.weapons.push(otherWeapons[currentWeapon.id])
+
+            owner.currentCooldown = currentWeapon.cooldown / 1000
+            owner.cooldownTimer = owner.currentCooldown
+        }
+    })
+
+    socket.on("playerLeave", (id) => {
+        if (otherPlayers[id] == null) return
+        displayChatMessage(otherPlayers[id].name + " left")
+        otherPlayers[id].remove()
+        otherPlayers[id] = null
+        removePlayerFromHUD(id)
+    })
+
+    socket.on("playerUpdate", (playersData) => {
+
+        for (let id in playersData) {
+            // update player health and healthbar
+            if (player && id == player.id) {
+                player.startChargeTime = playersData[id].startChargeTime
+                player.charging = playersData[id].charging
+                if (playersData[id].health != player.health) {
+                    player.health = playersData[id].health
+                    document.getElementById("healthBar").style.width = playersData[id].health + "%"
+                    document.getElementById("healthBar").style.backgroundColor = "rgb(" + (2.55 * (100 - player.health)) + ", " + (2.55 * player.health * .75) + ", 0)"
+                }
+                player.alive = playersData[id].health > 0
+            }
+
+            if (otherPlayers[id] != null) {
+                otherPlayers[id].health = playersData[id].health
+                otherPlayers[id].alive = playersData[id].health > 0
+                if (!playersData[id].respawnedThisTick) {
+                    otherPlayers[id].lastPosition = otherPlayers[id].serverPosition
+                    otherPlayers[id].lastState = otherPlayers[id].serverState
+                } else {
+                    // if current player just respawned, set "last" variables to be equivalent to current
+                    otherPlayers[id].lastPosition = playersData[id].position
+                    otherPlayers[id].lastState = playersData[id].state
+                    otherPlayers[id].clearSmoothing()
+                }
+                for (let i in playersData[id].position) otherPlayers[id].serverPosition[i] = playersData[id].position[i]
+                for (let i in playersData[id].state) otherPlayers[id].serverState[i] = playersData[id].state[i]
+                if (otherPlayers[id].currentWeaponType != playersData[id].currentWeaponType && playersData[id].currentWeaponType != undefined) {
+                    otherPlayers[id].currentWeaponType = playersData[id].currentWeaponType
+                    if (otherPlayers[id].inventory.currentWeapon != null) otherPlayers[id].inventory.currentWeapon.remove()
+                    otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id], otherPlayers[id].position)
+                    if (otherPlayers[id].inventory.currentWeapon.particleEmitter) otherPlayers[id].inventory.currentWeapon.particleEmitter.remove()
+                }
+                otherPlayers[id].startChargeTime = playersData[id].startChargeTime
+                otherPlayers[id].charging = playersData[id].charging
+            }
+        }
+    })
+
+    socket.on("chatMessage", (msg) => {
+        console.log(msg)
+
+        displayChatMessage(msg)
+    })
+
+    socket.on("nameChange", (data) => {
+        if (otherPlayers[data.id] == undefined) return
+        otherPlayers[data.id].name = data.newName
+        otherPlayers[data.id].gamerTag.changeName(data.newName)
+
+        changePlayerNameInHUD(data.id, data.newName)
+
+    })
+
+    socket.on("respawn", (data) => {
+        console.log("you respawn")
+        player.lastPosition = data.position
+        player.lastState = data.state
+        player.position = data.position
+        player.state = data.state
+        console.log(player)
+
+
+
+    })
+
+    socket.on("youDied", (data) => {
+        if (player && data.id == player.id) {
+            if (data.cause == "void") {
+                player.position.x = 0
+                player.position.y = 2
+                player.position.z = 0
+            }
+
+            startRespawnCountdown()
+            pauseGame()
+            document.exitPointerLock()
+
+        }
+    })
+
+    socket.on("playerRespawned", (data) => {
+        if (!otherPlayers[data.id]) return
+        otherPlayers[data.id].pastPositions = []
+        otherPlayers[data.id].pastStates = []
+    })
+
+    socket.on("tooManyPlayers", () => {
+        if (player) startButton.disabled = false
+        alert("Sorry, there are too many players connected.");
+    })
+
+    socket.on("roomCapReached", () => {
+        if (player) startButton.disabled = false
+        alert("Server has reached room limit. Cannot join room.")
+    })
+
+    function joinRoom(id) {
+        console.log("join room")
+        startButton.disabled = true
+        socket.emit("joinRoom", {
+            roomId: id,
+            playerId: (player != null) ? player.id : null
+        })
+
     }
-})
 
-socket.on("chatMessage", (msg) => {
-    console.log(msg)
-
-    displayChatMessage(msg)
-})
-
-socket.on("nameChange", (data) => {
-    if (otherPlayers[data.id] == undefined) return
-    otherPlayers[data.id].name = data.newName
-    otherPlayers[data.id].gamerTag.changeName(data.newName)
-
-    changePlayerNameInHUD(data.id, data.newName)
-
-})
-
-socket.on("respawn", (data) => {
-    console.log("you respawn")
-    player.lastPosition = data.position
-    player.lastState = data.state
-    player.position = data.position
-    player.state = data.state
-    console.log(player)
-
-
-
-})
-
-socket.on("youDied", (data) => {
-    if (player && data.id == player.id) {
-        if (data.cause == "void") {
-            player.position.x = 0
-            player.position.y = 2
-            player.position.z = 0
-        }
-
-        startRespawnCountdown()
+    // Receives this from the server when the player joins the room successfully
+    socket.on("roomJoinSuccess", (roomId) => {
         pauseGame()
-        document.exitPointerLock()
+        lobbyId = roomId
+        document.getElementById("title").textContent = "Room " + lobbyId
+        startButton.textContent = "Play"
 
-    }
-})
+        if (player != null) removePlayerFromHUD(player.id, player.name)
 
-socket.on("playerRespawned", (data) => {
-    if (!otherPlayers[data.id]) return
-    otherPlayers[data.id].pastPositions = []
-    otherPlayers[data.id].pastStates = []
-})
+        // delete all map geometry
+        for (let i in mapModels) mapModels[i].delete()
 
-socket.on("tooManyPlayers", () => {
-    if (player) startButton.disabled = false
-    alert("Sorry, there are too many players connected.");
-})
+        for (let i = 0; i < platforms.length; i++) {
+            platforms[i].remove()
+        }
+        platforms.splice(0, platforms.length)
+        cameraColliders.splice(0, cameraColliders.length)
+        if (player != undefined) {
+            player.remove()
+            player = undefined
+        }
 
-socket.on("roomCapReached", () => {
-    if (player) startButton.disabled = false
-    alert("Server has reached room limit. Cannot join room.")
-})
+        if (ground != null) {
+            ground.remove()
+            ground = null
+        }
 
-function joinRoom(id) {
-    console.log("join room")
-    startButton.disabled = true
-    socket.emit("joinRoom", {
-        roomId: id,
-        playerId: (player != null) ? player.id : null
+        for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
+
+        document.getElementById("title").textContent = "Room " + lobbyId
+        console.log(lobbyId)
     })
 
 }
 
-// Receives this from the server when the player joins the room successfully
-socket.on("roomJoinSuccess", (roomId) => {
-    pauseGame()
-    lobbyId = roomId
-    document.getElementById("title").textContent = "Room " + lobbyId
-    startButton.textContent = "Play"
-
-    if (player != null) removePlayerFromHUD(player.id, player.name)
-
-    // delete all map geometry
-    for (let i in mapModels) mapModels[i].delete()
-
-    for (let i = 0; i < platforms.length; i++) {
-        platforms[i].remove()
-    }
-    platforms.splice(0, platforms.length)
-    cameraColliders.splice(0, cameraColliders.length)
-    if (player != undefined) {
-        player.remove()
-        player = undefined
-    }
-
-    if (ground != null) {
-        ground.remove()
-        ground = null
-    }
-
-    for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
-
-    document.getElementById("title").textContent = "Room " + lobbyId
-    console.log(lobbyId)
-})
 
 
 // TESTING //

@@ -122,3 +122,5 @@ WEAPON TYPE/TRAIT IDEAS:
         - have "sausageCollider" as weaponType on server side
         
 
+COMPILE COMMAND: clang -lstdc++ -std=c++20 -I./ -lboost_system ./server.cpp
+
