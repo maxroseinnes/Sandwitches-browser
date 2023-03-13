@@ -68,6 +68,8 @@ var currentTickTime = Date.now()
 var lastTickTimes = []
 var averageClientTPS = ticksPerSecond
 
+const HITMARKER_FADE_TIME = 200
+
 // Multiplayer global variables //
 var lobbyId
 var socket = io();
@@ -182,7 +184,7 @@ var updateCrosshair = () => {
     let height = effectsCanvas.height
 
     let crosshairColor =  "rgba(255, 255, 255, " + (aimState * 2 - 1) + ")"
-    let hitmarkerColor = "rgba(255, 255, 255)"
+    let hitmarkerColor = "rgba(255, 255, 255, " + (hitmarkerCrosshairTimer / HITMARKER_FADE_TIME) + ")"
 
     ctx.clearRect(width / 2 - 11, height / 2 - 11, 22, 22)
 
@@ -659,9 +661,9 @@ socket.on("weaponHit", (data) => {
         otherWeapons[data.weaponId].remove()
     }
     console.log(player.id, data.ownerId)
-    if (player.id == data.ownerId) {
+    if (player.id == data.ownerId || true) {
         hitmarkerNoise.play()
-        hitmarkerCrosshairTimer = 200
+        hitmarkerCrosshairTimer = HITMARKER_FADE_TIME
     }
 })
 
@@ -1576,6 +1578,7 @@ document.getElementById("settingsButton").onclick = () => {
 
 var sensitivitySlider = document.getElementById("sensitivitySlider")
 sensitivitySlider.onchange = (calledManually = false) => {
+    console.log(calledManually)
     if (!calledManually) updateSaveSettingsButton()
     sensitivity = Math.PI / 4096 * Number(sensitivitySlider.value)
     console.log(sensitivity)
