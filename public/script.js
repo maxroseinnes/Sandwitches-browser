@@ -166,11 +166,16 @@ var setVolume = () => {
 
 setVolume()
 
-var volumeSlider = document.getElementById("volumeSlider")
-volumeSlider.onchange = () => {
-    if (localStorage.savedSettings == genSettingsJSON) document.getElementById("saveSettingsButton").disabled = true
+function volumeUpdate() {
     volume = volumeSlider.value / 100
     setVolume()
+}
+
+var volumeSlider = document.getElementById("volumeSlider")
+volumeSlider.onchange = () => {
+    console.log("test")
+    updateSaveSettingsButton()
+    updateVolume()
 }
 
 
@@ -1576,13 +1581,16 @@ document.getElementById("settingsButton").onclick = () => {
     else settingsDiv.style.display = ""
 }
 
-var sensitivitySlider = document.getElementById("sensitivitySlider")
-sensitivitySlider.onchange = (calledManually = false) => {
-    console.log(calledManually)
-    if (!calledManually) updateSaveSettingsButton()
+function sensitivityUpdate() { // update sensitivity variable from sensitivity slider, called from sensitivityslider onchange event (below) and manually after reading saved settings
     sensitivity = Math.PI / 4096 * Number(sensitivitySlider.value)
-    console.log(sensitivity)
 }
+var sensitivitySlider = document.getElementById("sensitivitySlider")
+sensitivitySlider.onchange = () => {
+    updateSaveSettingsButton() 
+    sensitivityUpdate()
+}
+
+
 
 var keyBindSelectors = document.getElementsByClassName("keyBindInput")
 for (let i = 0; i < keyBindSelectors.length; i++) {
@@ -1596,17 +1604,21 @@ for (let i = 0; i < keyBindSelectors.length; i++) {
 var settingsCheckboxes = document.getElementsByClassName("settingsCheckbox")
 var overallGraphicsSelector = document.getElementById("overallGraphics")
 
+function settingsCheckboxUpdate(id) {
+    webgl.settings[settingsCheckboxes[i].id] = settingsCheckboxes[i].checked
+    webgl.initializeShaders()
+    overallGraphicsSelector.value = "custom"
+}
+
 for (let i = 0; i < settingsCheckboxes.length; i++) {
     settingsCheckboxes[i].onchange = () => {
         updateSaveSettingsButton()
-        webgl.settings[settingsCheckboxes[i].id] = settingsCheckboxes[i].checked
-        webgl.initializeShaders()
-        overallGraphicsSelector.value = "custom"
+        settingsCheckboxUpdate()
     }
 }
 
-overallGraphicsSelector.onchange = (calledManually = false) => {
-    if (!calledManually) updateSaveSettingsButton()
+
+function updateOverallGraphics() {
     switch (overallGraphicsSelector.value) {
         case "low":
             webgl.settings.skybox = true
@@ -1633,11 +1645,17 @@ overallGraphicsSelector.onchange = (calledManually = false) => {
 
     for (let i = 0; i < settingsCheckboxes.length; i++) {
         for (let setting in webgl.settings) {
+            console.log(setting)
             if (settingsCheckboxes[i].id == setting) settingsCheckboxes[i].checked = webgl.settings[setting]
         }
     }
 
     webgl.initializeShaders()
+}
+
+overallGraphicsSelector.onchange = () => {
+    updateOverallGraphics()
+    updateSaveSettingsButton()
 }
 
 function genSettingsJSON() {
@@ -1666,13 +1684,14 @@ function genSettingsJSON() {
         }
     })
 }
-function updateSavedSettings() { 
+
+document.getElementById("saveSettingsButton").onclick = () => {
     localStorage.savedSettings = genSettingsJSON()
+    console.log(localStorage.savedSettings)
     document.getElementById("saveSettingsButton").disabled = true
 }
 
-document.getElementById("saveSettingsButton").onclick = () => updateSavedSettings()
-
+// disable or enable the save settings button based on whether any changes have been made
 function updateSaveSettingsButton() {
     document.getElementById("saveSettingsButton").disabled = localStorage.savedSettings == genSettingsJSON()
 }
@@ -1701,7 +1720,7 @@ function readSavedSettings() {
     document.getElementById("openChat").value = savedSettings.keyBinds.openChat
 
     // Graphics
-    document.getElementById("skybox").checked = savedSettings.graphics.skybox
+    document.getElementById("skybox").checked = false
     document.getElementById("specularLighting").checked = savedSettings.graphics.specularLighting
     document.getElementById("shadows").checked = savedSettings.graphics.shadows
     document.getElementById("particles").checked = savedSettings.graphics.particles
@@ -1710,18 +1729,17 @@ function readSavedSettings() {
     document.getElementById("overallGraphics").value = savedSettings.graphics.overall
 
     // Update game
-    sensitivitySlider.onchange(true)
-    volumeSlider.onchange(true)
-    overallGraphicsSelector.onchange(true)
+    sensitivityUpdate
+    volumeUpdate()
+    updateOverallGraphics()
     for (let settingsCheckbox in settingsCheckboxes) {
         webgl.settings[settingsCheckbox.id] = settingsCheckbox.checked
         webgl.initializeShaders()
     }
-    document.getElementById("saveSettingsButton").disabled = true
+    document.getElementById("saveSettingsButton").disabled = localStorage.savedSettings != null
 }
 
 readSavedSettings()
-
 
 document.addEventListener("mousedown", function (event) {
     if (running && event.which == 1 && menu.style.opacity == 0) {
