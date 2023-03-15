@@ -3432,4 +3432,4 @@ class Ground {
 
 
 
-//export default { webgl, Point, Model, ParticleEmitter, PhysicalObject, Particle, Player, Weapon, Platform, Ground }
+export default { webgl, Point, Model, ParticleEmitter, PhysicalObject, Particle, Player, Weapon, Platform, Ground }

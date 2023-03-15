@@ -9,6 +9,8 @@
 #include <map>
 #include <mutex>
 #include <unordered_set>
+#include <functional>
+#include <regex>
 
 #include "crow.h"
 #include "types.hpp"
@@ -28,8 +30,8 @@ class Room {
     
     public: 
         string mapFile;
-        map<unsigned int, player> players;
-        map<unsigned int, weapon> weapons;
+        map<unsigned int, player*> players;
+        map<unsigned int, weapon*> weapons;
 
         Room() {}
         Room(string mapFileName) {
@@ -39,26 +41,26 @@ class Room {
         }
 
         void broadcast(string message, string data, unsigned int except) {
-
+            for (auto nameValue = players.begin(); nameValue != players.end(); nameValue++) {
+            if (nameValue->first != except) {
+                
+            }
+            }
         }
 
         void addPlayer(websocket* socket) {
-            player newPlayer;
-            newPlayer.socket = socket;
-            players[nextId] = newPlayer;
+            player newPlayer(socket);
+            players[nextId] = &newPlayer;
             nextId++;
 
-            map<string, string> testData;
-            testData["message"] = "hi";
-            newPlayer.socket->emit("sup", testData);
-            newPlayer.socket->on("answerMe", [](map<string, string> data) {
-                cout << "the key is: " << data["key"] << endl;
+            // ------------ put socket callbacks here ------------ // 
+
+            newPlayer.socket->on("answerMe", [socket](map<string, string> data) {
+                cout << "I will answer: " << data["key"] << endl;
+
+                socket->emit("answer", {{"answer", data["key"]}});
             });
 
-            //map<string, string> testMap = {
-            //    {"key", "ehllldskjfl"}
-            //};
-            //newPlayer.socket.websocketCallbacks["answerMe"](testMap);
         }
 
         void respawnPlayer(unsigned int id) {
@@ -77,6 +79,11 @@ struct {
 } rooms;
 
 
+size_t getHash(crow::websocket::connection* connection) {
+    hash<crow::websocket::connection*> hasher;
+    return hasher(connection);
+}
+
 int main() {
     initWeaponSpecs();
 
@@ -84,6 +91,8 @@ int main() {
 
 
     printf("----------------------\nSTARTING SERVER\n");
+
+    map<size_t, websocket> websocketMap;
 
 
 
@@ -94,45 +103,70 @@ int main() {
 
     CROW_WEBSOCKET_ROUTE(app, "/socket")
     .onopen([&](crow::websocket::connection& connection) {
-        
+        lock_guard<mutex> lock(mtx);
 
         cout << "new connection: " << &connection << endl;
 
-        lock_guard<mutex> _(mtx);
+        websocket newSocket(connection);
 
-        websocket newSocket(&connection);
+        size_t hashValue = getHash(&connection);
+        websocketMap[hashValue] = newSocket;
+        websocket* currentSocket = &websocketMap[hashValue];
 
-        rooms.privateRooms[1].addPlayer(&newSocket);
-        allSockets.add(&newSocket);
+        
+        rooms.privateRooms[1].addPlayer(currentSocket);
 
-        allSockets.sockets[0]->websocketCallbacks["answerMe"]({{"key", "test5"}});
-        cout << &allSockets.sockets[0]->websocketCallbacks << endl;
+        currentSocket->on("joinRoom", [currentSocket](map<string, string> data) {
+            cout << "JOIN ROOM: " << data["roomId"] << endl;
+
+            currentSocket->emit("roomJoinSuccess", {{"roomId", "1"}});
+
+            rooms.privateRooms[1].addPlayer(currentSocket);
+            
+        });
         
 
 
         
     })
     .onmessage([&](crow::websocket::connection& connection, const string& data, bool inBinary) {
-        cout << data << "from: " << &connection << endl;
+        lock_guard<mutex> lock(mtx);
+        //cout << data << " from " << &connection << endl;
 
-        lock_guard<mutex> _(mtx);
-        
-        cout << &allSockets.sockets[0]->websocketCallbacks << endl;
-        allSockets.sockets[0]->websocketCallbacks["answerMe"]({{"key", "test4"}});
-        allSockets.runCallback(&connection, data);
+        size_t hashValue = getHash(&connection);
+        websocket* currentWebsocket = &websocketMap[hashValue];
+
+        map<string, string> mapData = JSONStringToMap(data);
+        try { currentWebsocket->websocketCallbacks[mapData["type"]](mapData); }
+        catch (exception exception) { cerr << "problem with socket.on " << mapData["type"] << ": " << exception.what() << endl; }
 
         
     })
     .onclose([&](crow::websocket::connection& connection, const string& reason) {
-        cout << "connection closed: " << &connection << endl;
-        allSockets.removeByConnection(&connection);
+        lock_guard<mutex> lock(mtx);
+        cout << "connection closed: " << &connection << " because " << reason << endl;
+        
+        //size_t hashValue = getHash(&connection);
+        //delete &websocketMap[hashValue];
 
     });
 
 
 
     CROW_ROUTE(app, "/<path>")([](string filename) {
-        return getFileText("public/" + filename);
+        //cout << "requesting " << filename << endl;
+
+        crow::response response;
+        
+        regex pattern(".js");
+        smatch match;
+        if (regex_search(filename, match, pattern)) {
+            response.set_header("Content-Type", "application/javascript");
+        }
+
+        response.body = getFileText("public/" + filename);
+
+        return response;
     });
 
     app.port(8080).multithreaded().run();

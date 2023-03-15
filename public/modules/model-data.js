@@ -446,4 +446,4 @@ var generatePlatforms = (geometryInfo) => {
 
 
 
-//export default { fetchObj, obj, generatePlatforms }
+export default { fetchObj, obj, generatePlatforms }

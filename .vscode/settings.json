@@ -13,6 +13,7 @@
         "unordered_set": "cpp",
         "ostream": "cpp",
         "functional": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "fstream": "cpp"
     }
 }

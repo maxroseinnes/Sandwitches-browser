@@ -1,7 +1,7 @@
 
 //// ---- MAIN SCRIPT ---- ////
 console.log("starting script")
-/*import modelStuff from "./modules/model-data.js"
+import modelStuff from "./modules/model-data.js"
 
 var modelData = modelStuff.modelData
 var fetchObj = modelStuff.fetchObj
@@ -20,7 +20,7 @@ var Player = webglStuff.Player
 var Weapon = webglStuff.Weapon
 var Platform = webglStuff.Platform
 var Ground = webglStuff.Ground
-*/
+
 
 
 
@@ -377,10 +377,21 @@ var player
 
 // SERVER STUFF //
 
+
 var websocketCallbacks = {}
 
 var socket
 
+function joinRoom(id) {
+    console.log("join room")
+    startButton.disabled = true
+    socket.emit("joinRoom", {
+        roomId: id,
+        playerId: (player != null) ? player.id : null
+    })
+
+}
+    
 webSocket.onopen = () => {
     socket = {
         on: (event, callback) => {
@@ -396,14 +407,14 @@ webSocket.onopen = () => {
         let message = JSON.parse(msg.data)
         console.log(message)
         if (Object.keys(websocketCallbacks).includes(message.type)) {
-            websocketCallbacks[message.type](message.data)
+            websocketCallbacks[message.type](message)
         }
     }
 
-    window.setTimeout(() => {
-        socket.emit("answerMe", {key: "yayyy"})
-        console.log("sent")
-    }, 1500)
+    socket.emit("answerMe", {key: "yayyy"})
+    console.log("sent")
+
+    socket.emit("hehehe", {key: "yayyy"})
 
 
     var ticks = 0;
@@ -441,9 +452,9 @@ webSocket.onopen = () => {
 
 
     var tickInterval
-    socket.on("startTicking", (TPS) => {
+    socket.on("startTicking", (data) => {
         tickInterval = setInterval(tick, 1000 / TPS);
-        ticksPerSecond = TPS
+        ticksPerSecond = Number(data.TPS)
     })
 
     socket.on("stopTicking", () => {
@@ -803,18 +814,9 @@ webSocket.onopen = () => {
         alert("Server has reached room limit. Cannot join room.")
     })
 
-    function joinRoom(id) {
-        console.log("join room")
-        startButton.disabled = true
-        socket.emit("joinRoom", {
-            roomId: id,
-            playerId: (player != null) ? player.id : null
-        })
-
-    }
-
     // Receives this from the server when the player joins the room successfully
-    socket.on("roomJoinSuccess", (roomId) => {
+    socket.on("roomJoinSuccess", (data) => {
+        let roomId = data.roomId
         pauseGame()
         lobbyId = roomId
         document.getElementById("title").textContent = "Room " + lobbyId
