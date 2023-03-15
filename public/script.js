@@ -659,13 +659,11 @@ socket.on("weaponStates", (data) => {
 })
 
 var hitmarkerCrosshairTimer = 0 // milliseconds
-
 socket.on("weaponHit", (data) => {
     if (otherWeapons[data.weaponId]) {
         otherWeapons[data.weaponId].shooted = false
         otherWeapons[data.weaponId].remove()
     }
-    console.log(player.id, data.ownerId)
     if (player.id == data.ownerId || true) {
         hitmarkerNoise.play()
         hitmarkerCrosshairTimer = HITMARKER_FADE_TIME
@@ -1095,12 +1093,7 @@ function fixedUpdate() {
     else aimState = Math.max(0, aimState - .005 * deltaTime)
     updateCrosshair()
     hitmarkerCrosshairTimer -= deltaTime
-    
-    if (hitmarkerCrosshairTimer < 0) {
-        hitmarkerCrosshairTimer = 0
-    }
-    console.log(hitmarkerCrosshairTimer)
-
+    if (hitmarkerCrosshairTimer < 0) hitmarkerCrosshairTimer = 0
 
     // normalize movement vector //
     let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2))
@@ -1604,21 +1597,20 @@ for (let i = 0; i < keyBindSelectors.length; i++) {
 var settingsCheckboxes = document.getElementsByClassName("settingsCheckbox")
 var overallGraphicsSelector = document.getElementById("overallGraphics")
 
-function settingsCheckboxUpdate(id) {
-    webgl.settings[settingsCheckboxes[i].id] = settingsCheckboxes[i].checked
+function graphicsUpdate(id) {
+    webgl.settings[id] = settingsCheckboxes[id].checked
     webgl.initializeShaders()
-    overallGraphicsSelector.value = "custom"
 }
 
 for (let i = 0; i < settingsCheckboxes.length; i++) {
     settingsCheckboxes[i].onchange = () => {
         updateSaveSettingsButton()
-        settingsCheckboxUpdate()
+        graphicsUpdate(settingsCheckboxes[i].id)
+        overallGraphicsSelector.value = "custom"
     }
 }
 
-
-function updateOverallGraphics() {
+overallGraphicsSelector.onchange = () => {
     switch (overallGraphicsSelector.value) {
         case "low":
             webgl.settings.skybox = true
@@ -1642,19 +1634,10 @@ function updateOverallGraphics() {
             webgl.settings.volumetricLighting = true
             break
     }
-
     for (let i = 0; i < settingsCheckboxes.length; i++) {
-        for (let setting in webgl.settings) {
-            console.log(setting)
-            if (settingsCheckboxes[i].id == setting) settingsCheckboxes[i].checked = webgl.settings[setting]
-        }
+        settingsCheckboxes[i].checked = webgl.settings[settingsCheckboxes[i].id]
     }
-
     webgl.initializeShaders()
-}
-
-overallGraphicsSelector.onchange = () => {
-    updateOverallGraphics()
     updateSaveSettingsButton()
 }
 
@@ -1720,7 +1703,7 @@ function readSavedSettings() {
     document.getElementById("openChat").value = savedSettings.keyBinds.openChat
 
     // Graphics
-    document.getElementById("skybox").checked = false
+    document.getElementById("skybox").checked = savedSettings.graphics.skybox
     document.getElementById("specularLighting").checked = savedSettings.graphics.specularLighting
     document.getElementById("shadows").checked = savedSettings.graphics.shadows
     document.getElementById("particles").checked = savedSettings.graphics.particles
@@ -1729,12 +1712,10 @@ function readSavedSettings() {
     document.getElementById("overallGraphics").value = savedSettings.graphics.overall
 
     // Update game
-    sensitivityUpdate
+    sensitivityUpdate()
     volumeUpdate()
-    updateOverallGraphics()
-    for (let settingsCheckbox in settingsCheckboxes) {
-        webgl.settings[settingsCheckbox.id] = settingsCheckbox.checked
-        webgl.initializeShaders()
+    for (let i = 0; i < settingsCheckboxes.length; i++) {
+        graphicsUpdate(settingsCheckboxes[i].id)
     }
     document.getElementById("saveSettingsButton").disabled = localStorage.savedSettings != null
 }
