@@ -48,18 +48,29 @@ class Room {
             }
         }
 
-        void addPlayer(websocket* socket) {
-            player newPlayer(socket);
+        void addPlayer(websocket* newSocket) {
+            player newPlayer(newSocket);
             players[nextId] = &newPlayer;
             nextId++;
 
+            websocket* socket = newPlayer.socket;
+
             // ------------ put socket callbacks here ------------ // 
 
-            newPlayer.socket->on("answerMe", [socket](map<string, string> data) {
+            socket->on("answerMe", [socket](map<string, string> data) {
                 cout << "I will answer: " << data["key"] << endl;
 
                 socket->emit("answer", {{"answer", data["key"]}});
             });
+
+            map<string, string> otherPlayersInfo;
+            for (auto player = players.begin(); player != players.end(); player++) {
+                player thisPlayer = *player->second;
+                map<string, string> thisPlayerInfo;
+                thisPlayerInfo["name"] = thisPlayer["name"];
+            }
+
+            socket->emit("otherPlayer", )
 
         }
 
