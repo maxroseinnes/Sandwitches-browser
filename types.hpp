@@ -1,9 +1,36 @@
 
 #include <string>
+#include <map>
+#include <vector>
+#include "utils.hpp"
+#include "crow.h"
 #include "weaponInfo.hpp"
-#include "websocket.hpp"
 
 using namespace std;
+
+
+class websocket {
+    public: 
+        crow::websocket::connection* webSocket;
+        map<string, function<void(map<string, string>)>> websocketCallbacks;
+        size_t hashValue;
+        websocket() {};
+        websocket(crow::websocket::connection& connection) : webSocket(&connection) {
+            //cout << "new websocket" << connection << endl;
+        };
+
+        void on(string event, function<void(map<string, string>)> callback) {
+            websocketCallbacks[event] = callback;
+        };
+
+        void emit(string event, map<string, string> data) {
+            data["type"] = event;
+
+            webSocket->send_text(mapToJSONString(data));
+        };
+
+};
+
 
 struct position {
     float x = 0;
@@ -32,6 +59,7 @@ class player {
         string name;
         position position;
         float health = 0;
+        string currentWeaponType;
         int lastShotTime = 0;
         string lastShotWeapon;
         int startChargeTime = 0;
@@ -52,5 +80,58 @@ struct weapon {
     position position;
     velocity velocity;
 };
+
+
+template<typename T>
+string toString(T value) {
+    ostringstream os;
+    os << value;
+    return os.str();
+}
+
+
+
+map<string, string> toMap(position object) {
+    map<string, string> map;
+    map["x"] = toString(object.x);
+    map["y"] = toString(object.y);
+    map["z"] = toString(object.z);
+    map["pitch"] = toString(object.pitch);
+    map["yaw"] = toString(object.yaw);
+    map["roll"] = toString(object.roll);
+    map["lean"] = toString(object.lean);
+    return map;
+}
+
+map<string, string> toMap(velocity object) {
+    map<string, string> map;
+    map["x"] = toString(object.x);
+    map["y"] = toString(object.y);
+    map["z"] = toString(object.z);
+    return map;
+}
+
+map<string, string> toMap(state object) {
+    map<string, string> map;
+    map["walkCycle"] = toString(object.walkCycle);
+    map["crouchValue"] = toString(object.crouchValue);
+    map["slideValue"] = toString(object.slideValue);
+    return map;
+}
+
+map<string, string> toMap(player object) {
+    map<string, string> map;
+    map["name"] = toString(object.name);
+    map["position"] = mapToJSONString(toMap(object.position));
+    map["health"] = toString(object.health);
+    map["currentWeaponType"] = toString(object.currentWeaponType);
+    map["lastShotTime"] = toString(object.lastShotTime);
+    map["lastShotWeapon"] = toString(object.lastShotWeapon);
+    map["startChargeTime"] = toString(object.startChargeTime);
+    map["charging"] = toString(object.charging);
+    map["state"] = mapToJSONString(toMap(object.state));
+    map["killCount"] = toString(object.killCount);
+    return map;
+}
 
 

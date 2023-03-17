@@ -3,8 +3,12 @@
 #include <string>
 #include <map>
 #include <fstream>
+#include <sstream>
+#include <type_traits>
+#include <iterator>
 
 using namespace std;
+
 
 
 string getFileText(string filepath) {
@@ -72,5 +76,4 @@ map<string, string> JSONStringToMap(string JSONString) {
 
     return map;
 }
-
 

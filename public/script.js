@@ -406,8 +406,10 @@ webSocket.onopen = () => {
     webSocket.onmessage = (msg) => {
         let message = JSON.parse(msg.data)
         console.log(message)
-        if (Object.keys(websocketCallbacks).includes(message.type)) {
-            websocketCallbacks[message.type](message)
+        let type = message.type
+        if (Object.keys(websocketCallbacks).includes(type)) {
+            delete message.type
+            websocketCallbacks[type](message)
         }
     }
 

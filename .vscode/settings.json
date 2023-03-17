@@ -14,6 +14,11 @@
         "ostream": "cpp",
         "functional": "cpp",
         "vector": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "regex": "cpp",
+        "utility": "cpp",
+        "sstream": "cpp",
+        "__tree": "cpp",
+        "string": "cpp"
     }
 }

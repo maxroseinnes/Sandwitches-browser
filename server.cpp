@@ -25,6 +25,11 @@ unsigned int nextWeaponId = 0;
 
 const int TPS = 20;
 
+size_t getHash(crow::websocket::connection* connection) {
+    hash<crow::websocket::connection*> hasher;
+    return hasher(connection);
+}
+
 class Room {
     private: 
     
@@ -40,17 +45,20 @@ class Room {
             // generate platforms
         }
 
-        void broadcast(string message, string data, unsigned int except) {
+        void broadcast(string event, map<string, string>* data, int except) {
             for (auto nameValue = players.begin(); nameValue != players.end(); nameValue++) {
-            if (nameValue->first != except) {
-                
-            }
+                if (nameValue->first != except) {
+                cout << nameValue->first << endl;
+                    //websocket socket = *nameValue->second->socket;
+                    //socket.emit(event, *data);
+                }
             }
         }
 
         void addPlayer(websocket* newSocket) {
             player newPlayer(newSocket);
             players[nextId] = &newPlayer;
+            unsigned int assignedId = nextId;
             nextId++;
 
             websocket* socket = newPlayer.socket;
@@ -62,20 +70,40 @@ class Room {
 
                 socket->emit("answer", {{"answer", data["key"]}});
             });
-
             map<string, string> otherPlayersInfo;
-            for (auto player = players.begin(); player != players.end(); player++) {
-                player thisPlayer = *player->second;
+            for (auto nv = players.begin(); nv != players.end(); nv++) {
+                player thisPlayer = *nv->second;
                 map<string, string> thisPlayerInfo;
-                thisPlayerInfo["name"] = thisPlayer["name"];
+                thisPlayerInfo["name"] = thisPlayer.name;
+                thisPlayerInfo["position"] = mapToJSONString(toMap(thisPlayer.position));
+                thisPlayerInfo["state"] = mapToJSONString(toMap(thisPlayer.state));
+                thisPlayerInfo["currentWeaponType"] = thisPlayer.currentWeaponType;
             }
 
-            socket->emit("otherPlayer", )
+            socket->emit("otherPlayers", otherPlayersInfo);
+/*
+*/
+
+            cout << "broadcasting" << endl;
+
+            map<string, string> testMap;
+            testMap["playerId"] = toString(assignedId);
+            broadcast("weaponStatesRequest", &testMap, -1);
+            //respawnPlayer(assignedId);
 
         }
 
         void respawnPlayer(unsigned int id) {
             //if (players.)
+        }
+
+        void removePlayerBySocket(size_t socketHash) {
+            for (auto nv = players.begin(); nv != players.end(); nv++) {
+                cout << "first: " << socketHash << " second: " << nv->second->socket->hashValue << endl;
+                if (socketHash == nv->second->socket->hashValue) {
+                    players.erase(nv->first);
+                }
+            }
         }
 
 
@@ -89,11 +117,6 @@ struct {
     map<int, Room> ffaRooms;
 } rooms;
 
-
-size_t getHash(crow::websocket::connection* connection) {
-    hash<crow::websocket::connection*> hasher;
-    return hasher(connection);
-}
 
 int main() {
     initWeaponSpecs();
@@ -121,6 +144,11 @@ int main() {
         websocket newSocket(connection);
 
         size_t hashValue = getHash(&connection);
+
+        cout << "hash: " << hashValue << endl;
+
+        newSocket.hashValue = hashValue;
+
         websocketMap[hashValue] = newSocket;
         websocket* currentSocket = &websocketMap[hashValue];
 
@@ -156,6 +184,11 @@ int main() {
     .onclose([&](crow::websocket::connection& connection, const string& reason) {
         lock_guard<mutex> lock(mtx);
         cout << "connection closed: " << &connection << " because " << reason << endl;
+
+        size_t hashValue = getHash(&connection);
+        websocket* currentWebsocket = &websocketMap[hashValue];
+
+        rooms.privateRooms[1].removePlayerBySocket(hashValue);
         
         //size_t hashValue = getHash(&connection);
         //delete &websocketMap[hashValue];
