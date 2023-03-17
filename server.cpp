@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <functional>
 #include <regex>
+#include <cstdlib>
 
 #include "crow.h"
 #include "types.hpp"
@@ -18,6 +19,9 @@
 using namespace std;
 
 
+
+const float DEFAULT_PLAYER_HEALTH = 100;
+const int ROOM_CAP = 10;
 
 
 unsigned int nextId = 0;
@@ -59,9 +63,28 @@ class Room {
             player newPlayer(newSocket);
             players[nextId] = &newPlayer;
             unsigned int assignedId = nextId;
+            unsigned int assignedId = nextId;
             nextId++;
 
             websocket* socket = newPlayer.socket;
+
+            // ------------ initial player communications ------------ // 
+
+            map<string, string> otherPlayersInfo;
+            for (auto player = players.begin(); player != players.end(); player++) {
+                player thisPlayer = *player->second;
+                otherPlayersInfo[toString(player->first)] = mapToJSONString(toMap(thisPlayer));
+            }
+
+            socket->emit("otherPlayers", otherPlayersInfo);
+
+            socket->emit("assignPlayer", toMap(newPlayer));
+
+            socket->emit("startTicking", {{"TPS", toString(TPS)}});
+
+            broadcast("newPlayer", toMap(newPlayer), assignedId);
+
+            
 
             // ------------ put socket callbacks here ------------ // 
 
@@ -94,7 +117,34 @@ class Room {
         }
 
         void respawnPlayer(unsigned int id) {
-            //if (players.)
+            broadcast("playerRespawned", {{"id", toString(id)}}, -1);
+            players[id]->position.x = rand() * 10.0 - 5.0;
+            players[id]->position.y = 2;
+            players[id]->position.z = rand() * 10.0 - 5.0;
+            players[id]->position.yaw = 0.0;
+            players[id]->position.pitch = 0.0;
+            players[id]->health = DEFAULT_PLAYER_HEALTH;
+            players[id]->socket->emit("respawn", genPlayerPacket(id));
+        }
+
+        map<string, string> genPlayerPacket(unsigned int id) {
+            return {
+                {"position", mapToJSONString(toMap(players[id]->position))},
+                {"state", mapJSONString(toMap(players[id]->state))},
+                {"health", toString(players[id]->health)},
+                {"currentWeaponType", toString(players[id]->currentWeaponType)},
+                {"charging", toString(players[id]->charging)},
+                {"health", toString(players[id]->health)}
+            };
+        }
+
+        void removePlayerBySocket(size_t socketHash) {
+            for (auto nv = players.begin(); nv != players.end(); nv++) {
+                cout << "first: " << socketHash << " second: " << nv->second->socket->hashValue << endl;
+                if (socketHash == nv->second->socket->hashValue) {
+                    players.erase(nv->first);
+                }
+            }
         }
 
         void removePlayerBySocket(size_t socketHash) {
