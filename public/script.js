@@ -660,11 +660,12 @@ socket.on("weaponStates", (data) => {
 
 var hitmarkerCrosshairTimer = 0 // milliseconds
 socket.on("weaponHit", (data) => {
+    damageOverlayTimer = DAMAGE_OVERLAY_LENGTH
     if (otherWeapons[data.weaponId]) {
         otherWeapons[data.weaponId].shooted = false
         otherWeapons[data.weaponId].remove()
     }
-    if (player.id == data.ownerId || true) {
+    if (player.id == data.ownerId) {
         hitmarkerNoise.play()
         hitmarkerCrosshairTimer = HITMARKER_FADE_TIME
     }
@@ -704,6 +705,8 @@ socket.on("playerLeave", (id) => {
     removePlayerFromHUD(id)
 })
 
+var damageOverlayTimer = 0
+const DAMAGE_OVERLAY_LENGTH = 1000
 socket.on("playerUpdate", (playersData) => {
 
     for (let id in playersData) {
@@ -712,9 +715,12 @@ socket.on("playerUpdate", (playersData) => {
             player.startChargeTime = playersData[id].startChargeTime
             player.charging = playersData[id].charging
             if (playersData[id].health != player.health) {
+                if (player.health - playersData[id].health > 0) damageOverlayTimer = DAMAGE_OVERLAY_LENGTH
                 player.health = playersData[id].health
                 document.getElementById("healthBar").style.width = playersData[id].health + "%"
                 document.getElementById("healthBar").style.backgroundColor = "rgb(" + (2.55 * (100 - player.health)) + ", " + (2.55 * player.health * .75) + ", 0)"
+                
+                
             }
             player.alive = playersData[id].health > 0
         }
@@ -1094,6 +1100,18 @@ function fixedUpdate() {
     updateCrosshair()
     hitmarkerCrosshairTimer -= deltaTime
     if (hitmarkerCrosshairTimer < 0) hitmarkerCrosshairTimer = 0
+
+    ctx.clearRect(0, 0, effectsCanvas.width, effectsCanvas.height)
+    for (let i = 0; i < 500; i++) {
+        ctx.fillStyle = "rgb(255, 0, 0, " + damageOverlayTimer / DAMAGE_OVERLAY_LENGTH * (500 - i) / 500 + ")"
+        ctx.fillRect(i, i, effectsCanvas.width - 2 * i, 1) // top
+        ctx.fillRect(i, effectsCanvas.height - i, effectsCanvas.width - 2 * i, 1) // bottom
+        ctx.fillRect(i, i, 1, effectsCanvas.height - 2 * i) // left
+        ctx.fillRect(effectsCanvas.width - i, i, 1, effectsCanvas.height - 2 * i) // right
+    }
+
+    damageOverlayTimer -= deltaTime
+    if (damageOverlayTimer < 0) damageOverlayTimer = 0
 
     // normalize movement vector //
     let hypotenuse = Math.sqrt(Math.pow(movementVector.x, 2) + Math.pow(movementVector.z, 2))
