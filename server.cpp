@@ -13,11 +13,14 @@
 #include <regex>
 #include <cstdlib>
 
+#define CROW_ENFORCE_WS_SPEC
+
 #include "crow.h"
 #include "types.hpp"
 
 using namespace std;
 
+mutex mtx;
 
 
 const float DEFAULT_PLAYER_HEALTH = 100;
@@ -60,9 +63,10 @@ class Room {
         }
 
         void addPlayer(websocket* newSocket) {
+            lock_guard<mutex> lock(mtx);
+
             player newPlayer(newSocket);
             players[nextId] = &newPlayer;
-            unsigned int assignedId = nextId;
             unsigned int assignedId = nextId;
             nextId++;
 
@@ -71,53 +75,43 @@ class Room {
             // ------------ initial player communications ------------ // 
 
             map<string, string> otherPlayersInfo;
-            for (auto player = players.begin(); player != players.end(); player++) {
-                player thisPlayer = *player->second;
-                otherPlayersInfo[toString(player->first)] = mapToJSONString(toMap(thisPlayer));
+            for (auto nameValue = players.begin(); nameValue != players.end(); nameValue++) {
+                player thisPlayer = *nameValue->second;
+                otherPlayersInfo[toString(nameValue->first)] = mapToJSONString(toMap(thisPlayer));
             }
 
-            socket->emit("otherPlayers", otherPlayersInfo);
+            //socket->emit("otherPlayers", otherPlayersInfo);
 
-            socket->emit("assignPlayer", toMap(newPlayer));
+            //socket->emit("assignPlayer", toMap(newPlayer));
 
-            socket->emit("startTicking", {{"TPS", toString(TPS)}});
+            //socket->emit("startTicking", {{"TPS", toString(TPS)}});
 
-            broadcast("newPlayer", toMap(newPlayer), assignedId);
+            //broadcast("newPlayer", &toMap(newPlayer), assignedId);
 
             
 
             // ------------ put socket callbacks here ------------ // 
 
+
+
             socket->on("answerMe", [socket](map<string, string> data) {
                 cout << "I will answer: " << data["key"] << endl;
 
-                socket->emit("answer", {{"answer", data["key"]}});
+                //socket->emit("answer", {{"answer", data["key"]}});
             });
-            map<string, string> otherPlayersInfo;
-            for (auto nv = players.begin(); nv != players.end(); nv++) {
-                player thisPlayer = *nv->second;
-                map<string, string> thisPlayerInfo;
-                thisPlayerInfo["name"] = thisPlayer.name;
-                thisPlayerInfo["position"] = mapToJSONString(toMap(thisPlayer.position));
-                thisPlayerInfo["state"] = mapToJSONString(toMap(thisPlayer.state));
-                thisPlayerInfo["currentWeaponType"] = thisPlayer.currentWeaponType;
-            }
 
-            socket->emit("otherPlayers", otherPlayersInfo);
-/*
-*/
 
             cout << "broadcasting" << endl;
 
-            map<string, string> testMap;
-            testMap["playerId"] = toString(assignedId);
-            broadcast("weaponStatesRequest", &testMap, -1);
+            //map<string, string> testMap;
+            //testMap["playerId"] = toString(assignedId);
+            //broadcast("weaponStatesRequest", &testMap, -1);
             //respawnPlayer(assignedId);
 
         }
 
         void respawnPlayer(unsigned int id) {
-            broadcast("playerRespawned", {{"id", toString(id)}}, -1);
+            //broadcast("playerRespawned", {{"id", toString(id)}}, -1);
             players[id]->position.x = rand() * 10.0 - 5.0;
             players[id]->position.y = 2;
             players[id]->position.z = rand() * 10.0 - 5.0;
@@ -130,21 +124,12 @@ class Room {
         map<string, string> genPlayerPacket(unsigned int id) {
             return {
                 {"position", mapToJSONString(toMap(players[id]->position))},
-                {"state", mapJSONString(toMap(players[id]->state))},
+                {"state", mapToJSONString(toMap(players[id]->state))},
                 {"health", toString(players[id]->health)},
                 {"currentWeaponType", toString(players[id]->currentWeaponType)},
                 {"charging", toString(players[id]->charging)},
                 {"health", toString(players[id]->health)}
             };
-        }
-
-        void removePlayerBySocket(size_t socketHash) {
-            for (auto nv = players.begin(); nv != players.end(); nv++) {
-                cout << "first: " << socketHash << " second: " << nv->second->socket->hashValue << endl;
-                if (socketHash == nv->second->socket->hashValue) {
-                    players.erase(nv->first);
-                }
-            }
         }
 
         void removePlayerBySocket(size_t socketHash) {
@@ -181,7 +166,6 @@ int main() {
 
 
     crow::SimpleApp app;
-    mutex mtx;
 
     crow::logger::setLogLevel(crow::LogLevel::WARNING);
 
@@ -204,7 +188,7 @@ int main() {
 
         
         rooms.privateRooms[1].addPlayer(currentSocket);
-
+/*
         currentSocket->on("joinRoom", [currentSocket](map<string, string> data) {
             cout << "JOIN ROOM: " << data["roomId"] << endl;
 
@@ -213,6 +197,7 @@ int main() {
             rooms.privateRooms[1].addPlayer(currentSocket);
             
         });
+*/
         
 
 
@@ -222,12 +207,12 @@ int main() {
         lock_guard<mutex> lock(mtx);
         //cout << data << " from " << &connection << endl;
 
-        size_t hashValue = getHash(&connection);
-        websocket* currentWebsocket = &websocketMap[hashValue];
+        //size_t hashValue = getHash(&connection);
+        //websocket* currentWebsocket = &websocketMap[hashValue];
 
-        map<string, string> mapData = JSONStringToMap(data);
-        try { currentWebsocket->websocketCallbacks[mapData["type"]](mapData); }
-        catch (exception exception) { cerr << "problem with socket.on " << mapData["type"] << ": " << exception.what() << endl; }
+        //map<string, string> mapData = JSONStringToMap(data);
+        //try { currentWebsocket->websocketCallbacks[mapData["type"]](mapData); }
+        //catch (exception exception) { cerr << "problem with socket.on " << mapData["type"] << ": " << exception.what() << endl; }
 
         
     })
@@ -235,10 +220,10 @@ int main() {
         lock_guard<mutex> lock(mtx);
         cout << "connection closed: " << &connection << " because " << reason << endl;
 
-        size_t hashValue = getHash(&connection);
-        websocket* currentWebsocket = &websocketMap[hashValue];
+        //size_t hashValue = getHash(&connection);
+        //websocket* currentWebsocket = &websocketMap[hashValue];
 
-        rooms.privateRooms[1].removePlayerBySocket(hashValue);
+        //rooms.privateRooms[1].removePlayerBySocket(hashValue);
         
         //size_t hashValue = getHash(&connection);
         //delete &websocketMap[hashValue];
