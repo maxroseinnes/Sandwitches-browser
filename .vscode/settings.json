@@ -1,0 +1,28 @@
+{
+    "files.associations": {
+        "map": "cpp",
+        "iostream": "cpp",
+        "ostream": "cpp",
+        "iosfwd": "cpp",
+        "vector": "cpp",
+        "utility": "cpp",
+        "string": "cpp",
+        "array": "cpp",
+        "regex": "cpp",
+        "__locale": "cpp",
+        "__string": "cpp",
+        "cstdlib": "cpp",
+        "memory_resource": "cpp",
+        "locale": "cpp",
+        "system_error": "cpp",
+        "typeindex": "cpp",
+        "typeinfo": "cpp",
+        "version": "cpp",
+        "*.ipp": "cpp",
+        "__mutex_base": "cpp",
+        "chrono": "cpp",
+        "algorithm": "cpp",
+        "random": "cpp",
+        "thread": "cpp"
+    }
+}

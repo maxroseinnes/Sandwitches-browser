@@ -2,7 +2,7 @@
 #include <string>
 #include <map>
 #include <vector>
-#include "utils.hpp"
+#include "model-geometry.hpp"
 #include "crow.h"
 #include "weaponInfo.hpp"
 
@@ -24,8 +24,7 @@ class websocket {
         };
 
         void emit(string event, map<string, string> data) {
-            data["type"] = event;
-
+            data["messageType"] = event;
             webSocket->send_text(mapToJSONString(data));
         };
 
@@ -69,12 +68,23 @@ class player {
         websocket* socket;
 
         player(websocket* s) : socket(s) {};
+        player() {};
+};
+
+struct weaponInfo {
+    string variety;
+    float radius;
+    int cooldown; // milliseconds
+    float speed;
+    float damage;
+    int chargeTime; // milliseconds
+    int projectileCount;
 };
 
 struct weapon {
     string type;
     float damage;
-    weaponVariety variety;
+    string variety;
     float radius;
     unsigned int ownerId;
     position position;
@@ -88,6 +98,15 @@ string toString(T value) {
     os << value;
     return os.str();
 }
+/*
+string toString(float values[3]) {
+    return "[" + toString(values[0]) + ", " + toString(values[1]) + ", " + toString(values[2]) + "]";
+}
+
+string toString(float values[2]) {
+    return "[" + toString(values[0]) + ", " + toString(values[1]) + "]";
+}
+*/
 
 
 
@@ -121,7 +140,7 @@ map<string, string> toMap(state object) {
 
 map<string, string> toMap(player object) {
     map<string, string> map;
-    map["name"] = toString(object.name);
+    map["name"] = object.name;
     map["position"] = mapToJSONString(toMap(object.position));
     map["health"] = toString(object.health);
     map["currentWeaponType"] = toString(object.currentWeaponType);
@@ -132,6 +151,88 @@ map<string, string> toMap(player object) {
     map["state"] = mapToJSONString(toMap(object.state));
     map["killCount"] = toString(object.killCount);
     return map;
+}
+
+map<string, string> toMap(modelGeometry object) {
+    map<string, string> geometryMap;
+    vector<string> positionsAsStrings;
+    for (int i = 0; i < object.positions.size(); i++) {
+        string array[3] = {toString(object.positions[i][0]), toString(object.positions[i][1]), toString(object.positions[i][2])};
+        vector<string> vecPosition(array, array+3);
+        positionsAsStrings.push_back(vectorToJSONString(vecPosition));
+    }
+    geometryMap["positions"] = vectorToJSONString(positionsAsStrings);
+
+    vector<string> normalsAsStrings;
+    for (int i = 0; i < object.normals.size(); i++) {
+        string array[3] = {toString(object.normals[i][0]), toString(object.normals[i][1]), toString(object.normals[i][2])};
+        vector<string> vecNormal(array, array+3);
+        normalsAsStrings.push_back(vectorToJSONString(vecNormal));
+    }
+    geometryMap["normals"] = vectorToJSONString(normalsAsStrings);
+
+    vector<string> texcoordsAsStrings;
+    for (int i = 0; i < object.texcoords.size(); i++) {
+        string array[3] = {toString(object.texcoords[i][0]), toString(object.texcoords[i][1]), toString(object.texcoords[i][2])};
+        vector<string> vecTexcoord(array, array+3);
+        texcoordsAsStrings.push_back(vectorToJSONString(vecTexcoord));
+    }
+    geometryMap["texcoords"] = vectorToJSONString(texcoordsAsStrings);
+
+    geometryMap["smooth"] = toString(object.smooth);
+
+    vector<string> indicesAsStrings;
+    for (int i = 0; i < object.indices.size(); i++) {
+        faceIndices currentIndices = object.indices[i];
+
+        map<string, string> mapOfCurrentIndices;
+
+        vector<string> vertexStrings;
+        for (int j = 0; j < currentIndices.vertices.size(); j++) vertexStrings.push_back(toString(currentIndices.vertices[j]));
+        mapOfCurrentIndices["vertexes"] = vectorToJSONString(vertexStrings);
+        
+        vector<string> normalStrings;
+        for (int j = 0; j < currentIndices.normals.size(); j++) normalStrings.push_back(toString(currentIndices.normals[j]));
+        mapOfCurrentIndices["normals"] = vectorToJSONString(normalStrings);
+        
+        vector<string> texcoordStrings;
+        for (int j = 0; j < currentIndices.texcoords.size(); j++) texcoordStrings.push_back(toString(currentIndices.texcoords[j]));
+        mapOfCurrentIndices["texcoords"] = vectorToJSONString(texcoordStrings);
+
+
+        indicesAsStrings.push_back(mapToJSONString(mapOfCurrentIndices));
+    }
+    geometryMap["indices"] = vectorToJSONString(indicesAsStrings);
+
+    return geometryMap;
+}
+
+
+
+position mapToPosition(map<string, string> JSONMap) {
+    position newPosition;
+
+    if (JSONMap.count("x") != 0) newPosition.x = stof(JSONMap["x"]);
+    if (JSONMap.count("y") != 0) newPosition.y = stof(JSONMap["y"]);
+    if (JSONMap.count("z") != 0) newPosition.z = stof(JSONMap["z"]);
+    if (JSONMap.count("pitch") != 0) newPosition.pitch = stof(JSONMap["pitch"]);
+    if (JSONMap.count("yaw") != 0) newPosition.yaw = stof(JSONMap["yaw"]);
+    if (JSONMap.count("roll") != 0) newPosition.roll = stof(JSONMap["roll"]);
+    if (JSONMap.count("lean") != 0) newPosition.lean = stof(JSONMap["lean"]);
+
+    return newPosition;
+    
+}
+
+state mapToState(map<string, string> JSONMap) {
+    state newState;
+
+    if (JSONMap.count("walkCycle") != 0) newState.walkCycle = stof(JSONMap["walkCycle"]);
+    if (JSONMap.count("crouchValue") != 0) newState.crouchValue = stof(JSONMap["crouchValue"]);
+    if (JSONMap.count("slideValue") != 0) newState.slideValue = stof(JSONMap["slideValue"]);
+
+    return newState;
+    
 }
 
 

@@ -127,3 +127,7 @@ COMPILE COMMAND: clang -lstdc++ -std=c++20 -I./ -lboost_system ./server.cpp
 
 make toJSONString method for each type
 
+
+PROBLEMS:
+    - players are corrupted after created -- FIXED -- only pointers were being stored
+

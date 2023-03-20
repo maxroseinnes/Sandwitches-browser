@@ -1,0 +1,93 @@
+
+{
+    "default": {
+      "variety": "projectile",
+      "radius": 0.5,
+      "cooldown": 1000,
+      "speed": 0.0375,
+      "manaCost": 20,
+      "damage": 10,
+      "chargeTime": 0,
+      "projectileCount": 1,
+      "burstInterval": 0.5
+    },
+    "tomato": {
+      "variety": "projectile",
+      "radius": 0.75,
+      "cooldown": 500,
+      "speed": 0.0375,
+      "manaCost": 5,
+      "damage": 5,
+      "chargeTime": 250,
+      "projectileCount": 1,
+      "burstInterval": 0.5
+    },
+    "olive": {
+      "variety": "projectile",
+      "radius": 0.375,
+      "cooldown": 150,
+      "speed": 0.0375,
+      "manaCost": 5,
+      "damage": 10,
+      "chargeTime": 0,
+      "projectileCount": 5,
+      "burstInterval": 0.5
+    },
+    "pickle": {
+      "variety": "projectile",
+      "radius": 0.5,
+      "cooldown": 500,
+      "speed": 0.0375,
+      "manaCost": 5,
+      "damage": 5,
+      "chargeTime": 0,
+      "projectileCount": 1,
+      "burstInterval": 0.5
+    },
+    "anchovy": {
+      "variety": "missile",
+      "radius": 0.5,
+      "cooldown": 500,
+      "speed": 0.01,
+      "manaCost": 20,
+      "damage": 25,
+      "chargeTime": 0,
+      "projectileCount": 10,
+      "burstInterval": 0.5
+    },
+    "meatball": {
+      "variety": "projectile",
+      "radius": 1,
+      "cooldown": 1000,
+      "speed": 0.0375,
+      "manaCost": 20,
+      "damage": 50,
+      "chargeTime": 0,
+      "projectileCount": 1,
+      "burstInterval": 0.5
+    },
+    "asparagus": {
+      "variety": "missile",
+      "radius": 0.25,
+      "cooldown": 1000,
+      "speed": 0.075,
+      "manaCost": 20,
+      "damage": 100,
+      "chargeTime": 1000,
+      "projectileCount": 5,
+      "burstInterval": 0.5
+    },
+    "groundBeef": {
+      "variety": "projectile",
+      "radius": 0.1,
+      "cooldown": 1000,
+      "speed": 0.075,
+      "manaCost": 20,
+      "damage": 10,
+      "chargeTime": 0,
+      "projectileCount": 10,
+      "burstInterval": 0.5
+    }
+  }
+
+

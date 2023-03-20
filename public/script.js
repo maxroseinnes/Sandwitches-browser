@@ -361,7 +361,17 @@ var playerGeometry = {
     lettuce: obj.parseWavefront(fetchObj("player/playerLettuceWithFlippedNormals.obj"), false),
 }
 
-var weaponGeometry = {}
+var weaponGeometry = {
+    tomato: obj.parseWavefront(fetchObj("weapons/bestTomatoInTheWorld.obj"), false),
+    olive: obj.parseWavefront(fetchObj("weapons/low_poly_olive.obj"), false),
+    pickle: obj.parseWavefront(fetchObj("weapons/small_horizontal_cylinder.obj"), false),
+    sausage: obj.parseWavefront(fetchObj("weapons/sausage.obj"), false),
+    pan: obj.parseWavefront(fetchObj("weapons/panbutbetterwithmeat.obj"), false),
+    anchovy: obj.parseWavefront(fetchObj("weapons/newPeculiarAnchovy.obj"), false),
+    meatball: obj.parseWavefront(fetchObj("weapons/swagball.obj"), false),
+    asparagus: obj.parseWavefront(fetchObj("weapons/CoolAsparagus.obj"), false),
+    groundBeef: obj.parseWavefront(fetchObj("weapons/cube.obj"), false),
+  }
 
 var platformGeometry = {
     basic: obj.parseWavefront(fetchObj("platforms/basic.obj"), false),
@@ -391,32 +401,42 @@ function joinRoom(id) {
     })
 
 }
-    
+
+function filterMessage(data) {
+    const pattern = /^-?(\d+|\d+\.\d+|\d+\.\d+e[+|-]\d+)$/
+    for (let i in data) {
+        if (typeof data[i] == "object") {
+            filterMessage(data[i])
+        }
+        else {
+            if (pattern.test(data[i])) data[i] = Number(data[i])
+        }
+    }
+}
+
+
 webSocket.onopen = () => {
     socket = {
         on: (event, callback) => {
             websocketCallbacks[event] = callback
         },
         emit: (event, data) => {
-            data.type = event
+            data.messageType = event
             webSocket.send(JSON.stringify(data))
         }
     }
 
     webSocket.onmessage = (msg) => {
         let message = JSON.parse(msg.data)
+        filterMessage(message)
         console.log(message)
-        let type = message.type
-        if (Object.keys(websocketCallbacks).includes(type)) {
-            delete message.type
-            websocketCallbacks[type](message)
+        let messageType = message.messageType
+        if (Object.keys(websocketCallbacks).includes(messageType)) {
+            delete message.messageType
+            websocketCallbacks[messageType](message)
         }
     }
 
-    socket.emit("answerMe", {key: "yayyy"})
-    console.log("sent")
-
-    socket.emit("hehehe", {key: "yayyy"})
 
 
     var ticks = 0;
@@ -455,7 +475,7 @@ webSocket.onopen = () => {
 
     var tickInterval
     socket.on("startTicking", (data) => {
-        tickInterval = setInterval(tick, 1000 / TPS);
+        tickInterval = setInterval(tick, 1000 / data.TPS);
         ticksPerSecond = Number(data.TPS)
     })
 
@@ -478,27 +498,12 @@ webSocket.onopen = () => {
         updateHUD()
     });
 
-    socket.on("weaponGeometry", (data) => {
-        weaponGeometry = data
-        console.log(weaponGeometry)
-    })
-
     function distanceFromAxisAligned(angle) {
         let remainder = (angle % (Math.PI / 2)) / (Math.PI / 2)
         return Math.abs(Math.round(remainder) - remainder) * (Math.PI / 2)
     }
 
     socket.on("map", (mapInfo) => {
-        for (let i = 0; i < mapInfo.platforms.length; i++) {
-            let platform = new Platform(platformGeometry,
-                mapInfo.platforms[i].type,
-                mapInfo.platforms[i].x,
-                mapInfo.platforms[i].y,
-                mapInfo.platforms[i].z,
-                mapInfo.platforms[i].scale
-            )
-            platforms.push(platform)
-        }
 
         if (mapInfo.mapFile != undefined) {
             let mapObj = fetchObj(mapInfo.mapFile)
@@ -555,16 +560,6 @@ webSocket.onopen = () => {
 
 
 
-        }
-
-        if (mapInfo.floorTexture != "") {
-            ground = new Ground(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, true))
-            let colliders = generatePlatforms(obj.parseWavefront(fetchObj("grounds/plane.obj"), false, false))
-            for (let i in colliders) {
-                let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
-                platform.dimensions = colliders[i].dimensions
-                platforms.push(platform)
-            }
         }
 
     })
@@ -691,8 +686,9 @@ webSocket.onopen = () => {
     })
 
     socket.on("newWeapons", (data) => {
-        for (let i in data) {
-            let currentWeapon = data[i]
+        let weaponData = data.weaponData
+        for (let i in weaponData) {
+            let currentWeapon = weaponData[i]
             let owner
             if (currentWeapon.ownerId == player.id) owner = player
             else owner = otherPlayers[currentWeapon.ownerId]
@@ -758,10 +754,10 @@ webSocket.onopen = () => {
         }
     })
 
-    socket.on("chatMessage", (msg) => {
-        console.log(msg)
+    socket.on("chatMessage", (data) => {
+        console.log(data.message)
 
-        displayChatMessage(msg)
+        displayChatMessage(data.message)
     })
 
     socket.on("nameChange", (data) => {
@@ -1112,7 +1108,6 @@ function fixedUpdate() {
     }
 
 
-
     if (player.alive) player.calculatePosition(deltaTime, headBumpNoise)
     //if (player) testEmitter.position = [player.position.x, player.position.y+3.25, player.position.z]
 
@@ -1250,7 +1245,7 @@ function initKeyInput(preventDefault) {
                 chatboxInput.textContent = chatboxInput.textContent.slice(0, -2) + "|"
             }
             else if (event.code == "Enter") {
-                if (chatboxInput.textContent.length > 1) socket.emit("sendChatMessage", player.name + ": " + chatboxInput.textContent.slice(0, -1))
+                if (chatboxInput.textContent.length > 1) socket.emit("sendChatMessage", { message: player.name + ": " + chatboxInput.textContent.slice(0, -1) })
                 chatboxInput.innerHTML = ""
                 closeChatbox()
             }

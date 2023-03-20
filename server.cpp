@@ -8,10 +8,12 @@
 #include <chrono>
 #include <map>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_set>
 #include <functional>
 #include <regex>
 #include <cstdlib>
+#include <thread>
 
 #define CROW_ENFORCE_WS_SPEC
 
@@ -19,8 +21,6 @@
 #include "types.hpp"
 
 using namespace std;
-
-mutex mtx;
 
 
 const float DEFAULT_PLAYER_HEALTH = 100;
@@ -32,6 +32,8 @@ unsigned int nextWeaponId = 0;
 
 const int TPS = 20;
 
+map<string, weaponInfo> weaponSpecs;
+
 size_t getHash(crow::websocket::connection* connection) {
     hash<crow::websocket::connection*> hasher;
     return hasher(connection);
@@ -39,34 +41,44 @@ size_t getHash(crow::websocket::connection* connection) {
 
 class Room {
     private: 
-    
+        mutable mutex roomMtx;
     public: 
-        string mapFile;
-        map<unsigned int, player*> players;
-        map<unsigned int, weapon*> weapons;
+        string mapFilename;
+        map<string, modelGeometry> mapGeometry;
+        map<unsigned int, player> players;
+        map<unsigned int, weapon> weapons;
 
         Room() {}
         Room(string mapFileName) {
-            mapFile = mapFileName;
+            mapFilename = mapFileName;
+
+            string mapFileText = getFileText("public/assets/models/" + mapFileName);
+            mapGeometry = parseWavefront(mapFileText, true);
+
+            map<string, string> mapGeometryAsStrings;
+            for (auto i = mapGeometry.begin(); i != mapGeometry.end(); i++) {
+                mapGeometryAsStrings[i->first] = mapToJSONString(toMap(i->second));
+            }
 
             // generate platforms
         }
 
-        void broadcast(string event, map<string, string>* data, int except) {
+        void broadcast(string event, map<string, string> data, int except) {
             for (auto nameValue = players.begin(); nameValue != players.end(); nameValue++) {
                 if (nameValue->first != except) {
-                cout << nameValue->first << endl;
-                    //websocket socket = *nameValue->second->socket;
-                    //socket.emit(event, *data);
+                    nameValue->second.socket->emit(event, data);
                 }
             }
         }
 
         void addPlayer(websocket* newSocket) {
-            lock_guard<mutex> lock(mtx);
+            lock_guard<mutex> lock(roomMtx);
+
+
 
             player newPlayer(newSocket);
-            players[nextId] = &newPlayer;
+            newPlayer.name = "unnamed sandwich";
+            players[nextId] = newPlayer;
             unsigned int assignedId = nextId;
             nextId++;
 
@@ -74,69 +86,196 @@ class Room {
 
             // ------------ initial player communications ------------ // 
 
+            socket->emit("map", {{"mapFile", mapFilename}});
+
             map<string, string> otherPlayersInfo;
             for (auto nameValue = players.begin(); nameValue != players.end(); nameValue++) {
-                player thisPlayer = *nameValue->second;
+                player thisPlayer = nameValue->second;
                 otherPlayersInfo[toString(nameValue->first)] = mapToJSONString(toMap(thisPlayer));
             }
 
-            //socket->emit("otherPlayers", otherPlayersInfo);
+            socket->emit("otherPlayers", otherPlayersInfo);
 
-            //socket->emit("assignPlayer", toMap(newPlayer));
+            map<string, string> playerMap = toMap(newPlayer);
+            playerMap["id"] = toString(assignedId);
+            socket->emit("assignPlayer", playerMap);
 
-            //socket->emit("startTicking", {{"TPS", toString(TPS)}});
+            socket->emit("startTicking", {{"TPS", toString(TPS)}});
 
-            //broadcast("newPlayer", &toMap(newPlayer), assignedId);
+            broadcast("newPlayer", toMap(newPlayer), assignedId);
+
 
             
 
             // ------------ put socket callbacks here ------------ // 
 
 
-
-            socket->on("answerMe", [socket](map<string, string> data) {
-                cout << "I will answer: " << data["key"] << endl;
-
-                //socket->emit("answer", {{"answer", data["key"]}});
+            socket->on("nameChange", [this](map<string, string> data) {
+                players[stoi(data["id"])].name = data["newName"];
+                broadcast("nameChange", {
+                    {"id", toString(data["id"])},
+                    {"newName", data["newName"]}
+                }, -1);
             });
 
+            socket->on("sendChatMessage", [this](map<string, string> data) {
+                cout << "message: " << data["message"] << endl;
+                broadcast("chatMessage", {{"message", data["message"]}}, -1);
+            });
 
-            cout << "broadcasting" << endl;
+            socket->on("playerUpdate", [this](map<string, string> data) {
+                int id = stoi(data["id"]);
+                players[id].position = mapToPosition(JSONStringToMap(data["position"]));
+                players[id].state = mapToState(JSONStringToMap(data["state"]));
+                if (players[id].currentWeaponType != data["currentWeaponType"]) players[id].charging = false;
+                players[id].currentWeaponType = data["currentWeaponType"];
+            });
+            
+            socket->on("respawnMe", [this](map<string, string> data) {
+                int id = stoi(data["id"]);
+                if (players[id].health <= 0) {
+                    respawnPlayer(id);
+                }
+            });
 
-            //map<string, string> testMap;
-            //testMap["playerId"] = toString(assignedId);
-            //broadcast("weaponStatesRequest", &testMap, -1);
-            //respawnPlayer(assignedId);
+            socket->on("newWeapon", [this](map<string, string> data) {
+                if (players.count(stoi(data["ownerId"])) != 1) return;
+                shootWeapon(data);
+            });
+                
+/*
+            socket->on("startedCharging", [this, assignedId](map<string, string> data) {
+                if (Date.now() - players[assignedId].lastShotTime < getWeaponSpecs(players[assignedId].lastShotWeapon).cooldown) return
+                players[assignedId].startChargeTime = Date.now()
+                players[assignedId].charging = true
+            });
+
+            socket->on("stoppedCharging", [this, assignedId](map<string, string> data) {
+                players[assignedId].charging = false
+            });
+
+            socket->on("weaponStates", [this](map<string, string> data) {
+                let weaponInfo = {}
+                for (let id in data.states) {
+                    if (this.weapons[id]) {
+                        weaponInfo[id] = {
+                            type: this.weapons[id].type,
+                            position: {
+                                x: data.states[id].position.x,
+                                y: data.states[id].position.y,
+                                z: data.states[id].position.z,
+                                yaw: data.states[id].yaw,
+                                pitch: data.states[id].pitch
+                            },
+                            velocity: {
+                                x: data.states[id].velocity.x,
+                                y: data.states[id].velocity.y,
+                                z: data.states[id].velocity.z
+                            }
+                        }
+                    }
+                }
+                
+                if (players[data.recipientId] != null) players[data.recipientId].socket.emit("weaponStates", {
+                    ownerId: data.ownerId, 
+                    weaponData: weaponInfo})
+            });
+
+*/
+            socket->on("disconnect", [this, assignedId](map<string, string> data) {
+                broadcast("playerLeave", {{"id", toString(assignedId)}}, -1);
+                cout << players[assignedId].name << " left. 😭😭😭😭😭😭😭" << endl;
+                //players.erase(assignedId);
+
+            });
 
         }
 
         void respawnPlayer(unsigned int id) {
-            //broadcast("playerRespawned", {{"id", toString(id)}}, -1);
-            players[id]->position.x = rand() * 10.0 - 5.0;
-            players[id]->position.y = 2;
-            players[id]->position.z = rand() * 10.0 - 5.0;
-            players[id]->position.yaw = 0.0;
-            players[id]->position.pitch = 0.0;
-            players[id]->health = DEFAULT_PLAYER_HEALTH;
-            players[id]->socket->emit("respawn", genPlayerPacket(id));
+            broadcast("playerRespawned", {{"id", toString(id)}}, -1);
+            players[id].position.x = randFloat() * 10.0 - 5.0;
+            players[id].position.y = 2;
+            players[id].position.z = randFloat() * 10.0 - 5.0;
+            players[id].position.yaw = 0.0;
+            players[id].position.pitch = 0.0;
+            players[id].health = DEFAULT_PLAYER_HEALTH;
+            players[id].socket->emit("respawn", genPlayerPacket(id));
         }
 
         map<string, string> genPlayerPacket(unsigned int id) {
             return {
-                {"position", mapToJSONString(toMap(players[id]->position))},
-                {"state", mapToJSONString(toMap(players[id]->state))},
-                {"health", toString(players[id]->health)},
-                {"currentWeaponType", toString(players[id]->currentWeaponType)},
-                {"charging", toString(players[id]->charging)},
-                {"health", toString(players[id]->health)}
+                {"position", mapToJSONString(toMap(players[id].position))},
+                {"state", mapToJSONString(toMap(players[id].state))},
+                {"health", toString(players[id].health)},
+                {"currentWeaponType", toString(players[id].currentWeaponType)},
+                {"charging", toString(players[id].charging)},
+                {"health", toString(players[id].health)}
             };
         }
 
-        void removePlayerBySocket(size_t socketHash) {
+        void shootWeapon(map<string, string> data) {
+            int ownerId = stoi(data["ownerId"]);
+            player& thisPlayer = players.at(ownerId);
+
+            if (thisPlayer.health <= 0) return;
+
+            weaponInfo weaponSpec = weaponSpecs[data["type"]];
+
+            thisPlayer.lastShotTime = now();
+            thisPlayer.lastShotWeapon = data["type"];
+
+            vector<map<string, string>> newWeaponData;
+            position weaponPosition = mapToPosition(data);
+
+            float pitch = -weaponPosition.pitch;
+            float yaw = -weaponPosition.yaw;
+            
+            array<float, 3> velocity = {0, 0, -weaponSpec.speed};
+
+            rotateX(velocity, velocity, {0, 0, 0}, pitch);
+            rotateY(velocity, velocity, {0, 0, 0}, yaw);
+
+            weapon newWeapon;
+            newWeapon.type = data["type"];
+            newWeapon.damage = weaponSpec.damage;
+            newWeapon.variety = weaponSpec.variety;
+            newWeapon.radius = weaponSpec.radius;
+            newWeapon.ownerId = ownerId;
+            newWeapon.position = weaponPosition;
+            newWeapon.velocity.x = velocity[0];
+            newWeapon.velocity.y = velocity[1];
+            newWeapon.velocity.z = velocity[2];
+
+            newWeaponData.push_back({
+                {"id", toString(nextWeaponId)},
+                {"type", data["type"]},
+                {"ownerId", toString(ownerId)},
+                {"cooldown", toString(weaponSpec.cooldown)},
+                {"position", mapToJSONString(toMap(weaponPosition))},
+                {"velocity", mapToJSONString(toMap(newWeapon.velocity))}
+            });
+
+            nextWeaponId++;
+            
+            vector<string> newWeaponDataAsStrings;
+            for (int i = 0; i < newWeaponData.size(); i++) newWeaponDataAsStrings.push_back(mapToJSONString(newWeaponData[i]));
+
+
+            broadcast("newWeapons", {{"weaponData", vectorToJSONString(newWeaponDataAsStrings)}}, -1);
+
+        }
+
+        void removeInvalidPlayers(vector<crow::websocket::connection*> socketHash) {
             for (auto nv = players.begin(); nv != players.end(); nv++) {
-                cout << "first: " << socketHash << " second: " << nv->second->socket->hashValue << endl;
-                if (socketHash == nv->second->socket->hashValue) {
+                bool valid = false;
+                for (auto jv = socketHash.begin(); jv != socketHash.end(); jv++) {
+                    //cout << nv->second.socket->webSocket << " vs " << *jv << endl;
+                    if (nv->second.socket->webSocket == *jv) valid = true;
+                }
+                if (!valid) {
+                    //cout << "removing player " << nv->first << endl;
                     players.erase(nv->first);
+                    //cout << "succesfully removed" << endl;
                 }
             }
         }
@@ -145,7 +284,6 @@ class Room {
         
 };
 
-
 struct {
     map<int, Room> privateRooms;
     map<int, Room> lobbyRooms;
@@ -153,15 +291,65 @@ struct {
 } rooms;
 
 
-int main() {
-    initWeaponSpecs();
+Room testRoom = Room("full_starting_map (5).obj");
 
-    rooms.privateRooms[1] = Room("full_starting_map (5).obj");
+mutex mtx;
+
+int main() {
+
+    string weaponInfoText = getFileText("public/weapon-specs.json");
+    map<string, string> weaponInfoStringMap = JSONStringToMap(weaponInfoText);
+    for (auto i = weaponInfoStringMap.begin(); i != weaponInfoStringMap.end(); i++) {
+        map<string, string> currentWeaponInfoMap = JSONStringToMap(i->second);
+        weaponInfo currentSpecs;
+        currentSpecs.variety = currentWeaponInfoMap["variety"];
+        currentSpecs.radius = stof(currentWeaponInfoMap["radius"]);
+        currentSpecs.cooldown = stoi(currentWeaponInfoMap["cooldown"]);
+        currentSpecs.speed = stof(currentWeaponInfoMap["speed"]);
+        currentSpecs.damage = stof(currentWeaponInfoMap["damage"]);
+        currentSpecs.chargeTime = stoi(currentWeaponInfoMap["chargeTime"]);
+        currentSpecs.projectileCount = stoi(currentWeaponInfoMap["projectileCount"]);
+    
+        weaponSpecs.insert({toString(i->first), currentSpecs});
+    }
+
 
 
     printf("----------------------\nSTARTING SERVER\n");
 
+    thread tickThread([]() {
+        int interval = 1000 / TPS;
+        interval = 1000;
+        auto then = chrono::high_resolution_clock::now();
+        while(true) {
+            auto now = chrono::high_resolution_clock::now();
+            auto deltaTime = chrono::duration_cast<chrono::milliseconds>(now - then).count();
+            if (deltaTime > interval) {
+                lock_guard<mutex> lock(mtx);
+                {
+                    map<string, string> playersData;
+                    for (auto i = testRoom.players.begin(); i != testRoom.players.end(); i++) {
+                        player& thisPlayer = testRoom.players[i->first];
+                        if (thisPlayer.position.y < -100.0) {
+                            thisPlayer.health = 0;
+                            thisPlayer.socket->emit("youDied", {{"id", toString(i->first)}, {"cause", "void"}});
+                            string deathMessage = thisPlayer.name + " fell into the void.";
+                            cout << deathMessage << endl;
+                            
+                            testRoom.broadcast("chatMessage", {{"message", deathMessage}}, -1);
+                        }
+                        playersData[toString(i->first)] = mapToJSONString(testRoom.genPlayerPacket(i->first));
+                    }
+                    testRoom.broadcast("playerUpdate", playersData, -1);
+                }
+                then = now;
+            }
+            this_thread::sleep_for(chrono::milliseconds(1));
+        }
+    });
+
     map<size_t, websocket> websocketMap;
+
 
 
 
@@ -179,7 +367,7 @@ int main() {
 
         size_t hashValue = getHash(&connection);
 
-        cout << "hash: " << hashValue << endl;
+        //cout << "hash: " << hashValue << endl;
 
         newSocket.hashValue = hashValue;
 
@@ -187,53 +375,72 @@ int main() {
         websocket* currentSocket = &websocketMap[hashValue];
 
         
-        rooms.privateRooms[1].addPlayer(currentSocket);
+        testRoom.addPlayer(currentSocket);
 /*
+*/
         currentSocket->on("joinRoom", [currentSocket](map<string, string> data) {
             cout << "JOIN ROOM: " << data["roomId"] << endl;
 
             currentSocket->emit("roomJoinSuccess", {{"roomId", "1"}});
 
-            rooms.privateRooms[1].addPlayer(currentSocket);
+            testRoom.addPlayer(currentSocket);
             
         });
-*/
         
 
 
-        
+        //lock_guard<mutex> __unlock(mtx);
     })
     .onmessage([&](crow::websocket::connection& connection, const string& data, bool inBinary) {
         lock_guard<mutex> lock(mtx);
-        //cout << data << " from " << &connection << endl;
+        size_t hashValue = getHash(&connection);
+        websocket* currentWebsocket = &websocketMap[hashValue];
 
-        //size_t hashValue = getHash(&connection);
-        //websocket* currentWebsocket = &websocketMap[hashValue];
+        map<string, string> mapData = JSONStringToMap(data);
 
-        //map<string, string> mapData = JSONStringToMap(data);
-        //try { currentWebsocket->websocketCallbacks[mapData["type"]](mapData); }
-        //catch (exception exception) { cerr << "problem with socket.on " << mapData["type"] << ": " << exception.what() << endl; }
+
+        //if (mapData["messageType"] == "newWeapon") cout << data << " from " << &connection << endl;
+
+        try { currentWebsocket->websocketCallbacks[mapData["messageType"]](mapData); }
+        catch (const exception& exception) { cerr << "problem with socket->on " << mapData["messageType"] << ": " << exception.what() << endl; }
 
         
+        //lock_guard<mutex> __unlock(mtx);
     })
     .onclose([&](crow::websocket::connection& connection, const string& reason) {
         lock_guard<mutex> lock(mtx);
         cout << "connection closed: " << &connection << " because " << reason << endl;
 
-        //size_t hashValue = getHash(&connection);
-        //websocket* currentWebsocket = &websocketMap[hashValue];
 
-        //rooms.privateRooms[1].removePlayerBySocket(hashValue);
-        
-        //size_t hashValue = getHash(&connection);
-        //delete &websocketMap[hashValue];
+        size_t hashValue = getHash(&connection);
+        websocket currentWebsocket = websocketMap[hashValue];
 
+        //vector<crow::websocket::connection*> validConnections;
+        //for (auto nv = websocketMap.begin(); nv != websocketMap.end(); nv++) {
+        //    validConnections.push_back(nv->second.webSocket);
+        //}
+
+        //testRoom.removeInvalidPlayers(validConnections);
+
+        try { currentWebsocket.websocketCallbacks["disconnect"]({{}}); }
+        catch (exception exception) { cerr << "problem with socket->on " << "disconnect" << ": " << exception.what() << endl; }
+
+        websocketMap.erase(hashValue);
     });
 
 
 
     CROW_ROUTE(app, "/<path>")([](string filename) {
         //cout << "requesting " << filename << endl;
+
+        bool noMoreSpaces = false;
+        while(!noMoreSpaces) {
+            int location = filename.find("%20");
+            if (location != string::npos) {
+                filename.replace(location, 3, " ");
+            }
+            else noMoreSpaces = true;
+        }
 
         crow::response response;
         
@@ -248,11 +455,11 @@ int main() {
         return response;
     });
 
+
     app.port(8080).multithreaded().run();
 
 
     
-
     
 }
 
