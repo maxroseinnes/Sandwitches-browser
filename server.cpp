@@ -41,7 +41,7 @@ size_t getHash(crow::websocket::connection* connection) {
 
 class Room {
     private: 
-        mutable mutex roomMtx;
+        //mutable mutex roomMtx;
     public: 
         string mapFilename;
         map<string, modelGeometry> mapGeometry;
@@ -72,7 +72,7 @@ class Room {
         }
 
         void addPlayer(websocket* newSocket) {
-            lock_guard<mutex> lock(roomMtx);
+            //lock_guard<mutex> lock(roomMtx);
 
 
 
@@ -317,7 +317,7 @@ Room testRoom = Room("full_starting_map (5).obj");
 mutex mtx;
 
 int main() {
-
+    /*
     string weaponInfoText = getFileText("public/weapon-specs.json");
     map<string, string> weaponInfoStringMap = JSONStringToMap(weaponInfoText);
     for (auto i = weaponInfoStringMap.begin(); i != weaponInfoStringMap.end(); i++) {
@@ -336,6 +336,7 @@ int main() {
 
 
 
+    */
     printf("----------------------\nSTARTING SERVER\n");
 
     thread tickThread([]() {
@@ -358,7 +359,12 @@ int main() {
 
     crow::SimpleApp app;
 
+#ifdef _WIN32
+    crow::logger::setLogLevel(crow::LogLevel::Warning);
+#else
     crow::logger::setLogLevel(crow::LogLevel::WARNING);
+#endif
+
 
     CROW_WEBSOCKET_ROUTE(app, "/socket")
     .onopen([&](crow::websocket::connection& connection) {
@@ -398,6 +404,7 @@ int main() {
 
         //cout << data << " from " << &connection << endl;
 
+
         try { currentWebsocket->websocketCallbacks[mapData["messageType"]](mapData); }
         catch (const exception& exception) { cerr << "problem with socket->on " << mapData["messageType"] << ": " << exception.what() << endl; }
 
@@ -419,6 +426,11 @@ int main() {
 
     CROW_ROUTE(app, "/<path>")([](string filename) {
         //cout << "requesting " << filename << endl;
+
+
+
+
+
 
         bool noMoreSpaces = false;
         while(!noMoreSpaces) {

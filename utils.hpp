@@ -22,7 +22,9 @@ float randFloat() {
 }
 
 string getFileText(string filepath) {
-    ifstream file(filepath);
+    const string path = "C:/Users/swilliams4157/Desktop/Sandwitches-browser/";
+    ifstream file(path + filepath);
+
 
     string fileText;
     string currentString;
@@ -70,8 +72,8 @@ string vectorToJSONString(vector<T> vector) {
 }
 
 map<string, string> JSONStringToMap(string JSONString) {
-    const char insteadOfColon = '\e'; // just a random character that shouldn't be in messages
-    const char insteadOfComma = '\r'; // just a random character that shouldn't be in messages
+    const char insteadOfColon = '&'; // just a random character that shouldn't be in messages
+    const char insteadOfComma = '$'; // just a random character that shouldn't be in messages
 
     //cout << JSONString << endl;
     bool prelimInWord = false;
