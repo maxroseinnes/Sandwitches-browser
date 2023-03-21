@@ -70,12 +70,30 @@ string vectorToJSONString(vector<T> vector) {
 }
 
 map<string, string> JSONStringToMap(string JSONString) {
+    const char insteadOfColon = '\e'; // just a random character that shouldn't be in messages
+    const char insteadOfComma = '\r'; // just a random character that shouldn't be in messages
+
+    //cout << JSONString << endl;
+    bool prelimInWord = false;
     for (int i = JSONString.length() - 1; i >=0; i--) {
         char thisChar = JSONString[i];
-        if (thisChar == ' ' || thisChar == '"' || thisChar == '\n') {
-            JSONString.erase(i, 1);
+        bool inWordJustChanged = false;
+        if (prelimInWord && thisChar == '"') {
+            prelimInWord = false;
+            inWordJustChanged = true;
         }
+        //cout << prelimInWord << " " << thisChar << endl;
+        if (!prelimInWord) {
+            if (thisChar == ' ' || thisChar == '"' || thisChar == '\n') {
+                JSONString.erase(i, 1);
+            }
+            if (thisChar == ':') JSONString[i] = insteadOfColon;
+            if (thisChar == ',') JSONString[i] = insteadOfComma;
+        }
+        if (!inWordJustChanged && !prelimInWord && thisChar == '"') prelimInWord = true;
     }
+
+    //cout << JSONString << endl;
     
     map<string, string> map;
 
@@ -88,18 +106,13 @@ map<string, string> JSONStringToMap(string JSONString) {
         char currentChar = JSONString[i];
         bool switchBroken = false;
         switch (currentChar) {
-            case '"': case ' ': case '\n': 
-                if (nestLevel == 0) {
-                    switchBroken = true;
-                }
-                break;
-            case ':':
+            case insteadOfColon:
                 if (nestLevel == 0) {
                     onName = false;
                     switchBroken = true;
                 }
                 break;
-            case ',':
+            case insteadOfComma:
                 if (nestLevel == 0) {
                     map[currentName] = currentValue;
                     //cout << currentName << ": " << currentValue << endl;

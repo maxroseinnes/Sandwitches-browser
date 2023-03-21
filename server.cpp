@@ -81,6 +81,8 @@ class Room {
             players[nextId] = newPlayer;
             unsigned int assignedId = nextId;
             nextId++;
+            
+            cout << newPlayer.name << " joined! 😃😃😃😃😃😃😃" << endl;
 
             websocket* socket = newPlayer.socket;
 
@@ -90,8 +92,10 @@ class Room {
 
             map<string, string> otherPlayersInfo;
             for (auto nameValue = players.begin(); nameValue != players.end(); nameValue++) {
-                player thisPlayer = nameValue->second;
-                otherPlayersInfo[toString(nameValue->first)] = mapToJSONString(toMap(thisPlayer));
+                if (nameValue->first != assignedId) {
+                    player thisPlayer = nameValue->second;
+                    otherPlayersInfo[toString(nameValue->first)] = mapToJSONString(toMap(thisPlayer));
+                }
             }
 
             socket->emit("otherPlayers", otherPlayersInfo);
@@ -102,7 +106,7 @@ class Room {
 
             socket->emit("startTicking", {{"TPS", toString(TPS)}});
 
-            broadcast("newPlayer", toMap(newPlayer), assignedId);
+            broadcast("newPlayer", playerMap, assignedId);
 
 
             
@@ -185,7 +189,7 @@ class Room {
             socket->on("disconnect", [this, assignedId](map<string, string> data) {
                 broadcast("playerLeave", {{"id", toString(assignedId)}}, -1);
                 cout << players[assignedId].name << " left. 😭😭😭😭😭😭😭" << endl;
-                //players.erase(assignedId);
+                players.erase(assignedId);
 
             });
 
@@ -225,10 +229,10 @@ class Room {
             thisPlayer.lastShotWeapon = data["type"];
 
             vector<map<string, string>> newWeaponData;
-            position weaponPosition = mapToPosition(data);
+            position weaponPosition = mapToPosition(JSONStringToMap(data["position"]));
 
-            float pitch = -weaponPosition.pitch;
-            float yaw = -weaponPosition.yaw;
+            float pitch = -stof(data["pitch"]);
+            float yaw = -stof(data["yaw"]);
             
             array<float, 3> velocity = {0, 0, -weaponSpec.speed};
 
@@ -280,6 +284,23 @@ class Room {
             }
         }
 
+        void tick() {
+            map<string, string> playersData;
+            for (auto i = players.begin(); i != players.end(); i++) {
+                player& thisPlayer = players[i->first];
+                if (thisPlayer.position.y < -100.0) {
+                    thisPlayer.health = 0;
+                    thisPlayer.socket->emit("youDied", {{"id", toString(i->first)}, {"cause", "void"}});
+                    string deathMessage = thisPlayer.name + " fell into the void.";
+                    cout << deathMessage << endl;
+                    
+                    broadcast("chatMessage", {{"message", deathMessage}}, -1);
+                }
+                playersData[toString(i->first)] = mapToJSONString(genPlayerPacket(i->first));
+            }
+            broadcast("playerUpdate", playersData, -1);
+        }
+
 
         
 };
@@ -319,29 +340,13 @@ int main() {
 
     thread tickThread([]() {
         int interval = 1000 / TPS;
-        interval = 1000;
         auto then = chrono::high_resolution_clock::now();
         while(true) {
             auto now = chrono::high_resolution_clock::now();
             auto deltaTime = chrono::duration_cast<chrono::milliseconds>(now - then).count();
             if (deltaTime > interval) {
                 lock_guard<mutex> lock(mtx);
-                {
-                    map<string, string> playersData;
-                    for (auto i = testRoom.players.begin(); i != testRoom.players.end(); i++) {
-                        player& thisPlayer = testRoom.players[i->first];
-                        if (thisPlayer.position.y < -100.0) {
-                            thisPlayer.health = 0;
-                            thisPlayer.socket->emit("youDied", {{"id", toString(i->first)}, {"cause", "void"}});
-                            string deathMessage = thisPlayer.name + " fell into the void.";
-                            cout << deathMessage << endl;
-                            
-                            testRoom.broadcast("chatMessage", {{"message", deathMessage}}, -1);
-                        }
-                        playersData[toString(i->first)] = mapToJSONString(testRoom.genPlayerPacket(i->first));
-                    }
-                    testRoom.broadcast("playerUpdate", playersData, -1);
-                }
+                testRoom.tick();
                 then = now;
             }
             this_thread::sleep_for(chrono::milliseconds(1));
@@ -349,8 +354,6 @@ int main() {
     });
 
     map<size_t, websocket> websocketMap;
-
-
 
 
     crow::SimpleApp app;
@@ -374,10 +377,7 @@ int main() {
         websocketMap[hashValue] = newSocket;
         websocket* currentSocket = &websocketMap[hashValue];
 
-        
-        testRoom.addPlayer(currentSocket);
-/*
-*/
+
         currentSocket->on("joinRoom", [currentSocket](map<string, string> data) {
             cout << "JOIN ROOM: " << data["roomId"] << endl;
 
@@ -387,9 +387,6 @@ int main() {
             
         });
         
-
-
-        //lock_guard<mutex> __unlock(mtx);
     })
     .onmessage([&](crow::websocket::connection& connection, const string& data, bool inBinary) {
         lock_guard<mutex> lock(mtx);
@@ -399,32 +396,22 @@ int main() {
         map<string, string> mapData = JSONStringToMap(data);
 
 
-        //if (mapData["messageType"] == "newWeapon") cout << data << " from " << &connection << endl;
+        //cout << data << " from " << &connection << endl;
 
         try { currentWebsocket->websocketCallbacks[mapData["messageType"]](mapData); }
         catch (const exception& exception) { cerr << "problem with socket->on " << mapData["messageType"] << ": " << exception.what() << endl; }
 
         
-        //lock_guard<mutex> __unlock(mtx);
     })
     .onclose([&](crow::websocket::connection& connection, const string& reason) {
         lock_guard<mutex> lock(mtx);
-        cout << "connection closed: " << &connection << " because " << reason << endl;
+        //cout << "connection closed: " << &connection << " because " << reason << endl;
 
 
         size_t hashValue = getHash(&connection);
         websocket currentWebsocket = websocketMap[hashValue];
 
-        //vector<crow::websocket::connection*> validConnections;
-        //for (auto nv = websocketMap.begin(); nv != websocketMap.end(); nv++) {
-        //    validConnections.push_back(nv->second.webSocket);
-        //}
-
-        //testRoom.removeInvalidPlayers(validConnections);
-
-        try { currentWebsocket.websocketCallbacks["disconnect"]({{}}); }
-        catch (exception exception) { cerr << "problem with socket->on " << "disconnect" << ": " << exception.what() << endl; }
-
+        currentWebsocket.websocketCallbacks["disconnect"]({{}});
         websocketMap.erase(hashValue);
     });
 
