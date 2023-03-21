@@ -317,7 +317,6 @@ Room testRoom = Room("full_starting_map (5).obj");
 mutex mtx;
 
 int main() {
-    /*
     string weaponInfoText = getFileText("public/weapon-specs.json");
     map<string, string> weaponInfoStringMap = JSONStringToMap(weaponInfoText);
     for (auto i = weaponInfoStringMap.begin(); i != weaponInfoStringMap.end(); i++) {
@@ -333,10 +332,11 @@ int main() {
     
         weaponSpecs.insert({toString(i->first), currentSpecs});
     }
+    
 
 
 
-    */
+
     printf("----------------------\nSTARTING SERVER\n");
 
     thread tickThread([]() {
