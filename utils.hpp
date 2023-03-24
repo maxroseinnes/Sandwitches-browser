@@ -164,6 +164,10 @@ array<float, 2> normalize(array<float, 2>& out, array<float, 2> a) {
     return out;
 }
 
+float hypot(float x, float y, float z) {
+    return sqrt(x * x + y * y + z * z);
+}
+
 float length(array<float, 3> a) {
     float x = a[0];
     float y = a[1];

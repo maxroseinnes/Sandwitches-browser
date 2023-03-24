@@ -508,7 +508,9 @@ int main() {
             currentSocket->emit("roomJoinSuccess", {{"roomId", toString(roomId)}});
 
             if (!rooms.privateRooms.count(roomId)) {
-                Room newRoom("full_starting_map (" + toString(roomId) + ").obj");
+                string filename = "full_starting_map (" + toString(roomId) + ").obj";
+                if (roomId == 6) filename = "kitchenmap1.obj";
+                Room newRoom(filename);
                 rooms.privateRooms[roomId] = newRoom;
 
             }
