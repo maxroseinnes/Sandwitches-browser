@@ -22,8 +22,11 @@ float randFloat() {
 }
 
 string getFileText(string filepath) {
-    const string path = "C:/Users/swilliams4157/Desktop/Sandwitches-browser/";
-    ifstream file(path + filepath);
+    #ifdef _WIN32
+        filepath = "C:/Users/swilliams4157/Desktop/Sandwitches-browser/" + filepath;
+    #endif
+
+    ifstream file(filepath);
 
 
     string fileText;
@@ -142,6 +145,31 @@ map<string, string> JSONStringToMap(string JSONString) {
     return map;
 }
 
+
+array<float, 3> sub(array<float, 3>& out, array<float, 3> a, array<float, 3> b) {
+    out[0] = a[0] - b[0];
+    out[1] = a[1] - b[1];
+    out[2] = a[2] - b[2];
+    return out;
+}
+
+array<float, 2> normalize(array<float, 2>& out, array<float, 2> a) {
+    float x = a[0];
+    float y = a[1];
+    float len = sqrt(x * x + y * y);
+    if (len != 0) {
+        out[0] = a[0] / len;
+        out[1] = a[1] / len;
+    }
+    return out;
+}
+
+float length(array<float, 3> a) {
+    float x = a[0];
+    float y = a[1];
+    float z = a[2];
+    return hypot(x, y, z);
+}
 
 array<float, 3> rotateX(array<float, 3>& out, array<float, 3> a, array<float, 3> b, float rad) {
     array<float, 3> p;

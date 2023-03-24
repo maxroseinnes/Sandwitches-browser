@@ -28,6 +28,10 @@ class websocket {
             webSocket->send_text(mapToJSONString(data));
         };
 
+        void removeListener(string name) {
+            websocketCallbacks.erase(name);
+        }
+
 };
 
 

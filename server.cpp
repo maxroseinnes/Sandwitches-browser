@@ -44,7 +44,8 @@ class Room {
         //mutable mutex roomMtx;
     public: 
         string mapFilename;
-        map<string, modelGeometry> mapGeometry;
+        modelGeometry mapGeometry;
+        vector<platform> platforms;
         map<unsigned int, player> players;
         map<unsigned int, weapon> weapons;
 
@@ -53,14 +54,13 @@ class Room {
             mapFilename = mapFileName;
 
             string mapFileText = getFileText("public/assets/models/" + mapFileName);
-            mapGeometry = parseWavefront(mapFileText, true);
+            mapGeometry = parseWavefront(mapFileText, false, false);
 
-            map<string, string> mapGeometryAsStrings;
-            for (auto i = mapGeometry.begin(); i != mapGeometry.end(); i++) {
-                mapGeometryAsStrings[i->first] = mapToJSONString(toMap(i->second));
-            }
+            platforms = generatePlatforms(mapGeometry);
 
-            // generate platforms
+
+            cout << "NEW ROOM CREATED" << endl;
+
         }
 
         void broadcast(string event, map<string, string> data, int except) {
@@ -115,7 +115,7 @@ class Room {
 
 
             socket->on("nameChange", [this](map<string, string> data) {
-                players[stoi(data["id"])].name = data["newName"];
+                players.at(stoi(data["id"])).name = data["newName"];
                 broadcast("nameChange", {
                     {"id", toString(data["id"])},
                     {"newName", data["newName"]}
@@ -129,15 +129,16 @@ class Room {
 
             socket->on("playerUpdate", [this](map<string, string> data) {
                 int id = stoi(data["id"]);
-                players[id].position = mapToPosition(JSONStringToMap(data["position"]));
-                players[id].state = mapToState(JSONStringToMap(data["state"]));
-                if (players[id].currentWeaponType != data["currentWeaponType"]) players[id].charging = false;
-                players[id].currentWeaponType = data["currentWeaponType"];
+                if (!players.count(id)) return;
+                players.at(id).position = mapToPosition(JSONStringToMap(data["position"]));
+                players.at(id).state = mapToState(JSONStringToMap(data["state"]));
+                if (players.at(id).currentWeaponType != data["currentWeaponType"]) players.at(id).charging = false;
+                players.at(id).currentWeaponType = data["currentWeaponType"];
             });
             
             socket->on("respawnMe", [this](map<string, string> data) {
                 int id = stoi(data["id"]);
-                if (players[id].health <= 0) {
+                if (players.count(id) && players.at(id).health <= 0) {
                     respawnPlayer(id);
                 }
             });
@@ -147,49 +148,66 @@ class Room {
                 shootWeapon(data);
             });
                 
-/*
             socket->on("startedCharging", [this, assignedId](map<string, string> data) {
-                if (Date.now() - players[assignedId].lastShotTime < getWeaponSpecs(players[assignedId].lastShotWeapon).cooldown) return
-                players[assignedId].startChargeTime = Date.now()
-                players[assignedId].charging = true
+                if (now() - players.at(assignedId).lastShotTime < weaponSpecs[players.at(assignedId).lastShotWeapon].cooldown) return;
+                players.at(assignedId).startChargeTime = now();
+                players.at(assignedId).charging = true;
             });
 
             socket->on("stoppedCharging", [this, assignedId](map<string, string> data) {
-                players[assignedId].charging = false
+                players.at(assignedId).charging = false;
             });
 
             socket->on("weaponStates", [this](map<string, string> data) {
-                let weaponInfo = {}
-                for (let id in data.states) {
-                    if (this.weapons[id]) {
-                        weaponInfo[id] = {
-                            type: this.weapons[id].type,
-                            position: {
-                                x: data.states[id].position.x,
-                                y: data.states[id].position.y,
-                                z: data.states[id].position.z,
-                                yaw: data.states[id].yaw,
-                                pitch: data.states[id].pitch
-                            },
-                            velocity: {
-                                x: data.states[id].velocity.x,
-                                y: data.states[id].velocity.y,
-                                z: data.states[id].velocity.z
-                            }
-                        }
+                vector<string> weaponInfo;
+                map<string, string> states = JSONStringToMap(data["states"]);
+                for (auto i = states.begin(); i != states.end(); i++) {
+                    int id = stoi(i->first);
+                    if (weapons.count(id) > 0) {
+                        map<string, string> currentState = JSONStringToMap(i->second);
+                        map<string, string> currentVelocity = JSONStringToMap(currentState["velocity"]);
+                        weaponInfo[id] = mapToJSONString({
+                            {"type", weapons[id].type},
+                            {"position", mapToJSONString({
+                                {"x", currentState["position.x"]},
+                                {"y", currentState["position.y"]},
+                                {"z", currentState["position.z"]},
+                                {"yaw", currentState["yaw"]},
+                                {"pitch", currentState["pitch"]}
+                            })},
+                            {"velocity", mapToJSONString({
+                                {"x", currentVelocity["x"]},
+                                {"y", currentVelocity["y"]},
+                                {"z", currentVelocity["z"]}
+                            })}
+                        });
                     }
                 }
                 
-                if (players[data.recipientId] != null) players[data.recipientId].socket.emit("weaponStates", {
-                    ownerId: data.ownerId, 
-                    weaponData: weaponInfo})
+                int recipientId = stoi(data["recipientId"]);
+                if (players.count(recipientId) > 0) players.at(recipientId).socket->emit("weaponStates", {
+                    {"ownerId", data["ownerId"]}, 
+                    {"weaponData", vectorToJSONString(weaponInfo)}});
             });
 
+/*
 */
-            socket->on("disconnect", [this, assignedId](map<string, string> data) {
+            socket->on("disconnect", [this, assignedId, socket](map<string, string> data) {
                 broadcast("playerLeave", {{"id", toString(assignedId)}}, -1);
-                cout << players[assignedId].name << " left. 😭😭😭😭😭😭😭" << endl;
+                cout << players.at(assignedId).name << " left. 😭😭😭😭😭😭😭" << endl;
                 players.erase(assignedId);
+                cout << "players left: " << players.size() << endl;
+
+
+                for (auto i = socket->websocketCallbacks.begin(); i != socket->websocketCallbacks.end(); i++) {
+                    if (i->first != "joinRoom" && i->first != "joinFFAQueue") {
+                        socket->removeListener(i->first);
+                        i--;
+                    }
+                }
+
+                socket->emit("stopTicking", {{}});
+
 
             });
 
@@ -197,23 +215,24 @@ class Room {
 
         void respawnPlayer(unsigned int id) {
             broadcast("playerRespawned", {{"id", toString(id)}}, -1);
-            players[id].position.x = randFloat() * 10.0 - 5.0;
-            players[id].position.y = 2;
-            players[id].position.z = randFloat() * 10.0 - 5.0;
-            players[id].position.yaw = 0.0;
-            players[id].position.pitch = 0.0;
-            players[id].health = DEFAULT_PLAYER_HEALTH;
-            players[id].socket->emit("respawn", genPlayerPacket(id));
+            players.at(id).position.x = randFloat() * 10.0 - 5.0;
+            players.at(id).position.y = 2;
+            players.at(id).position.z = randFloat() * 10.0 - 5.0;
+            players.at(id).position.yaw = 0.0;
+            players.at(id).position.pitch = 0.0;
+            players.at(id).health = DEFAULT_PLAYER_HEALTH;
+            players.at(id).socket->emit("respawn", genPlayerPacket(id));
         }
 
         map<string, string> genPlayerPacket(unsigned int id) {
             return {
-                {"position", mapToJSONString(toMap(players[id].position))},
-                {"state", mapToJSONString(toMap(players[id].state))},
-                {"health", toString(players[id].health)},
-                {"currentWeaponType", toString(players[id].currentWeaponType)},
-                {"charging", toString(players[id].charging)},
-                {"health", toString(players[id].health)}
+                {"position", mapToJSONString(toMap(players.at(id).position))},
+                {"state", mapToJSONString(toMap(players.at(id).state))},
+                {"health", toString(players.at(id).health)},
+                {"currentWeaponType", toString(players.at(id).currentWeaponType)},
+                {"startChargeTime", toString(players.at(id).startChargeTime)},
+                {"charging", toString(players.at(id).charging)},
+                {"health", toString(players.at(id).health)}
             };
         }
 
@@ -249,6 +268,8 @@ class Room {
             newWeapon.velocity.x = velocity[0];
             newWeapon.velocity.y = velocity[1];
             newWeapon.velocity.z = velocity[2];
+
+            weapons[nextWeaponId] = newWeapon;
 
             newWeaponData.push_back({
                 {"id", toString(nextWeaponId)},
@@ -287,7 +308,7 @@ class Room {
         void tick() {
             map<string, string> playersData;
             for (auto i = players.begin(); i != players.end(); i++) {
-                player& thisPlayer = players[i->first];
+                player& thisPlayer = players.at(i->first);
                 if (thisPlayer.position.y < -100.0) {
                     thisPlayer.health = 0;
                     thisPlayer.socket->emit("youDied", {{"id", toString(i->first)}, {"cause", "void"}});
@@ -301,6 +322,73 @@ class Room {
             broadcast("playerUpdate", playersData, -1);
         }
 
+        void calculateCollision(int deltaTime) {
+            vector<int> deletedWeapons;
+            for (auto i = weapons.begin(); i != weapons.end(); i++) {
+
+                weapon& thisWeapon = weapons[i->first];
+                if (thisWeapon.variety == "projectile") thisWeapon.velocity.y -= 0.00001 * deltaTime;
+                
+                float velocityMagnitude = hypot(thisWeapon.velocity.x, thisWeapon.velocity.y, thisWeapon.velocity.z);
+                int intermediateSteps = ceil(velocityMagnitude / 1.0);
+
+                
+                for (int step = 0; step < intermediateSteps; step++) {
+                    thisWeapon.position.x += thisWeapon.velocity.x * deltaTime / intermediateSteps;
+                    thisWeapon.position.y += thisWeapon.velocity.y * deltaTime / intermediateSteps;
+                    thisWeapon.position.z += thisWeapon.velocity.z * deltaTime / intermediateSteps;
+                    if (abs(thisWeapon.position.x) > 100 || abs(thisWeapon.position.z) > 100 || abs(thisWeapon.position.y) > 1000) {
+                        broadcast("weaponHit", {{"weaponId", toString(i->first)}}, -1);
+                        deletedWeapons.push_back(i->first);
+                        continue;
+                    }
+
+                    for (int j = 0; j < platforms.size(); j++) {
+                        platform& currentPlatform = platforms[j];
+                        if (collision(thisWeapon.radius, {thisWeapon.position.x, thisWeapon.position.y, thisWeapon.position.z}, currentPlatform)) {
+                            broadcast("weaponHit", {{"weaponId", toString(i->first)}}, -1);
+                            deletedWeapons.push_back(i->first);
+                            continue;
+                        }
+                    }
+
+                    for (auto i = players.begin(); i != players.end(); i++) if (i->second.health > 0 && i->first != thisWeapon.ownerId) {
+                    player& thisPlayer = i->second;
+                    platform playerInfo;
+                    playerInfo.position.x = thisPlayer.position.x;
+                    playerInfo.position.y = thisPlayer.position.y;
+                    playerInfo.position.z = thisPlayer.position.z;
+                    playerInfo.dimensions.radius = 2.5;
+                    playerInfo.dimensions.mx = -1;
+                    playerInfo.dimensions.px = 1;
+                    playerInfo.dimensions.my = 0;
+                    playerInfo.dimensions.py = 2 - thisPlayer.state.crouchValue;
+                    playerInfo.dimensions.mz = -.25;
+                    playerInfo.dimensions.pz = .25;
+                    if (collision(thisWeapon.radius, {thisWeapon.position.x, thisWeapon.position.y, thisWeapon.position.z}, playerInfo)) {
+                        cout << "player hit" << endl;
+                        broadcast("weaponHit", {{"weaponId", toString(i->first)}}, -1);
+                        deletedWeapons.push_back(i->first);
+                        continue;
+                        float newHealth = thisPlayer.health - thisWeapon.damage;
+                        thisPlayer.health = newHealth;
+                        if (newHealth > 0) {
+                        //console.log("health: " + newHealth)
+                        } else {
+                        if (players.count(thisWeapon.ownerId)) {
+                            players.at(thisWeapon.ownerId).killCount++;
+                            string deathMessage = thisPlayer.name + " was killed by " + players.at(thisWeapon.ownerId).name;
+                            broadcast("chatMessage", {{"message", deathMessage}}, -1);
+                        }
+                        thisPlayer.socket->emit("youDied", {{"id", toString(i->first)}, {"cause", "killed"}});
+                        }
+                    }
+                }
+            }
+        }
+        for (int i = 0; i < deletedWeapons.size(); i++) weapons.erase(deletedWeapons[i]);
+    }
+
 
         
 };
@@ -311,8 +399,19 @@ struct {
     map<int, Room> ffaRooms;
 } rooms;
 
+void tickRooms(map<int, Room>& rooms) {
+    for (auto i = rooms.begin(); i != rooms.end(); i++) {
+        i->second.tick();
+    }
+}
 
-Room testRoom = Room("full_starting_map (5).obj");
+void collisionRooms(map<int, Room>& rooms, int deltaTime) {
+    for (auto i = rooms.begin(); i != rooms.end(); i++) {
+        i->second.calculateCollision(deltaTime);
+    }
+}
+
+
 
 mutex mtx;
 
@@ -340,15 +439,32 @@ int main() {
     printf("----------------------\nSTARTING SERVER\n");
 
     thread tickThread([]() {
-        int interval = 1000 / TPS;
-        auto then = chrono::high_resolution_clock::now();
+        int tickInterval = 1000 / TPS;
+        auto tickThen = chrono::high_resolution_clock::now();
+        int collisionInterval = 10;
+        auto collisionThen = chrono::high_resolution_clock::now();
         while(true) {
             auto now = chrono::high_resolution_clock::now();
-            auto deltaTime = chrono::duration_cast<chrono::milliseconds>(now - then).count();
-            if (deltaTime > interval) {
-                lock_guard<mutex> lock(mtx);
-                testRoom.tick();
-                then = now;
+            {
+                auto deltaTime = chrono::duration_cast<chrono::milliseconds>(now - tickThen).count();
+                if (deltaTime > tickInterval) {
+                    lock_guard<mutex> lock(mtx);
+                    tickRooms(rooms.privateRooms);
+                    tickRooms(rooms.lobbyRooms);
+                    tickRooms(rooms.ffaRooms);
+                    tickThen = now;
+                }
+            }
+            {
+                auto deltaTime = chrono::duration_cast<chrono::milliseconds>(now - collisionThen).count();
+                if (deltaTime > collisionInterval) {
+                    lock_guard<mutex> lock(mtx);
+                    
+                    collisionRooms(rooms.privateRooms, deltaTime);
+                    collisionRooms(rooms.lobbyRooms, deltaTime);
+                    collisionRooms(rooms.ffaRooms, deltaTime);
+                    collisionThen = now;
+                }
             }
             this_thread::sleep_for(chrono::milliseconds(1));
         }
@@ -385,12 +501,22 @@ int main() {
 
 
         currentSocket->on("joinRoom", [currentSocket](map<string, string> data) {
+            try { if (currentSocket->websocketCallbacks.count("disconnect") > 0) currentSocket->websocketCallbacks["disconnect"]({{}}); }
+            catch (const exception& exception) { cerr << "problem with socket->on disconnect (switching): " << exception.what() << endl; }
+
+            int roomId = stoi(data["roomId"]);
+            currentSocket->emit("roomJoinSuccess", {{"roomId", toString(roomId)}});
+
+            if (!rooms.privateRooms.count(roomId)) {
+                Room newRoom("full_starting_map (" + toString(roomId) + ").obj");
+                rooms.privateRooms[roomId] = newRoom;
+
+            }
+            rooms.privateRooms.at(roomId).addPlayer(currentSocket);
+            
             cout << "JOIN ROOM: " << data["roomId"] << endl;
 
-            currentSocket->emit("roomJoinSuccess", {{"roomId", "1"}});
 
-            testRoom.addPlayer(currentSocket);
-            
         });
         
     })
@@ -404,10 +530,15 @@ int main() {
 
         //cout << data << " from " << &connection << endl;
 
-
-        try { currentWebsocket->websocketCallbacks[mapData["messageType"]](mapData); }
+        try {
+            if (currentWebsocket->websocketCallbacks.count(mapData["messageType"])) {
+                //cout << currentWebsocket->websocketCallbacks.count(mapData["messageType"]) << endl;
+                currentWebsocket->websocketCallbacks[mapData["messageType"]](mapData);
+            }
+        }
         catch (const exception& exception) { cerr << "problem with socket->on " << mapData["messageType"] << ": " << exception.what() << endl; }
 
+        //cout << "did " << mapData["messageType"] << endl;
         
     })
     .onclose([&](crow::websocket::connection& connection, const string& reason) {
@@ -455,7 +586,7 @@ int main() {
     });
 
 
-    app.port(8080).multithreaded().run();
+    app.bindaddr("0.0.0.0").port(8080).multithreaded().run();
 
 
     
