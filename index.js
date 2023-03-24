@@ -161,7 +161,7 @@ const weaponSpecs = {
     manaCost: 20,
     damage: 100,
     chargeTime: 1000,
-    projectileCount: 5,
+    projectileCount: 1,
     burstInterval: .5
   },
   groundBeef: {
@@ -1021,6 +1021,10 @@ function kickPlayer(id, socket) {
 }
 
 socketServer.on("connection", (socket) => {
+  if (socket.handshake.address == "10.176.62.26" || socket.handshake.address == "10.176.60.126") {
+    return
+  }
+  console.log(socket.handshake.address)
   /*socket.emit("pingRequest")
   socket.on("ping", () => {
     socket.emit("ping")

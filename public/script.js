@@ -660,12 +660,12 @@ socket.on("weaponStates", (data) => {
 
 var hitmarkerCrosshairTimer = 0 // milliseconds
 socket.on("weaponHit", (data) => {
-    damageOverlayTimer = DAMAGE_OVERLAY_LENGTH
     if (otherWeapons[data.weaponId]) {
         otherWeapons[data.weaponId].shooted = false
         otherWeapons[data.weaponId].remove()
     }
     if (player.id == data.ownerId) {
+        console.log("hitmarker")
         hitmarkerNoise.play()
         hitmarkerCrosshairTimer = HITMARKER_FADE_TIME
     }
@@ -1101,13 +1101,13 @@ function fixedUpdate() {
     hitmarkerCrosshairTimer -= deltaTime
     if (hitmarkerCrosshairTimer < 0) hitmarkerCrosshairTimer = 0
 
-    ctx.clearRect(0, 0, effectsCanvas.width, effectsCanvas.height)
-    for (let i = 0; i < 500; i++) {
-        ctx.fillStyle = "rgb(255, 0, 0, " + damageOverlayTimer / DAMAGE_OVERLAY_LENGTH * (500 - i) / 500 + ")"
-        ctx.fillRect(i, i, effectsCanvas.width - 2 * i, 1) // top
-        ctx.fillRect(i, effectsCanvas.height - i, effectsCanvas.width - 2 * i, 1) // bottom
-        ctx.fillRect(i, i, 1, effectsCanvas.height - 2 * i) // left
-        ctx.fillRect(effectsCanvas.width - i, i, 1, effectsCanvas.height - 2 * i) // right
+    ctx.clearRect(0, 0, effectsCanvas.width, 100)
+    ctx.clearRect(0, effectsCanvas.height - 100, effectsCanvas.width, 100)
+    ctx.clearRect(0, 100, 100, effectsCanvas.height - 200)
+    ctx.clearRect(effectsCanvas.width - 100, 100, 100, effectsCanvas.height - 200)
+    for (let i = 0; i < 100; i++) {
+        ctx.strokeStyle = "rgba(255, 0, 0, " + damageOverlayTimer / DAMAGE_OVERLAY_LENGTH * (100 - i) / 100 + ")"
+        ctx.strokeRect(i, i, effectsCanvas.width - 2 * i, effectsCanvas.height - 2 * i)
     }
 
     damageOverlayTimer -= deltaTime
