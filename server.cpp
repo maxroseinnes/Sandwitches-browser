@@ -46,6 +46,7 @@ class Room {
         string mapFilename;
         modelGeometry mapGeometry;
         vector<platform> platforms;
+        array<float, 2> sunPosition;
         map<unsigned int, player> players;
         map<unsigned int, weapon> weapons;
 
@@ -53,10 +54,26 @@ class Room {
         Room(string mapFileName) {
             mapFilename = mapFileName;
 
+            cout << mapFileName << endl;
+
             string mapFileText = getFileText("public/assets/models/" + mapFileName);
             mapGeometry = parseWavefront(mapFileText, false, false);
 
             platforms = generatePlatforms(mapGeometry);
+
+            if (mapFileName.find("starting") != string::npos) {
+                sunPosition[0] = M_PI * (1.0/5.0);
+                sunPosition[1] = M_PI * (1.0/3.0);
+            }
+            else if (mapFileName.find("kitchen") != string::npos) {
+                sunPosition[0] = M_PI * (1.0/7.0);
+                sunPosition[1] = M_PI * (1.1/2.0);
+            }
+            else {
+                sunPosition[0] = M_PI * (1.0/5.0);
+                sunPosition[1] = M_PI * (1.0/3.0);
+            }
+
 
 
             cout << "NEW ROOM CREATED" << endl;
@@ -88,7 +105,11 @@ class Room {
 
             // ------------ initial player communications ------------ // 
 
-            socket->emit("map", {{"mapFile", mapFilename}});
+            socket->emit("map", {
+                {"mapFile", mapFilename}, 
+                {"sunPitch", toString(sunPosition[0])},
+                {"sunYaw", toString(sunPosition[1])}
+            });
 
             map<string, string> otherPlayersInfo;
             for (auto nameValue = players.begin(); nameValue != players.end(); nameValue++) {
@@ -242,45 +263,69 @@ class Room {
 
             if (thisPlayer.health <= 0) return;
 
+            if (!weaponSpecs.count(data["type"])) return;
             weaponInfo weaponSpec = weaponSpecs[data["type"]];
+
+            if (weaponSpec.chargeTime > 0) {
+                if (!thisPlayer.charging) return;
+                thisPlayer.charging = false;
+                if (now() - thisPlayer.startChargeTime < weaponSpec.chargeTime) return;
+            }
+            thisPlayer.charging = false;
+
+            if (thisPlayer.lastShotTime + weaponSpecs[data["type"]].cooldown >= now()) return;
 
             thisPlayer.lastShotTime = now();
             thisPlayer.lastShotWeapon = data["type"];
 
             vector<map<string, string>> newWeaponData;
             position weaponPosition = mapToPosition(JSONStringToMap(data["position"]));
+            velocity shooterVelocity = mapToVelocity(JSONStringToMap(data["shooterVelocity"]));
+            weaponPosition.x += shooterVelocity.x * thisPlayer.socket->lagTime * 1;
+            weaponPosition.y += shooterVelocity.y * thisPlayer.socket->lagTime * 1;
+            weaponPosition.z += shooterVelocity.z * thisPlayer.socket->lagTime * 1;
 
-            float pitch = -stof(data["pitch"]);
-            float yaw = -stof(data["yaw"]);
-            
-            array<float, 3> velocity = {0, 0, -weaponSpec.speed};
+            for (int i = 0; i < weaponSpec.projectileCount; i++) {
 
-            rotateX(velocity, velocity, {0, 0, 0}, pitch);
-            rotateY(velocity, velocity, {0, 0, 0}, yaw);
+                float pitch = -stof(data["pitch"]);
+                float yaw = -stof(data["yaw"]);
+                if (weaponSpec.projectileCount > 1) {
+                    float randAngle = (randFloat() - .5) * M_PI * 4;
+                    float randRadius = sqrt(randFloat()) * M_PI / 32;
+                    pitch += cos(randAngle) * randRadius;
+                    yaw += sin(randAngle) * randRadius;
+                }
+                if (weaponSpec.variety == "projectile") pitch += M_PI / 16;
+                
+                array<float, 3> velocity = {0, 0, -weaponSpec.speed};
 
-            weapon newWeapon;
-            newWeapon.type = data["type"];
-            newWeapon.damage = weaponSpec.damage;
-            newWeapon.variety = weaponSpec.variety;
-            newWeapon.radius = weaponSpec.radius;
-            newWeapon.ownerId = ownerId;
-            newWeapon.position = weaponPosition;
-            newWeapon.velocity.x = velocity[0];
-            newWeapon.velocity.y = velocity[1];
-            newWeapon.velocity.z = velocity[2];
+                rotateX(velocity, velocity, {0, 0, 0}, pitch);
+                rotateY(velocity, velocity, {0, 0, 0}, yaw);
 
-            weapons[nextWeaponId] = newWeapon;
+                weapon newWeapon;
+                newWeapon.type = data["type"];
+                newWeapon.damage = weaponSpec.damage;
+                newWeapon.variety = weaponSpec.variety;
+                newWeapon.radius = weaponSpec.radius;
+                newWeapon.ownerId = ownerId;
+                newWeapon.position = weaponPosition;
+                newWeapon.velocity.x = velocity[0];
+                newWeapon.velocity.y = velocity[1];
+                newWeapon.velocity.z = velocity[2];
 
-            newWeaponData.push_back({
-                {"id", toString(nextWeaponId)},
-                {"type", data["type"]},
-                {"ownerId", toString(ownerId)},
-                {"cooldown", toString(weaponSpec.cooldown)},
-                {"position", mapToJSONString(toMap(weaponPosition))},
-                {"velocity", mapToJSONString(toMap(newWeapon.velocity))}
-            });
+                weapons[nextWeaponId] = newWeapon;
 
-            nextWeaponId++;
+                newWeaponData.push_back({
+                    {"id", toString(nextWeaponId)},
+                    {"type", data["type"]},
+                    {"ownerId", toString(ownerId)},
+                    {"cooldown", toString(weaponSpec.cooldown)},
+                    {"position", mapToJSONString(toMap(weaponPosition))},
+                    {"velocity", mapToJSONString(toMap(newWeapon.velocity))}
+                });
+
+                nextWeaponId++;
+            }
             
             vector<string> newWeaponDataAsStrings;
             for (int i = 0; i < newWeaponData.size(); i++) newWeaponDataAsStrings.push_back(mapToJSONString(newWeaponData[i]));
@@ -309,7 +354,7 @@ class Room {
             map<string, string> playersData;
             for (auto i = players.begin(); i != players.end(); i++) {
                 player& thisPlayer = players.at(i->first);
-                if (thisPlayer.position.y < -100.0) {
+                if (thisPlayer.position.y < -10.0) {
                     thisPlayer.health = 0;
                     thisPlayer.socket->emit("youDied", {{"id", toString(i->first)}, {"cause", "void"}});
                     string deathMessage = thisPlayer.name + " fell into the void.";
@@ -330,16 +375,17 @@ class Room {
                 if (thisWeapon.variety == "projectile") thisWeapon.velocity.y -= 0.00001 * deltaTime;
                 
                 float velocityMagnitude = hypot(thisWeapon.velocity.x, thisWeapon.velocity.y, thisWeapon.velocity.z);
-                int intermediateSteps = ceil(velocityMagnitude / 1.0);
+                int intermediateSteps = ceil(velocityMagnitude / 0.1);
 
-                
-                for (int step = 0; step < intermediateSteps; step++) {
+                bool hit = false;
+                for (int step = 0; step < intermediateSteps; step++) if (!hit) {
                     thisWeapon.position.x += thisWeapon.velocity.x * deltaTime / intermediateSteps;
                     thisWeapon.position.y += thisWeapon.velocity.y * deltaTime / intermediateSteps;
                     thisWeapon.position.z += thisWeapon.velocity.z * deltaTime / intermediateSteps;
                     if (abs(thisWeapon.position.x) > 100 || abs(thisWeapon.position.z) > 100 || abs(thisWeapon.position.y) > 1000) {
                         broadcast("weaponHit", {{"weaponId", toString(i->first)}}, -1);
                         deletedWeapons.push_back(i->first);
+                        hit = true;
                         continue;
                     }
 
@@ -348,6 +394,7 @@ class Room {
                         if (collision(thisWeapon.radius, {thisWeapon.position.x, thisWeapon.position.y, thisWeapon.position.z}, currentPlatform)) {
                             broadcast("weaponHit", {{"weaponId", toString(i->first)}}, -1);
                             deletedWeapons.push_back(i->first);
+                            hit = true;
                             continue;
                         }
                     }
@@ -369,7 +416,7 @@ class Room {
                         cout << "player hit" << endl;
                         broadcast("weaponHit", {{"weaponId", toString(i->first)}}, -1);
                         deletedWeapons.push_back(i->first);
-                        continue;
+                        hit = true;
                         float newHealth = thisPlayer.health - thisWeapon.damage;
                         thisPlayer.health = newHealth;
                         if (newHealth > 0) {
@@ -382,6 +429,7 @@ class Room {
                         }
                         thisPlayer.socket->emit("youDied", {{"id", toString(i->first)}, {"cause", "killed"}});
                         }
+                        continue;
                     }
                 }
             }
@@ -390,7 +438,17 @@ class Room {
     }
 
 
+
         
+};
+
+class PrivateRoom : public Room {
+    public:
+
+
+
+
+
 };
 
 struct {
@@ -411,6 +469,19 @@ void collisionRooms(map<int, Room>& rooms, int deltaTime) {
     }
 }
 
+void callDisconnect(websocket* socket) {
+    try { if (socket->websocketCallbacks.count("disconnect") > 0) socket->websocketCallbacks["disconnect"]({{}}); }
+    catch (const exception& exception) { cerr << "problem with socket->on disconnect (switching): " << exception.what() << endl; }
+}
+
+
+struct queueSpot {
+    int id;
+    websocket* socket;
+};
+
+vector<queueSpot> lobbyQueue;
+vector<queueSpot> ffaQueue;
 
 
 mutex mtx;
@@ -431,6 +502,16 @@ int main() {
     
         weaponSpecs.insert({toString(i->first), currentSpecs});
     }
+
+    int lobbyRoomsCount = 2;
+    for (int i = 0; i < lobbyRoomsCount; i++) {
+        rooms.lobbyRooms[i] = Room("full_starting_map (3).obj");
+    }
+
+    int ffaRoomsCount = 2;
+    for (int i = 0; i < ffaRoomsCount; i++) {
+        rooms.ffaRooms[i] = Room("full_starting_map (5).obj");
+    }
     
 
 
@@ -443,6 +524,12 @@ int main() {
         auto tickThen = chrono::high_resolution_clock::now();
         int collisionInterval = 10;
         auto collisionThen = chrono::high_resolution_clock::now();
+        int ffaInterval = 1000;
+        auto ffaThen = chrono::high_resolution_clock::now();
+
+        const int maxFFAPlayers = 2; // max players per ffa room
+        const int maxLobbyPlayers = 3; // max players per ffa lobby
+
         while(true) {
             auto now = chrono::high_resolution_clock::now();
             {
@@ -464,6 +551,47 @@ int main() {
                     collisionRooms(rooms.lobbyRooms, deltaTime);
                     collisionRooms(rooms.ffaRooms, deltaTime);
                     collisionThen = now;
+                }
+            }
+            {
+                auto deltaTime = chrono::duration_cast<chrono::milliseconds>(now - ffaThen).count();
+                if (deltaTime > ffaInterval) {
+                    lock_guard<mutex> lock(mtx);
+                    for (auto i = rooms.lobbyRooms.begin(); i != rooms.lobbyRooms.end(); i++) {
+                        Room* room = &i->second;
+                        if (room->players.size() < maxLobbyPlayers) {
+                            int openPlayerSlots = min(maxLobbyPlayers - room->players.size(), lobbyQueue.size());
+                            for (int j = 0; j < openPlayerSlots; j++) {
+                                callDisconnect(lobbyQueue[j].socket);
+                                lobbyQueue[j].socket->emit("roomJoinSuccess", {{"roomId", toString(i->first)}});
+                                room->addPlayer(lobbyQueue[j].socket);
+                                queueSpot newSpot;
+                                newSpot.id = lobbyQueue[j].id;
+                                newSpot.socket = lobbyQueue[j].socket;
+                                ffaQueue.push_back(newSpot);
+                            }
+                            lobbyQueue.erase(lobbyQueue.begin(), lobbyQueue.begin() + openPlayerSlots);
+                        }
+                    }
+                    
+                    for (auto i = rooms.ffaRooms.begin(); i != rooms.ffaRooms.end(); i++) {
+                        Room* room = &i->second;
+                        if (room->players.size() < maxFFAPlayers) {
+                            int openPlayerSlots = min(maxFFAPlayers - room->players.size(), ffaQueue.size());
+                            for (int j = 0; j < openPlayerSlots; j++) {
+                                callDisconnect(ffaQueue[j].socket);
+                                ffaQueue[j].socket->emit("roomJoinSuccess", {{"roomId", toString(i->first)}});
+                                room->addPlayer(ffaQueue[j].socket);
+                            }
+                            ffaQueue.erase(ffaQueue.begin(), ffaQueue.begin() + openPlayerSlots);
+                        }
+                    }
+
+
+                    //for (auto i = rooms.ffaRooms.begin(); i != rooms.ffaRooms.end(); i++) i->second.sendLeaderboard();
+                    //for (auto i = rooms.privateRooms.begin(); i != rooms.privateRooms.end(); i++) i->second.sendLeaderboard();
+
+                    ffaThen = now;
                 }
             }
             this_thread::sleep_for(chrono::milliseconds(1));
@@ -499,10 +627,17 @@ int main() {
         websocketMap[hashValue] = newSocket;
         websocket* currentSocket = &websocketMap[hashValue];
 
+        currentSocket->on("lagTest", [currentSocket](map<string, string> data) {
+            currentSocket->emit("lagTest", {{"serverNow", toString(now())}});
+        });
+
+        currentSocket->on("lagTime", [currentSocket](map<string, string> data) {
+            currentSocket->lagTime = stof(data["lagTime"]);
+            cout << "lag time: " << currentSocket->lagTime << endl;
+        });
 
         currentSocket->on("joinRoom", [currentSocket](map<string, string> data) {
-            try { if (currentSocket->websocketCallbacks.count("disconnect") > 0) currentSocket->websocketCallbacks["disconnect"]({{}}); }
-            catch (const exception& exception) { cerr << "problem with socket->on disconnect (switching): " << exception.what() << endl; }
+            callDisconnect(currentSocket);
 
             int roomId = stoi(data["roomId"]);
             currentSocket->emit("roomJoinSuccess", {{"roomId", toString(roomId)}});
@@ -510,6 +645,8 @@ int main() {
             if (!rooms.privateRooms.count(roomId)) {
                 string filename = "full_starting_map (" + toString(roomId) + ").obj";
                 if (roomId == 6) filename = "kitchenmap1.obj";
+                if (roomId == 7) filename = "collision_test_map.obj";
+                if (roomId == 8) filename = "collision_test_map_2.obj";
                 Room newRoom(filename);
                 rooms.privateRooms[roomId] = newRoom;
 
@@ -519,6 +656,24 @@ int main() {
             cout << "JOIN ROOM: " << data["roomId"] << endl;
 
 
+        });
+
+        
+        currentSocket->on("joinFFAQueue", [currentSocket](map<string, string> data) {
+            cout << "JOINING FFA" << endl;
+
+            callDisconnect(currentSocket);
+
+            int newId = nextId;
+            nextId++;
+
+            queueSpot newSpot;
+            newSpot.id = newId;
+            newSpot.socket = currentSocket;
+            lobbyQueue.push_back(newSpot);
+
+            currentSocket->emit("addedToFFAQueue", {{"id", toString(newId)}});
+            
         });
         
     })

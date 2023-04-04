@@ -164,9 +164,11 @@ array<float, 2> normalize(array<float, 2>& out, array<float, 2> a) {
     return out;
 }
 
+#ifdef _WIN32
 float hypot(float x, float y, float z) {
     return sqrt(x * x + y * y + z * z);
 }
+#endif
 
 float length(array<float, 3> a) {
     float x = a[0];

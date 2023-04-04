@@ -295,7 +295,9 @@ vector<platform> generatePlatforms(modelGeometry geometryInfo) {
 
         platforms.push_back(newPlatform);
 
-        
+        //cout << newPlatform.position.x << ", " << newPlatform.position.y << ", " << newPlatform.position.z << endl;
+        //cout << newPlatform.dimensions.mx << ", " << newPlatform.dimensions.px << ", " << newPlatform.dimensions.my << ", " << newPlatform.dimensions.py << ", " << newPlatform.dimensions.mz << ", " << newPlatform.dimensions.pz << endl;
+        //cout << newPlatform.dimensions.pitch << ", " << newPlatform.dimensions.yaw << ", " << newPlatform.dimensions.roll << endl;
 
 
 
@@ -309,52 +311,54 @@ bool collision(float weaponRadius, array<float, 3> weaponPosition, platform plat
     auto colliderDimensions = platformInfo.dimensions;
     auto colliderPosition = platformInfo.position;
 
-  float minDistance = colliderDimensions.radius + weaponRadius + 1;
-  if (
-    abs(colliderPosition.x - weaponPosition[0]) > minDistance || 
-    abs(colliderPosition.y - weaponPosition[1]) > minDistance || 
-    abs(colliderPosition.z - weaponPosition[2]) > minDistance
-  ) return false;
+    //cout << weaponPosition[0] << ", " << weaponPosition[1] << ", " << weaponPosition[2] << endl;
+
+    float minDistance = colliderDimensions.radius + weaponRadius + 1;
+    if (
+        abs(colliderPosition.x - weaponPosition[0]) > minDistance || 
+        abs(colliderPosition.y - weaponPosition[1]) > minDistance || 
+        abs(colliderPosition.z - weaponPosition[2]) > minDistance
+    ) return false;
 
 
-  array<array<float, 3>, 2> boxDimensions;
+    array<array<float, 3>, 2> boxDimensions;
 
-  // colliderDimensions should have: mx, px..., pitch, yaw, roll
-  
+    // colliderDimensions should have: mx, px..., pitch, yaw, roll
+    
 
-  // sphere vs box collision
+    // sphere vs box collision
 
-  array<float, 3> sphereCenter = weaponPosition;
-  
-  // rotate centerpoint about sphere center
-  array<float, 3> centerPointPosition = {
-    colliderPosition.x, 
-    colliderPosition.y, 
-    colliderPosition.z
-  };
-  rotateY(centerPointPosition, centerPointPosition, sphereCenter, colliderDimensions.yaw || colliderDimensions.yaw || 0);
-  rotateX(centerPointPosition, centerPointPosition, sphereCenter, colliderDimensions.pitch || colliderDimensions.pitch || 0);
-  rotateZ(centerPointPosition, centerPointPosition, sphereCenter, colliderDimensions.roll || colliderDimensions.roll || 0);
+    array<float, 3> sphereCenter = weaponPosition;
+    
+    // rotate centerpoint about sphere center
+    array<float, 3> centerPointPosition = {
+        colliderPosition.x, 
+        colliderPosition.y, 
+        colliderPosition.z
+    };
+    rotateY(centerPointPosition, centerPointPosition, sphereCenter, colliderDimensions.yaw);
+    rotateX(centerPointPosition, centerPointPosition, sphereCenter, colliderDimensions.pitch);
+    rotateZ(centerPointPosition, centerPointPosition, sphereCenter, colliderDimensions.roll);
 
 
-  boxDimensions[0][0] = centerPointPosition[0] + colliderDimensions.mx;
-  boxDimensions[1][0] = centerPointPosition[0] + colliderDimensions.px;
-  boxDimensions[0][1] = centerPointPosition[1] + colliderDimensions.my;
-  boxDimensions[1][1] = centerPointPosition[1] + colliderDimensions.py;
-  boxDimensions[0][2] = centerPointPosition[2] + colliderDimensions.mz;
-  boxDimensions[1][2] = centerPointPosition[2] + colliderDimensions.pz;
+    boxDimensions[0][0] = centerPointPosition[0] + colliderDimensions.mx;
+    boxDimensions[1][0] = centerPointPosition[0] + colliderDimensions.px;
+    boxDimensions[0][1] = centerPointPosition[1] + colliderDimensions.my;
+    boxDimensions[1][1] = centerPointPosition[1] + colliderDimensions.py;
+    boxDimensions[0][2] = centerPointPosition[2] + colliderDimensions.mz;
+    boxDimensions[1][2] = centerPointPosition[2] + colliderDimensions.pz;
 
-  array<float, 3> closestPoint = {
-    max(boxDimensions[0][0], min(sphereCenter[0], boxDimensions[1][0])),
-    max(boxDimensions[0][1], min(sphereCenter[1], boxDimensions[1][1])),
-    max(boxDimensions[0][2], min(sphereCenter[2], boxDimensions[1][2]))
-  };
+    array<float, 3> closestPoint = {
+        max(boxDimensions[0][0], min(sphereCenter[0], boxDimensions[1][0])),
+        max(boxDimensions[0][1], min(sphereCenter[1], boxDimensions[1][1])),
+        max(boxDimensions[0][2], min(sphereCenter[2], boxDimensions[1][2]))
+    };
 
-  return sqrt(
-    pow(closestPoint[0] - sphereCenter[0], 2) + 
-    pow(closestPoint[1] - sphereCenter[1], 2) + 
-    pow(closestPoint[2] - sphereCenter[2], 2)
-  ) < weaponRadius;
+    return sqrt(
+        pow(closestPoint[0] - sphereCenter[0], 2) + 
+        pow(closestPoint[1] - sphereCenter[1], 2) + 
+        pow(closestPoint[2] - sphereCenter[2], 2)
+    ) < weaponRadius;
 
 
 }

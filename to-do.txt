@@ -131,3 +131,14 @@ make toJSONString method for each type
 PROBLEMS:
     - players are corrupted after created -- FIXED -- only pointers were being stored
 
+
+SERVER STUFF LEFT TO DO:
+    - full weapon stuff
+    - collision stuff
+    - ffa stuff
+
+fix for peeping issue: disable face culling for outlines
+
+make sure bus errors don't happen with mapToX functions
+
+

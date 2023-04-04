@@ -50,7 +50,7 @@ int main() {
 
     CROW_ROUTE(app, "/<string>")([](string filename) {
         cout << filename << endl;
-        return getFileText(filename);
+        return getFileText("public/" + filename);
     });
 
 

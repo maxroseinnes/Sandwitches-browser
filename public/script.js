@@ -70,7 +70,9 @@ var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
 var lobbyId
-var webSocket = new WebSocket("ws://localhost:8080/socket");
+var address = window.location.href
+address = address.slice(address.indexOf("http//") + 6, address.indexOf("/index.html"))
+var webSocket = new WebSocket("ws://" + address + "/socket");
 var otherPlayers = {};
 var otherWeapons = {}
 var leaderboard = {}
@@ -107,6 +109,11 @@ joinGameButton.onclick = () => {
 
 //lobbyId = 4
 //joinRoom() // go to room 4 first
+
+var xhr = new XMLHttpRequest();
+xhr.open("GET", "./weapon-specs.json", false)
+xhr.send()
+Weapon.weaponSpecs = JSON.parse(xhr.response)
 
 var myWeapons = [
     "olive",
@@ -391,6 +398,7 @@ var player
 var websocketCallbacks = {}
 
 var socket
+var serverOffsetTime
 
 function joinRoom(id) {
     console.log("join room")
@@ -472,7 +480,15 @@ webSocket.onopen = () => {
         }
     })*/
 
-
+    let initialLagTestTime = Date.now()
+    socket.on("lagTest", (data) => {
+        let lagTime = Date.now() - initialLagTestTime // time for it to go there and back
+        serverOffsetTime = Date.now() - data.serverNow + lagTime / 2
+        console.log("HANDSHOOK", "send time: " + lagTime / 2 + "ms")
+        socket.emit("lagTime", {lagTime: lagTime})
+    })
+    socket.emit("lagTest", {})
+    
     var tickInterval
     socket.on("startTicking", (data) => {
         tickInterval = setInterval(tick, 1000 / data.TPS);
@@ -504,6 +520,9 @@ webSocket.onopen = () => {
     }
 
     socket.on("map", (mapInfo) => {
+
+        webgl.settings.sunAnglePitch = mapInfo.sunPitch
+        webgl.settings.sunAngleYaw = mapInfo.sunYaw
 
         if (mapInfo.mapFile != undefined) {
             let mapObj = fetchObj(mapInfo.mapFile)
@@ -693,7 +712,7 @@ webSocket.onopen = () => {
             if (currentWeapon.ownerId == player.id) owner = player
             else owner = otherPlayers[currentWeapon.ownerId]
 
-            otherWeapons[currentWeapon.id] = new Weapon(weaponGeometry, currentWeapon.type, [platforms, otherPlayers, [player], [ground]], owner, currentWeapon.position)
+            otherWeapons[currentWeapon.id] = new Weapon(weaponGeometry, currentWeapon.type, [], owner, currentWeapon.position)
             otherWeapons[currentWeapon.id].velocity = currentWeapon.velocity
             otherWeapons[currentWeapon.id].shooted = true
             //otherWeapons[currentWeapon.id].shootSoundEffect.play()
@@ -705,12 +724,13 @@ webSocket.onopen = () => {
         }
     })
 
-    socket.on("playerLeave", (id) => {
-        if (otherPlayers[id] == null) return
-        displayChatMessage(otherPlayers[id].name + " left")
-        otherPlayers[id].remove()
-        otherPlayers[id] = null
-        removePlayerFromHUD(id)
+    socket.on("playerLeave", (data) => {
+        console.log(data)
+        if (otherPlayers[data.id] == null) return
+        displayChatMessage(otherPlayers[data.id].name + " left")
+        otherPlayers[data.id].remove()
+        otherPlayers[data.id] = null
+        removePlayerFromHUD(data.id)
     })
 
     socket.on("playerUpdate", (playersData) => {
@@ -718,7 +738,7 @@ webSocket.onopen = () => {
         for (let id in playersData) {
             // update player health and healthbar
             if (player && id == player.id) {
-                player.startChargeTime = playersData[id].startChargeTime
+                player.startChargeTime = playersData[id].startChargeTime + serverOffsetTime
                 player.charging = playersData[id].charging
                 if (playersData[id].health != player.health) {
                     player.health = playersData[id].health
@@ -748,7 +768,7 @@ webSocket.onopen = () => {
                     otherPlayers[id].inventory.currentWeapon = new Weapon(weaponGeometry, otherPlayers[id].currentWeaponType, [otherPlayers, platforms, [ground]], otherPlayers[id], otherPlayers[id].position)
                     if (otherPlayers[id].inventory.currentWeapon.particleEmitter) otherPlayers[id].inventory.currentWeapon.particleEmitter.remove()
                 }
-                otherPlayers[id].startChargeTime = playersData[id].startChargeTime
+                otherPlayers[id].startChargeTime = playersData[id].startChargeTime + serverOffsetTime
                 otherPlayers[id].charging = playersData[id].charging
             }
         }
@@ -821,6 +841,9 @@ webSocket.onopen = () => {
         startButton.textContent = "Play"
 
         if (player != null) removePlayerFromHUD(player.id, player.name)
+
+        for (let i in otherWeapons) otherWeapons[i].remove()
+        otherWeapons = {}
 
         // delete all map geometry
         for (let i in mapModels) mapModels[i].delete()
@@ -1087,6 +1110,7 @@ function fixedUpdate() {
                 ownerId: player.id,
                 type: projectileType,
                 position: currentWeapon.position,
+                shooterVelocity: player.velocity,
                 pitch: lookAngleX,
                 yaw: lookAngleY
             })
@@ -1742,6 +1766,7 @@ document.addEventListener("mouseup", function (event) {
             ownerId: player.id,
             type: projectileType,
             position: currentWeapon.position,
+            shooterVelocity: player.velocity,
             pitch: lookAngleX,
             yaw: lookAngleY
         })

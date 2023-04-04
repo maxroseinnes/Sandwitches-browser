@@ -13,6 +13,7 @@ class websocket {
     public: 
         crow::websocket::connection* webSocket;
         map<string, function<void(map<string, string>)>> websocketCallbacks;
+        float lagTime;
         size_t hashValue;
         websocket() {};
         websocket(crow::websocket::connection& connection) : webSocket(&connection) {
@@ -225,6 +226,17 @@ position mapToPosition(map<string, string> JSONMap) {
     if (JSONMap.count("lean") != 0) newPosition.lean = stof(JSONMap["lean"]);
 
     return newPosition;
+    
+}
+
+velocity mapToVelocity(map<string, string> JSONMap) {
+    velocity newVelocity;
+
+    if (JSONMap.count("x") != 0) newVelocity.x = stof(JSONMap["x"]);
+    if (JSONMap.count("y") != 0) newVelocity.y = stof(JSONMap["y"]);
+    if (JSONMap.count("z") != 0) newVelocity.z = stof(JSONMap["z"]);
+
+    return newVelocity;
     
 }
 

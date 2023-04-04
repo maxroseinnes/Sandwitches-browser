@@ -18,7 +18,7 @@
       "speed": 0.0375,
       "manaCost": 5,
       "damage": 5,
-      "chargeTime": 250,
+      "chargeTime": 0,
       "projectileCount": 1,
       "burstInterval": 0.5
     },
@@ -30,7 +30,7 @@
       "manaCost": 5,
       "damage": 10,
       "chargeTime": 0,
-      "projectileCount": 5,
+      "projectileCount": 1,
       "burstInterval": 0.5
     },
     "pickle": {
@@ -74,18 +74,40 @@
       "manaCost": 20,
       "damage": 100,
       "chargeTime": 1000,
-      "projectileCount": 5,
+      "projectileCount": 1,
       "burstInterval": 0.5
     },
     "groundBeef": {
       "variety": "projectile",
-      "radius": 0.1,
+      "radius": 0.125,
       "cooldown": 1000,
       "speed": 0.075,
       "manaCost": 20,
       "damage": 10,
       "chargeTime": 0,
-      "projectileCount": 10,
+      "projectileCount": 20,
+      "burstInterval": 0.5
+    },
+    "pan": {
+      "variety": "flinger",
+      "radius": 0,
+      "cooldown": 1000,
+      "speed": 0,
+      "manaCost": 0,
+      "damage": 0,
+      "chargeTime": 0,
+      "projectileCount": 1,
+      "burstInterval": 0
+    },
+    "sausage": {
+      "variety": "missile",
+      "radius": 1,
+      "cooldown": 1000,
+      "speed": 0.0375,
+      "manaCost": 20,
+      "damage": 50,
+      "chargeTime": 0,
+      "projectileCount": 1,
       "burstInterval": 0.5
     }
   }

@@ -1071,7 +1071,7 @@ var webgl = {
     varying lowp vec3 vNormal;
 
     void main() {
-      gl_FragColor = vec4((normalize(vNormal) + 1.0) / 2.0, pow(gl_FragCoord.z, 1.0));
+      gl_FragColor = vec4((normalize(vNormal) + 1.0) / 2.0, gl_FragCoord.z);
     }
     `
 
@@ -1544,7 +1544,7 @@ var webgl = {
     let pMatrix = mat4.create();
 
     //                   fov        , aspect, near, far
-    mat4.perspective(pMatrix, fov, this.aspect, 1, 1000);
+    mat4.perspective(pMatrix, fov, this.aspect, .05, 1000);
 
     let shadowMatrix = mat4.create()
     mat4.scale(shadowMatrix, shadowMatrix, [0.5, 0.5, 0.5])
@@ -1561,6 +1561,10 @@ var webgl = {
     mat4.rotateY(sMatrix, sMatrix, camera.position.yaw / 1 + this.settings.sunAngleYaw - Math.PI);
     mat4.rotateX(sMatrix, sMatrix, camera.position.lean / 1);
 
+    let npMatrix = mat4.create();
+
+    //                   fov        , aspect, near, far
+    mat4.perspective(npMatrix, fov, this.aspect, 1, 1000);
 
 
     
@@ -1654,7 +1658,7 @@ var webgl = {
 
 
     this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.normalRenderProgram, "tMatrix"), false, tMatrix);
-    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.normalRenderProgram, "pMatrix"), false, pMatrix);
+    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.normalRenderProgram, "pMatrix"), false, npMatrix);
 
     this.gl.disable(this.gl.BLEND)
     this.drawModels({
@@ -3015,6 +3019,7 @@ class Player extends PhysicalObject {
 
 class Weapon extends PhysicalObject {
   static gravity = 0.00001
+  static weaponSpecs
   constructor(geometryInfos, type, collidableObjects, owner, position) {
     super(position.x, position.y, position.z, 0, 0, { center: [0, 0, 0], radius: .5 }, "sphere", collidableObjects)
     this.position.pitch = position.pitch || 0
@@ -3032,19 +3037,20 @@ class Weapon extends PhysicalObject {
     this.owner = owner
     this.alive = true
 
+    let weaponSpec = Weapon.weaponSpecs[this.type]
+
     // default settings
-    this.class = "projectile"
+    this.class = weaponSpec.variety
     this.texture = "jerry"
 
-    this.cooldown = 1 // seconds
+    this.cooldown = weaponSpec.cooldown / 1000 // seconds
 
-    this.speed = .0375 // units/millisecond
+    this.speed = weaponSpec.speed // units/millisecond
     this.manaCost = 20
-    this.damage = 10 // this might be handled server
 
-    this.chargeTime = 0 // seconds
+    this.chargeTime = weaponSpec.chargeTime // milliseconds
 
-    this.projectileCount = 1
+    this.projectileCount = weaponSpec.projectileCount
     this.burstInterval = .5 // time between shots of bursts, seconds
 
     this.scale = 1
@@ -3052,29 +3058,13 @@ class Weapon extends PhysicalObject {
 
     switch (type) {
       case "tomato":
-        this.class = "projectile"
         this.texture = "tomato"
-
-        this.dimensions.radius = .75
-
-
-        this.chargeTime = 250
-        this.cooldown = .5
-        this.manaCost = 5
-        this.damage = 5
 
         this.scale = .625
         this.models.main = new Model(this, geometryInfos.tomato, this.scale, this.texture, 0, 0, 0, 0.0)
         break
       case "olive":
-        this.class = "projectile"
         this.texture = "olive"
-
-        this.dimensions.radius = .375
-
-        this.cooldown = .15
-        this.manaCost = 5
-        this.damage = 10
 
         this.particleEmitter = new ParticleEmitter([position.x, position.y, position.z], 6, {color: [.4, .5, 0], size: 150, type: 2, lifespan: 1000, primeType: 1, opacityType: 0})
 
@@ -3082,85 +3072,43 @@ class Weapon extends PhysicalObject {
         this.models.main = new Model(this, geometryInfos.olive, this.scale, this.texture, 0, 0, 0, 0.0)
         break
       case "pickle":
-        this.class = "projectile"
         this.texture = "pickle"
-
-        this.cooldown = .5
-        this.manaCost = 5
-        this.damage = 5
 
         this.scale = .625
         this.models.main = new Model(this, geometryInfos.pickle, this.scale, this.texture, 0, 0, 0, 0.0)
         break
       case "sausage":
-        this.class = "projectile"//"melee"
         this.texture = "sausage"
-
-        this.cooldown = .5
-        this.manaCost = 5
-        this.damage = 5
 
         this.scale = 1
         this.models.main = new Model(this, geometryInfos.sausage, this.scale, this.texture, 0, 0, 0, 0.0)
         break
       case "anchovy":
-        this.class = "missile"
         this.texture = "anchovy"
-
-        this.cooldown = .5
-        this.manaCost = 5
-        this.damage = 25
-        this.speed = .01
 
         this.scale = .675
         this.models.main = new Model(this, geometryInfos.anchovy, this.scale, this.texture, 0, 0, 0, 0.0)
         break
       case "pan":
-        this.class = "flinger"
         this.texture = "meat"
-
-        this.chargeTime = 0
-        this.cooldown = 1
-        this.manaCost = 5
-        this.damage = 5
 
         this.scale = .75
         this.models.main = new Model(this, geometryInfos.pan, this.scale, this.texture, 0, 0, -.5, 0.0)
         break
       case "meatball":
-        this.class = "projectile"
         this.texture = "meatball"
-
-        this.dimensions.radius = 1
-
-        this.cooldown = .5
-        this.manaCost = 5
-        this.damage = 5
 
         this.scale = 1
         this.models.main = new Model(this, geometryInfos.meatball, this.scale, this.texture, 0, 0, 0, 0.0)
         break
       case "asparagus":
-        this.class = "missile"
         this.texture = "asparagus"
-
-        this.dimensions.radius = 1
-
-        this.chargeTime = 1000
-        this.cooldown = .5
-        this.manaCost = 5
 
         this.scale = 2
         this.models.main = new Model(this, geometryInfos.asparagus, this.scale, this.texture, 0, 0, 0, 0.0)
         break
         case "groundBeef":
-          this.class = "projectile"
           this.texture = "meat"
-  
-          this.dimensions.radius = .1
-  
-          this.cooldown = .5
-          this.manaCost = 5
   
           this.particleEmitter = new ParticleEmitter([position.x, position.y, position.z], 4, {color: [.3, .1, 0], size: 75, type: 2, lifespan: 1000, primeType: 1, opacityType: 0})
 
