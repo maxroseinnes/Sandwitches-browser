@@ -1136,12 +1136,12 @@ function fixedUpdate() {
     //if (player) testEmitter.position = [player.position.x, player.position.y+3.25, player.position.z]
 
     if (!player.lastOnGround && player.onGround) {
-        let splatVolume = Math.abs(player.lastVelocity.y) * 50 - .75
-        splatVolume = splatVolume > 0 ? splatVolume : 0
-        splatNoise.volume = (splatVolume < 1 ? splatVolume : 1) * volume
-        splatNoise.currentTime = .1
-        splatNoise.playbackRate = 1.5
-        splatNoise.play()
+        //let splatVolume = Math.abs(player.lastVelocity.y) * 50 - .75
+        //splatVolume = splatVolume > 0 ? splatVolume : 0
+        //splatNoise.volume = (splatVolume < 1 ? splatVolume : 1) * volume
+        //splatNoise.currentTime = .1
+        //splatNoise.playbackRate = 1.5
+        //splatNoise.play()
     }
 
 

@@ -22,6 +22,8 @@
 
 using namespace std;
 
+#define M_PI 3.1415926535897932384626433832795028841971
+
 
 const float DEFAULT_PLAYER_HEALTH = 100;
 const int ROOM_CAP = 10;
@@ -737,10 +739,18 @@ int main() {
             response.set_header("Content-Type", "application/javascript");
         }
 
+        regex newPattern(".jpg");
+        smatch newMatch;
+        if (regex_search(filename, newMatch, newPattern)) {
+           // response.set_header("Content-Type", "jpeg/image");
+        }
+
         response.body = getFileText("public/" + filename);
 
         return response;
     });
+
+    cout << getFileText("public/assets/normalMaps/13060-normal.jpg") << endl;;
 
 
     app.bindaddr("0.0.0.0").port(8080).multithreaded().run();
