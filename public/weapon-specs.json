@@ -85,7 +85,7 @@
       "manaCost": 20,
       "damage": 10,
       "chargeTime": 0,
-      "projectileCount": 100,
+      "projectileCount": 50,
       "burstInterval": 0.5
     },
     "pan": {

@@ -145,6 +145,10 @@ map<string, string> JSONStringToMap(string JSONString) {
     return map;
 }
 
+bool includes(vector<string> names, map<string, string> data) {
+    for (int i = 0; i < names.size(); i++) if (!data.count(names[i])) return false;
+    return true;
+}
 
 array<float, 3> sub(array<float, 3>& out, array<float, 3> a, array<float, 3> b) {
     out[0] = a[0] - b[0];

@@ -405,7 +405,8 @@ function joinRoom(id) {
     startButton.disabled = true
     socket.emit("joinRoom", {
         roomId: id,
-        playerId: (player != null) ? player.id : null
+        playerId: (player != null) ? player.id : null,
+        name: nameField.value
     })
 
 }
@@ -485,7 +486,7 @@ webSocket.onopen = () => {
         let lagTime = Date.now() - initialLagTestTime // time for it to go there and back
         serverOffsetTime = Date.now() - data.serverNow + lagTime / 2
         console.log("HANDSHOOK", "send time: " + lagTime / 2 + "ms")
-        socket.emit("lagTime", {lagTime: lagTime})
+        socket.emit("lagTime", {lagTime: 30})
     })
     socket.emit("lagTest", {})
     
@@ -603,7 +604,8 @@ webSocket.onopen = () => {
 
 
 
-    socket.on("leaderboard", (leaderboardInfo) => {
+    socket.on("leaderboard", (data) => {
+        let leaderboardInfo = data.killCounts
         var leaderboardList = document.getElementById("leaderboard")
         leaderboardList.innerHTML = ""
 

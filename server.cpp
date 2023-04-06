@@ -22,7 +22,9 @@
 
 using namespace std;
 
+#ifdef _WIN32
 #define M_PI 3.1415926535897932384626433832795028841971
+#endif
 
 
 const float DEFAULT_PLAYER_HEALTH = 100;
@@ -90,13 +92,13 @@ class Room {
             }
         }
 
-        void addPlayer(websocket* newSocket) {
+        void addPlayer(websocket* newSocket, string name) {
             //lock_guard<mutex> lock(roomMtx);
 
 
 
             player newPlayer(newSocket);
-            newPlayer.name = "unnamed sandwich";
+            newPlayer.name = name;
             players[nextId] = newPlayer;
             unsigned int assignedId = nextId;
             nextId++;
@@ -238,9 +240,17 @@ class Room {
 
         void respawnPlayer(unsigned int id) {
             broadcast("playerRespawned", {{"id", toString(id)}}, -1);
-            players.at(id).position.x = randFloat() * 10.0 - 5.0;
+            float xOffset = 0;
+            float zOffset = 0;
+            cout << (mapFilename == "kitchenMap4.obj") << endl;
+            if (mapFilename == "kitchenMap4.obj") {
+                xOffset = 5;
+                zOffset = 5;
+                cout << xOffset << ", " << zOffset << endl;
+            }
+            players.at(id).position.x = xOffset + randFloat() * 10.0 - 5.0;
             players.at(id).position.y = 2;
-            players.at(id).position.z = randFloat() * 10.0 - 5.0;
+            players.at(id).position.z = zOffset + randFloat() * 10.0 - 5.0;
             players.at(id).position.yaw = 0.0;
             players.at(id).position.pitch = 0.0;
             players.at(id).health = DEFAULT_PLAYER_HEALTH;
@@ -260,12 +270,12 @@ class Room {
         }
 
         void shootWeapon(map<string, string> data) {
+            if (!includes({"ownerId", "type", "position", "shooterVelocity", "pitch", "yaw"}, data)) return;
             int ownerId = stoi(data["ownerId"]);
             player& thisPlayer = players.at(ownerId);
 
             if (thisPlayer.health <= 0) return;
 
-            if (!weaponSpecs.count(data["type"])) return;
             weaponInfo weaponSpec = weaponSpecs[data["type"]];
 
             if (weaponSpec.chargeTime > 0) {
@@ -352,6 +362,34 @@ class Room {
             }
         }
 
+        void sendLeaderboard() {
+            struct killCount {
+                int id;
+                int killCount;
+            };
+
+            vector<killCount> killCounts;
+            for (auto i = players.begin(); i != players.end(); i++) {
+                killCount newKillCount;
+                newKillCount.id = i->first;
+                newKillCount.killCount = i->second.killCount;
+                killCounts.push_back(newKillCount);
+            }
+
+            sort(killCounts.begin(), killCounts.end(), [](killCount a, killCount b) {
+                return a.killCount < b.killCount;
+            });
+
+            vector<string> killCountsAsStrings;
+            for (int i = 0; i < killCounts.size(); i++) {
+                killCountsAsStrings.push_back(mapToJSONString({{"id", toString(killCounts[i].id)}, {"killCount", toString(killCounts[i].killCount)}}));
+            }
+
+            broadcast("leaderboard", {{"killCounts", vectorToJSONString(killCountsAsStrings)}}, -1);
+
+
+        }
+
         void tick() {
             map<string, string> playersData;
             for (auto i = players.begin(); i != players.end(); i++) {
@@ -415,7 +453,7 @@ class Room {
                     playerInfo.dimensions.mz = -.25;
                     playerInfo.dimensions.pz = .25;
                     if (collision(thisWeapon.radius, {thisWeapon.position.x, thisWeapon.position.y, thisWeapon.position.z}, playerInfo)) {
-                        cout << "player hit" << endl;
+                        //cout << "player hit" << endl;
                         broadcast("weaponHit", {{"weaponId", toString(i->first)}}, -1);
                         deletedWeapons.push_back(i->first);
                         hit = true;
@@ -529,8 +567,8 @@ int main() {
         int ffaInterval = 1000;
         auto ffaThen = chrono::high_resolution_clock::now();
 
-        const int maxFFAPlayers = 2; // max players per ffa room
-        const int maxLobbyPlayers = 3; // max players per ffa lobby
+        const int maxFFAPlayers = 8; // max players per ffa room
+        const int maxLobbyPlayers = 20; // max players per ffa lobby
 
         while(true) {
             auto now = chrono::high_resolution_clock::now();
@@ -566,7 +604,7 @@ int main() {
                             for (int j = 0; j < openPlayerSlots; j++) {
                                 callDisconnect(lobbyQueue[j].socket);
                                 lobbyQueue[j].socket->emit("roomJoinSuccess", {{"roomId", toString(i->first)}});
-                                room->addPlayer(lobbyQueue[j].socket);
+                                room->addPlayer(lobbyQueue[j].socket, "unnamed sandwich");
                                 queueSpot newSpot;
                                 newSpot.id = lobbyQueue[j].id;
                                 newSpot.socket = lobbyQueue[j].socket;
@@ -583,15 +621,15 @@ int main() {
                             for (int j = 0; j < openPlayerSlots; j++) {
                                 callDisconnect(ffaQueue[j].socket);
                                 ffaQueue[j].socket->emit("roomJoinSuccess", {{"roomId", toString(i->first)}});
-                                room->addPlayer(ffaQueue[j].socket);
+                                room->addPlayer(ffaQueue[j].socket, "unnamed sandwich");
                             }
                             ffaQueue.erase(ffaQueue.begin(), ffaQueue.begin() + openPlayerSlots);
                         }
                     }
 
 
-                    //for (auto i = rooms.ffaRooms.begin(); i != rooms.ffaRooms.end(); i++) i->second.sendLeaderboard();
-                    //for (auto i = rooms.privateRooms.begin(); i != rooms.privateRooms.end(); i++) i->second.sendLeaderboard();
+                    for (auto i = rooms.ffaRooms.begin(); i != rooms.ffaRooms.end(); i++) i->second.sendLeaderboard();
+                    for (auto i = rooms.privateRooms.begin(); i != rooms.privateRooms.end(); i++) i->second.sendLeaderboard();
 
                     ffaThen = now;
                 }
@@ -646,14 +684,17 @@ int main() {
 
             if (!rooms.privateRooms.count(roomId)) {
                 string filename = "full_starting_map (" + toString(roomId) + ").obj";
-                if (roomId == 6) filename = "kitchenmap1.obj";
+                if (roomId == 6) filename = "kitchenmap4.obj";
                 if (roomId == 7) filename = "collision_test_map.obj";
                 if (roomId == 8) filename = "collision_test_map_2.obj";
                 Room newRoom(filename);
                 rooms.privateRooms[roomId] = newRoom;
 
             }
-            rooms.privateRooms.at(roomId).addPlayer(currentSocket);
+
+            string name = "unnamed sandwich";
+            if (data.count("name") && data["name"] != "") name = data["name"];
+            rooms.privateRooms.at(roomId).addPlayer(currentSocket, name);
             
             cout << "JOIN ROOM: " << data["roomId"] << endl;
 
@@ -750,7 +791,7 @@ int main() {
         return response;
     });
 
-    cout << getFileText("public/assets/normalMaps/13060-normal.jpg") << endl;;
+    //cout << getFileText("public/assets/normalMaps/13060-normal.jpg") << endl;;
 
 
     app.bindaddr("0.0.0.0").port(8080).multithreaded().run();
