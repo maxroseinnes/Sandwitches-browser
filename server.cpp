@@ -684,7 +684,7 @@ int main() {
 
             if (!rooms.privateRooms.count(roomId)) {
                 string filename = "full_starting_map (" + toString(roomId) + ").obj";
-                if (roomId == 6) filename = "kitchenmap4.obj";
+                if (roomId == 6) filename = "kitchenmap5.obj";
                 if (roomId == 7) filename = "collision_test_map.obj";
                 if (roomId == 8) filename = "collision_test_map_2.obj";
                 Room newRoom(filename);
