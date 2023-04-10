@@ -7,6 +7,7 @@
 #include <type_traits>
 #include <iterator>
 #include <chrono>
+#include <iostream>
 
 using namespace std;
 
@@ -19,6 +20,22 @@ int now() {
 
 float randFloat() {
     return static_cast<float>(rand()) / RAND_MAX;
+}
+
+char intToChar(int num) {
+    if (num < 10) num += 48;
+    else if (num < 36) num += 55;
+    else num += 61;
+    return static_cast<char>(num);
+}
+
+string genRandKey(int digits) {
+    
+    string code = "asdfasdfasdfasdfasdfasdfasdfasdfasdfasdfadsfasdadfasdfasdasdf";
+    for (int i = 0; i < digits; i++) {
+        code[i] = intToChar(randFloat() * 62.0);
+    }
+    return code.substr(0, digits);
 }
 
 string getFileText(string filepath) {

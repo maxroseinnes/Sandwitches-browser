@@ -71,7 +71,7 @@ var averageClientTPS = ticksPerSecond
 // Multiplayer global variables //
 var lobbyId
 var address = window.location.href
-address = address.slice(address.indexOf("http//") + 6, address.indexOf("/index.html"))
+address = address.slice(address.indexOf("http//") + 6, address.indexOf("8080") + 4)
 var webSocket = new WebSocket("ws://" + address + "/socket");
 var otherPlayers = {};
 var otherWeapons = {}
@@ -91,6 +91,7 @@ const effectsCanvas = document.getElementById("effectsCanvas")
 const ctx = effectsCanvas.getContext("2d")
 const roomKeyInput = document.getElementById("roomKeyInput")
 const joinRoomButton = document.getElementById("joinRoomButton")
+const createRoomButton = document.getElementById("createRoomButton")
 const joinGameButton = document.getElementById("joinGameButton")
 
 joinRoomButton.onclick = () => {
@@ -100,10 +101,18 @@ joinRoomButton.onclick = () => {
 
 }
 
+createRoomButton.onclick = () => {
+    console.log("create room")
+    startButton.disabled = true
+    socket.emit("createRoom", {name: nameField.value})
+
+}
+
 
 joinGameButton.onclick = () => {
     socket.emit("joinFFAQueue", {
-        playerId: (player != null) ? player.id : null
+        playerId: (player != null) ? player.id : null,
+        name: nameField.value
     })
 }
 
@@ -446,6 +455,16 @@ webSocket.onopen = () => {
         }
     }
 
+    let metaRoomId = document.querySelector("meta[name=\"roomId\"]").getAttribute("content")
+    if (metaRoomId != null && metaRoomId != "ffa") {
+        joinRoom(metaRoomId)
+    }
+    else {
+        socket.emit("joinFFAQueue", {
+            name: nameField.value
+        });
+    }
+
 
 
     var ticks = 0;
@@ -484,7 +503,7 @@ webSocket.onopen = () => {
     let initialLagTestTime = Date.now()
     socket.on("lagTest", (data) => {
         let lagTime = Date.now() - initialLagTestTime // time for it to go there and back
-        serverOffsetTime = Date.now() - data.serverNow + lagTime / 2
+        serverOffsetTime = Date.now() - data.serverNow + 15//lagTime / 2
         console.log("HANDSHOOK", "send time: " + lagTime / 2 + "ms")
         socket.emit("lagTime", {lagTime: 30})
     })
@@ -560,18 +579,36 @@ webSocket.onopen = () => {
             }
 
             let mapModelGeometry = obj.parseWavefront(mapObj, true, true)
+            let matches = {
+                "Tree": "tree",
+                "Plane": "grass",
+                "Road": "asphalt",
+                "Barn": "barnWood",
+                "Fence": "whiteWood",
+                "Building": "houseWood",
+                "Cube": "barnWood",
+                "Ladder": "whiteWood",
+                "Loft": "barnWood",
+                "BigBuilding": "barnWood",
+                "Corner": "cornerCounter",
+                "Fridge": "darkGray",
+                "Microwave": "darkGray",
+                "Plate": "oven",
+                "Counter": "granite",
+                "Island": "island",
+                "Oven": "oven",
+                "Burners": "knob",
+                "Guards": "knob",
+                "Handle": "knob",
+                "Knob": "knob",
+                "Wall": "wall",
+                "Left_Wall": "windowWall",
+            }
             for (let name in mapModelGeometry) {
                 let texture = "wood"
-                if (name.indexOf("Tree") != -1) texture = "tree"
-                if (name.indexOf("Plane") != -1) texture = "grass"
-                if (name.indexOf("Road") != -1) texture = "asphalt"
-                if (name.indexOf("Barn") != -1) texture = "barnWood"
-                if (name.indexOf("Fence") != -1) texture = "whiteWood"
-                if (name.indexOf("Building") != -1) texture = "houseWood"
-                if (name.indexOf("Cube") != -1) texture = "barnWood"
-                if (name.indexOf("Ladder") != -1) texture = "whiteWood"
-                if (name.indexOf("Loft") != -1) texture = "barnWood"
-                if (name.indexOf("BigBuilding") != -1) texture = "barnWood"
+                for (let match in matches) {
+                    if (name.indexOf(match) != -1) texture = matches[match]
+                }
                 mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
 
             }
@@ -727,7 +764,6 @@ webSocket.onopen = () => {
     })
 
     socket.on("playerLeave", (data) => {
-        console.log(data)
         if (otherPlayers[data.id] == null) return
         displayChatMessage(otherPlayers[data.id].name + " left")
         otherPlayers[data.id].remove()
@@ -797,7 +833,6 @@ webSocket.onopen = () => {
         player.lastState = data.state
         player.position = data.position
         player.state = data.state
-        console.log(player)
 
 
 
@@ -836,10 +871,14 @@ webSocket.onopen = () => {
 
     // Receives this from the server when the player joins the room successfully
     socket.on("roomJoinSuccess", (data) => {
+        if (data.roomId != "ffa") banner.textContent = ""
+        window.history.pushState({}, null, "/" + data.roomId)
+
         let roomId = data.roomId
         pauseGame()
         lobbyId = roomId
-        document.getElementById("title").textContent = "Room " + lobbyId
+        title.style.color = "white"
+        title.textContent = "Room " + lobbyId
         startButton.textContent = "Play"
 
         if (player != null) removePlayerFromHUD(player.id, player.name)
@@ -868,7 +907,63 @@ webSocket.onopen = () => {
         for (let i in otherPlayers) if (otherPlayers[i] != null) otherPlayers[i].remove()
 
         document.getElementById("title").textContent = "Room " + lobbyId
-        console.log(lobbyId)
+    })
+    
+    socket.on("roomDNE", (data) => {
+        window.history.pushState({}, null, "/" + data.roomId)
+        lobbyId = null
+        title.style.color = "red"
+        title.textContent = "This Room Does Not Exist"
+    })
+
+    // FFA GAME EVENTS
+    const banner = document.getElementById("banner")
+    socket.on("waitingForPlayers", (data) => {
+        finalLeaderboard.style.display = "none"
+
+        banner.textContent = "Waiting For Players"
+    })
+    
+    function updateBannerTime(time) {
+        banner.textContent = "Game Starting in " + time + " Seconds!"
+        if (time > 1) window.setTimeout(updateBannerTime, 1000, time - 1)
+    }
+    socket.on("gameAboutToStart", (data) => {
+        updateBannerTime(Math.floor((data.startTime + serverOffsetTime - Date.now()) / 1000))
+    })
+
+    socket.on("gameStarted", (data) => {
+        banner.textContent = "Fight!"
+    })
+    
+    const finalLeaderboard = document.getElementById("finalLeaderboard")
+    const finalLeaderboardList = document.getElementById("finalLeaderboardList")
+    socket.on("finalLeaderboard", (data) => {
+        banner.textContent = "Leaderboard"
+        console.log("final leaderboard: ", data.killCounts)
+
+        finalLeaderboard.style.display = "block"
+        finalLeaderboardList.innerHTML = ""
+
+        let leaderboardInfo = data.killCounts
+        for (let i = leaderboardInfo.length - 1; i >= 0; i--) {
+            let playerInfo = leaderboardInfo[i]
+            let listItem = document.createElement("li")
+            let name
+            //console.log(playerInfo.id == player.id)
+            if (playerInfo.id == player.id) {
+                name = player.name
+            } else if (otherPlayers[playerInfo.id] != null) {
+                name = otherPlayers[playerInfo.id].name
+            }
+
+            let skulls = ""
+            for (let i = 0; i < playerInfo.killCount; i++) {
+                skulls += "💀"
+            }
+            listItem.textContent = name + ": " + playerInfo.killCount + " kills " + skulls
+            finalLeaderboardList.appendChild(listItem)
+        }
     })
 
 }
@@ -1589,8 +1684,10 @@ startButton.onclick = () => {
 
 
 var nameField = document.getElementById("nameField")
+nameField.value = localStorage.playerName
 nameField.oninput = () => {
     player.name = nameField.value
+    localStorage.playerName = nameField.value
 }
 
 

@@ -13,6 +13,7 @@
         crossorigin="anonymous" defer
     >
     </script>
+    <meta name = "roomId">
 </head>
 
 <body>
@@ -20,9 +21,10 @@
     <div id = "menu">
         <div id = "title"></div>
         <div id = "lobby">
-            Room Key: <input type = "number" id = "roomKeyInput">
+            Room Key: <input type = "text" id = "roomKeyInput">
             <button id = "joinRoomButton" style = "color: white; background-color: blueviolet;">Join Room</button>
-            <button id = "joinGameButton">Join FFA Queue</button>
+            <button id = "createRoomButton" style = "color: white; background-color: darkcyan;">Create Room</button>
+            <button id = "joinGameButton">Join FFA</button>
         </div>
 
         <div id = "main">
@@ -103,6 +105,8 @@
     <div id = "hud">
         <div id = "info"></div>
 
+        <div id = "banner">Welcome to Sandwiches!</div>
+
         <div id = "roomInfo">
             <h4><b>LEADERBOARD</b></h4>
             <ol id = "leaderboard"></ol>
@@ -121,6 +125,10 @@
         <div id = "touchMovement"></div>
         <div id = "jump"></div>
         <div id = "shoot"></div>
+
+        <div id = "finalLeaderboard">
+            <od id = "finalLeaderboardList"></od>
+        </div>
 
 
     </div>
