@@ -176,49 +176,49 @@ var webgl = {
     // KITCHEN MAP TEXTURES
     {
       name: "cornerCounter",
-      url: "./assets/textures/cornerCounterTex.jpeg",
+      url: "https://i.imgur.com/i19QI9P.jpeg",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 2
     },
     {
       name: "darkGray",
-      url: "./assets/textures/darkGrayTex.png",
+      url: "https://i.imgur.com/YvgHLWE.png",
       normalMap: "./assets/normalMaps/13060-normal.jpg",
       gloss: 4
     },
     {
       name: "granite",
-      url: "./assets/textures/graniteTex.jpeg",
+      url: "https://i.imgur.com/gz0AQGg.jpeg",
       normalMap: "./assets/normalMaps/13060-normal.jpg",
       gloss: 5
     },
     {
       name: "island",
-      url: "./assets/textures/islandTex.jpeg",
+      url: "https://i.imgur.com/hQKFip0.jpeg",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 2
     },
     {
       name: "knob",
-      url: "./assets/textures/knobTex.png",
+      url: "https://i.imgur.com/86LN4Kh.png",
       normalMap: "./assets/normalMaps/13060-normal.jpg",
       gloss: 10
     },
     {
       name: "oven",
-      url: "./assets/textures/ovenTex.png",
+      url: "https://i.imgur.com/gkJbFTC.png",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 5
     },
     {
       name: "wall",
-      url: "./assets/textures/wallTex.png",
+      url: "https://i.imgur.com/IbzA1rV.png",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 2
     },
     {
       name: "windowWall",
-      url: "./assets/textures/windowWallTex.png",
+      url: "https://i.imgur.com/hhUpotg.png",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 2
     }
@@ -326,13 +326,14 @@ var webgl = {
       let image = new Image()
       image.width = this.textureResolution
       image.height = this.textureResolution
-      //document.getElementById("lobby").appendChild(image)
+      document.getElementById("lobby").appendChild(image)
       image.crossOrigin = "anonymous"
       image.onload = () => {
         this.loadedImages[this.textures[name].index] = image
+        this.mergeImages(this.gl, this.loadedImages, this.textureMap)
         let loadedAll = true
         for (let j = 0; j < this.loadedImages.length; j++) if (this.loadedImages[j] == null) loadedAll = false
-        if (loadedAll) this.mergeImages(this.gl, this.loadedImages, this.textureMap)
+        //if (loadedAll) this.mergeImages(this.gl, this.loadedImages, this.textureMap)
       }
       image.src = this.textures[name].url
     }
@@ -345,6 +346,7 @@ var webgl = {
       image.crossOrigin = "anonymous"
       image.onload = () => {
         this.loadedNormalMaps[this.textures[name].index] = image
+        this.mergeNormalMaps(this.gl, this.loadedNormalMaps, this.normalMap)
         let loadedAll = true
         for (let j = 0; j < this.loadedNormalMaps.length; j++) if (this.loadedNormalMaps[j] == null) loadedAll = false
         if (loadedAll) this.mergeNormalMaps(this.gl, this.loadedNormalMaps, this.normalMap)

@@ -125,7 +125,7 @@ map<string, string> JSONStringToMap(string JSONString) {
     string currentValue;
     int nestLevel = 0;
     for (int i = 1; i < JSONString.length() - 1; i++) {
-        char currentChar = JSONString[i];
+        char currentChar = JSONString.at(i);
         bool switchBroken = false;
         switch (currentChar) {
             case insteadOfColon:
