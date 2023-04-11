@@ -1684,7 +1684,7 @@ startButton.onclick = () => {
 
 
 var nameField = document.getElementById("nameField")
-nameField.value = localStorage.playerName
+if (localStorage.playerName != undefined) nameField.value = localStorage.playerName
 nameField.oninput = () => {
     player.name = nameField.value
     localStorage.playerName = nameField.value

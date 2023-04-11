@@ -326,11 +326,10 @@ var webgl = {
       let image = new Image()
       image.width = this.textureResolution
       image.height = this.textureResolution
-      //document.body.appendChild(image)
+      //document.getElementById("lobby").appendChild(image)
       image.crossOrigin = "anonymous"
       image.onload = () => {
         this.loadedImages[this.textures[name].index] = image
-        if (this.loadedImages.length < this.textureInfo.length) return
         let loadedAll = true
         for (let j = 0; j < this.loadedImages.length; j++) if (this.loadedImages[j] == null) loadedAll = false
         if (loadedAll) this.mergeImages(this.gl, this.loadedImages, this.textureMap)
@@ -346,7 +345,6 @@ var webgl = {
       image.crossOrigin = "anonymous"
       image.onload = () => {
         this.loadedNormalMaps[this.textures[name].index] = image
-        if (this.loadedNormalMaps.length < this.textureInfo.length) return
         let loadedAll = true
         for (let j = 0; j < this.loadedNormalMaps.length; j++) if (this.loadedNormalMaps[j] == null) loadedAll = false
         if (loadedAll) this.mergeNormalMaps(this.gl, this.loadedNormalMaps, this.normalMap)
