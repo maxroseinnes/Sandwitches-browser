@@ -70,8 +70,8 @@ var averageClientTPS = ticksPerSecond
 
 // Multiplayer global variables //
 var lobbyId
-var address = window.location.href
-address = address.slice(address.indexOf("http//") + 6, address.indexOf("8080") + 4)
+var address = window.location.origin
+address = address.slice(6)
 var webSocket = new WebSocket("ws://" + address + "/socket");
 var otherPlayers = {};
 var otherWeapons = {}

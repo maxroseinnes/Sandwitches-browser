@@ -123,7 +123,7 @@ var obj = {
 
             if (identifier == "s") {
                 if (Number(currentLine) == 0) smooth = false
-                else smooth = true
+                else smooth = false//true
             }
 
             if (identifier == "usemtl") material = currentLine
