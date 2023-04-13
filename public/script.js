@@ -605,10 +605,15 @@ webSocket.onopen = () => {
                 "Left_Wall": "windowWall",
             }
             for (let name in mapModelGeometry) {
-                let texture = "wood"
-                for (let match in matches) {
-                    if (name.indexOf(match) != -1) texture = matches[match]
+                let texture = mapModelGeometry[name].material.slice(0, -3)
+                let exists = false
+                for (let currentTexture of webgl.textureInfo) {
+                    if (currentTexture.name == texture) {
+                        exists = true
+                        break;
+                    }
                 }
+                if (!exists) texture = "wood"
                 mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
 
             }

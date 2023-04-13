@@ -49,7 +49,7 @@ var webgl = {
     },
     {
       name: "bread",
-      url: "./assets/textures/PlayerBreadTex (1).png",
+      url: "https://i.imgur.com/CByrIJT.png",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 0
     },
@@ -109,7 +109,7 @@ var webgl = {
     },
     {
       name: "playerTomato",
-      url: "./assets/textures/PlayerTomatoTex.png",
+      url: "https://i.imgur.com/RtFZErJ.png",
       normalMap: "https://media.discordapp.net/attachments/1034127032570871939/1074736073143488552/pan_with_beef_normalmap.png",
       gloss: 5
     },
@@ -121,7 +121,7 @@ var webgl = {
     },
     {
       name: "playerLettuce",
-      url: "./assets/textures/PlayerLettuceTex.jpg",
+      url: "https://i.imgur.com/eIgtbmt.jpeg",
       normalMap: "./assets/normalMaps/13060-normal.jpg",
       gloss: 5
     },
@@ -206,7 +206,7 @@ var webgl = {
     },
     {
       name: "oven",
-      url: "https://i.imgur.com/gkJbFTC.png",
+      url: "https://i.imgur.com/8hVMj3w.png",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 5
     },
@@ -221,7 +221,20 @@ var webgl = {
       url: "https://i.imgur.com/hhUpotg.png",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 2
+    },
+    {
+      name: "gray",
+      url: "https://i.imgur.com/kjeR6Nh.png",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 2
+    },
+    {
+      name: "fridge",
+      url: "https://i.imgur.com/eMPSlp8.png",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 2
     }
+
 
 
   ],
