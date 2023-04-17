@@ -64,7 +64,7 @@ class player {
         position position;
         float health = 0;
         string currentWeaponType;
-        int lastShotTime = 0;
+        long long lastShotTime = -9999999999999999;
         string lastShotWeapon;
         int startChargeTime = 0;
         bool charging = false;

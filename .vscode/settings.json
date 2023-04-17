@@ -44,6 +44,7 @@
         "unordered_set": "cpp",
         "__bit_reference": "cpp",
         "forward_list": "cpp",
-        "exception": "cpp"
+        "exception": "cpp",
+        "xtree": "cpp"
     }
 }

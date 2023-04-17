@@ -334,7 +334,7 @@ class Room {
             vector<string> newWeaponDataAsStrings;
             for (int i = 0; i < newWeaponData.size(); i++) newWeaponDataAsStrings.push_back(mapToJSONString(newWeaponData[i]));
 
-
+            
             broadcast("newWeapons", {{"weaponData", vectorToJSONString(newWeaponDataAsStrings)}}, -1);
 
         }
@@ -412,7 +412,8 @@ class Room {
                 if (thisWeapon.variety == "projectile") thisWeapon.velocity.y -= 0.00001 * deltaTime;
                 
                 float velocityMagnitude = hypot(thisWeapon.velocity.x, thisWeapon.velocity.y, thisWeapon.velocity.z);
-                int intermediateSteps = ceil(velocityMagnitude / 0.1);
+                int intermediateSteps = ceil(velocityMagnitude / 0.05);
+                if (intermediateSteps > 5) cout << intermediateSteps << endl;
 
                 bool hit = false;
                 for (int step = 0; step < intermediateSteps; step++) if (!hit) {

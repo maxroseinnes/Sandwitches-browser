@@ -749,6 +749,7 @@ webSocket.onopen = () => {
     })
 
     socket.on("newWeapons", (data) => {
+        console.log(data)
         let weaponData = data.weaponData
         for (let i in weaponData) {
             let currentWeapon = weaponData[i]
