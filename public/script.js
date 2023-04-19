@@ -607,8 +607,8 @@ webSocket.onopen = () => {
             for (let name in mapModelGeometry) {
                 let texture = mapModelGeometry[name].material.slice(0, -3)
                 let exists = false
-                for (let currentTexture of webgl.textureInfo) {
-                    if (currentTexture.name == texture) {
+                for (let currentTexture in webgl.textures) {
+                    if (currentTexture == texture) {
                         exists = true
                         break;
                     }
@@ -749,7 +749,6 @@ webSocket.onopen = () => {
     })
 
     socket.on("newWeapons", (data) => {
-        console.log(data)
         let weaponData = data.weaponData
         for (let i in weaponData) {
             let currentWeapon = weaponData[i]
