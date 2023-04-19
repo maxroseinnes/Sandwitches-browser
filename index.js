@@ -905,7 +905,7 @@ const collisionUpdate = setInterval(() => {
         weapon.position.y += weapon.velocity.y * deltaTime / intermediateSteps
         weapon.position.z += weapon.velocity.z * deltaTime / intermediateSteps
         if (Math.abs(weapon.position.x) > 100 || Math.abs(weapon.position.z) > 100 || Math.abs(weapon.position.y) > 1000) {
-          room.broadcast("weaponHit", {weaponId: weaponId}, null)
+          room.broadcast("weaponHit", {weaponId: weaponId, outOfBounds: true}, null)
           room.weapons[weaponId] = null
           continue
         }
@@ -927,7 +927,8 @@ const collisionUpdate = setInterval(() => {
             // broadcast weapon id and owner id for hitmarker
             room.broadcast("weaponHit", {
               weaponId: weaponId, 
-              ownerId: room.weapons[weaponId].ownerId }, null)
+              ownerId: room.weapons[weaponId].ownerId
+            }, null)
 
             hit = true
             let newHealth = player.health - weapon.damage

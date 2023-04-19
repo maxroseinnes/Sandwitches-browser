@@ -3049,6 +3049,8 @@ class Weapon extends PhysicalObject {
 
     this.scale = 1
 
+    this.wallStickTimer = -1
+
 
     switch (type) {
       case "tomato":

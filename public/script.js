@@ -660,10 +660,16 @@ socket.on("weaponStates", (data) => {
 
 var hitmarkerCrosshairTimer = 0 // milliseconds
 socket.on("weaponHit", (data) => {
+    //console.log("weaponhit")
     if (otherWeapons[data.weaponId]) {
         otherWeapons[data.weaponId].shooted = false
-        otherWeapons[data.weaponId].remove()
+        if (data.ownerId == null && !data.outOfBounds && otherWeapons[data.weaponId].chargeTime != 0) {
+            otherWeapons[data.weaponId].wallStickTimer = 4000
+        } else {
+            otherWeapons[data.weaponId].remove()
+        }
     }
+    // ownerid is broadcast when a weapon hit a player
     if (player.id == data.ownerId) {
         console.log("hitmarker")
         hitmarkerNoise.play()
@@ -679,6 +685,7 @@ socket.on("newPlayer", (newPlayer) => {
 })
 
 socket.on("newWeapons", (data) => {
+    console.log("test")
     for (let i in data) {
         let currentWeapon = data[i]
         let owner
@@ -1146,11 +1153,15 @@ function fixedUpdate() {
 
     for (let id in otherWeapons) {
         if (otherWeapons[id] != null) {
-
             if (otherWeapons[id].shooted) {
                 let owner = otherWeapons[id].owner
                 otherWeapons[id].calculatePosition(deltaTime, 1)
-
+            }
+            if (otherWeapons[id].wallStickTimer > 0) {
+                otherWeapons[id].wallStickTimer -= deltaTime
+                if (otherWeapons[id].wallStickTimer <= 0) {
+                    otherWeapons[id].remove();
+                }
             }
         }
     }
