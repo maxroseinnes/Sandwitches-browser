@@ -660,16 +660,17 @@ socket.on("weaponStates", (data) => {
 
 var hitmarkerCrosshairTimer = 0 // milliseconds
 socket.on("weaponHit", (data) => {
-    //console.log("weaponhit")
     if (otherWeapons[data.weaponId]) {
         otherWeapons[data.weaponId].shooted = false
+
+         // ownerid is included in the json when a weapon hit a player
         if (data.ownerId == null && !data.outOfBounds && otherWeapons[data.weaponId].chargeTime != 0) {
             otherWeapons[data.weaponId].wallStickTimer = 4000
         } else {
             otherWeapons[data.weaponId].remove()
         }
     }
-    // ownerid is broadcast when a weapon hit a player
+   
     if (player.id == data.ownerId) {
         console.log("hitmarker")
         hitmarkerNoise.play()
@@ -986,7 +987,6 @@ function update(now) {
 update()
 
 
-
 function fixedUpdate() {
     let deltaTime = Date.now() - fixedUpdateThen;
     if (deltaTime < 8 || isNaN(deltaTime)) deltaTime = 10;
@@ -1077,10 +1077,19 @@ function fixedUpdate() {
         player.movementState = "walking"
     }
 
+
+
     if (space && !chatboxOpen) {
-        if (player.onGround) {
+        if (player.onGround || (Date.now() - player.timeOfLastOnGround <= 100 && player.hasHitGroundSinceLastJump)) {
             player.velocity.y = Player.jumpForce
+            player.timeOfLastJump = Date.now()
+            console.log("jumnp")
+            player.hasHitGroundSinceLastJump = false
         }
+    }
+
+    if (player.onGround) {
+        player.hasHitGroundSinceLastJump = true
     }
 
     if (leftClicking) {

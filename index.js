@@ -917,7 +917,6 @@ const collisionUpdate = setInterval(() => {
           if (collision(weapon.radius, weapon.position, platform.dimensions, platform.position)) {
             room.broadcast("weaponHit", {weaponId: weaponId}, null)
             hit = true
-            
           }
         }
 

@@ -2454,7 +2454,7 @@ class PhysicalObject {
     return collision
   }
 
-  newCollision(parent, correctPosition, headBumpNoise) {
+  newCollision(parent, correctPosition, headBumpNoise, deltaTime) {
     let minDistance = this.dimensions.radius + parent.dimensions.radius + 1
     if (
       Math.abs(this.position.x - parent.position.x) > minDistance || 
@@ -2550,6 +2550,7 @@ class PhysicalObject {
         return Math.sqrt(Math.max(0, Math.min(Math.pow(radius, 2) - Math.pow(value, 2), Math.pow(radius, 2))))
       }
 
+      
       let correctionVector = [0, 0, 0]
 
       if (boundedAxesCount >= 2) {
@@ -2627,7 +2628,10 @@ class PhysicalObject {
       parent.velocity.y *= Math.sqrt(1 - Math.abs(correctionVector[1]))
       parent.velocity.z *= Math.sqrt(1 - Math.abs(correctionVector[2]))
 
-      if (correctionVector[1] > .1) parent.onGround = true
+      if (correctionVector[1] > .1) {
+        parent.onGround = true
+      } 
+
       if (headBumpNoise && correctionVector[1] < -.1) headBumpNoise.play()
 
     }
@@ -2899,6 +2903,8 @@ class Player extends PhysicalObject {
     this.velocity = { x: 0, y: 0, z: 0 }
     this.lastVelocity = { x: 0, y: 0, z: 0 }
     this.onGround = true
+    this.timeOfLastOnGround = Date.now()
+    this.hasHitGroundSinceLastJump
     this.hittingHead = true
     this.movementState = "walking"
 
@@ -2984,7 +2990,7 @@ class Player extends PhysicalObject {
           if (this.collidableObjects[i][j] instanceof PhysicalObject) {
             if (this.collidableObjects[i][j] instanceof Player) this.collidableObjects[i][j].dimensions.py = 2 - this.collidableObjects[i][j].state.crouchValue
             if (this.collidableObjects[i][j] instanceof Player && !this.collidableObjects[i][j].alive) continue
-            this.collidableObjects[i][j].newCollision(this, true, headBumpNoise)
+            this.collidableObjects[i][j].newCollision(this, true, headBumpNoise, deltaTime)
           }
         }
       }
