@@ -576,6 +576,14 @@ var webgl = {
     uniform float uWalkCycle;
     uniform float uCrouchValue;
     uniform float uLean;
+
+    // splat uniforms
+    uniform vec3 hitPoint;
+    uniform vec3 hitNormal;
+    uniform float weaponRadius;
+    uniform float splatRadius;
+    uniform float splatCounter; // 0 -> 1
+
     uniform mat4 mMatrix;
     uniform mat4 mnMatrix;
     uniform vec2 uTextureLocation;
@@ -610,6 +618,16 @@ var webgl = {
         normal.y = aVertNormal.z * sin(uLean * modelPosition.y / 3.0) + aVertNormal.y * cos(uLean * modelPosition.y / 3.0);
 
       }
+
+      if (splatCounter) {
+        // calculate plane direction 
+        // if normal is <1, 0, 0>, increase by <-.5, .5, .5>
+        
+        
+
+      }
+
+
       position = mMatrix * position;
       normal = vec4(mnMatrix * vec4(normal, 1.0)).xyz;
 
@@ -914,6 +932,13 @@ var webgl = {
     uniform mat4 mMatrix;
     uniform mat4 mnMatrix;
 
+    // splat uniforms
+    uniform vec3 hitPoint;
+    uniform vec3 hitNormal;
+    uniform float weaponRadius;
+    uniform float splatRadius;
+    uniform float splatCounter; // 0 -> 1
+
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
 
@@ -992,6 +1017,13 @@ var webgl = {
     uniform float uLean;
     uniform mat4 mMatrix;
     uniform mat4 mnMatrix;
+
+    // splat uniforms
+    uniform vec3 hitPoint;
+    uniform vec3 hitNormal;
+    uniform float weaponRadius;
+    uniform float splatRadius;
+    uniform float splatCounter; // 0 -> 1
 
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
@@ -1095,6 +1127,13 @@ var webgl = {
 
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
+
+    // splat uniforms
+    uniform vec3 hitPoint;
+    uniform vec3 hitNormal;
+    uniform float weaponRadius;
+    uniform float splatRadius;
+    uniform float splatCounter; // 0 -> 1
 
     varying lowp vec3 vNormal;
   
@@ -1660,7 +1699,12 @@ var webgl = {
         crouchValue: this.gl.getUniformLocation(this.shadowProgram, "uCrouchValue"),
         lean: this.gl.getUniformLocation(this.shadowProgram, "uLean"),
         scale: this.gl.getUniformLocation(this.shadowProgram, "uScale"),
-        offset: this.gl.getUniformLocation(this.shadowProgram, "uOffset")
+        offset: this.gl.getUniformLocation(this.shadowProgram, "uOffset"),
+        hitPoint: this.gl.getUniformLocation(this.shadowProgram, "hitPoint"),
+        hitNormal: this.gl.getUniformLocation(this.shadowProgram, "hitNormal"),
+        weaponRadius: this.gl.getUniformLocation(this.shadowProgram, "weaponRadius"),
+        splatRadius: this.gl.getUniformLocation(this.shadowProgram, "splatRadius"),
+        splatCounter: this.gl.getUniformLocation(this.shadowProgram, "splatCounter")
       }, {
         endWithTransparent: true,
         excludeTransparentModels: true
@@ -1698,7 +1742,12 @@ var webgl = {
         crouchValue: this.gl.getUniformLocation(this.volumetricProgram, "uCrouchValue"),
         lean: this.gl.getUniformLocation(this.volumetricProgram, "uLean"),
         scale: this.gl.getUniformLocation(this.volumetricProgram, "uScale"),
-        offset: this.gl.getUniformLocation(this.volumetricProgram, "uOffset")
+        offset: this.gl.getUniformLocation(this.volumetricProgram, "uOffset"),
+        hitPoint: this.gl.getUniformLocation(this.volumetricProgram, "hitPoint"),
+        hitNormal: this.gl.getUniformLocation(this.volumetricProgram, "hitNormal"),
+        weaponRadius: this.gl.getUniformLocation(this.volumetricProgram, "weaponRadius"),
+        splatRadius: this.gl.getUniformLocation(this.volumetricProgram, "splatRadius"),
+        splatCounter: this.gl.getUniformLocation(this.volumetricProgram, "splatCounter")
       }, {
         endWithTransparent: true,
         excludeTransparentModels: true
@@ -1731,7 +1780,12 @@ var webgl = {
       crouchValue: this.gl.getUniformLocation(this.normalRenderProgram, "uCrouchValue"),
       lean: this.gl.getUniformLocation(this.normalRenderProgram, "uLean"),
       scale: this.gl.getUniformLocation(this.normalRenderProgram, "uScale"),
-      offset: this.gl.getUniformLocation(this.normalRenderProgram, "uOffset")
+      offset: this.gl.getUniformLocation(this.normalRenderProgram, "uOffset"),
+      hitPoint: this.gl.getUniformLocation(this.normalRenderProgram, "hitPoint"),
+      hitNormal: this.gl.getUniformLocation(this.normalRenderProgram, "hitNormal"),
+      weaponRadius: this.gl.getUniformLocation(this.normalRenderProgram, "weaponRadius"),
+      splatRadius: this.gl.getUniformLocation(this.normalRenderProgram, "splatRadius"),
+      splatCounter: this.gl.getUniformLocation(this.normalRenderProgram, "splatCounter")
     }, {
       endWithTransparent: true,
       excludeTransparentModels: true
@@ -1828,6 +1882,11 @@ var webgl = {
       lean: this.gl.getUniformLocation(this.program, "uLean"),
       scale: this.gl.getUniformLocation(this.program, "uScale"),
       offset: this.gl.getUniformLocation(this.program, "uOffset"),
+      hitPoint: this.gl.getUniformLocation(this.program, "hitPoint"),
+      hitNormal: this.gl.getUniformLocation(this.program, "hitNormal"),
+      weaponRadius: this.gl.getUniformLocation(this.program, "weaponRadius"),
+      splatRadius: this.gl.getUniformLocation(this.program, "splatRadius"),
+      splatCounter: this.gl.getUniformLocation(this.program, "splatCounter"),
       glossValue: this.gl.getUniformLocation(this.program, "uGlossValue"),
       shadowable: this.gl.getUniformLocation(this.program, "uShadowable"),
       textureLocation: this.gl.getUniformLocation(this.program, "uTextureLocation")
@@ -1944,6 +2003,9 @@ var webgl = {
           mat4.rotateY(mnMatrix, mnMatrix, -parent.position.yaw || 0);
           mat4.rotateX(mnMatrix, mnMatrix, -parent.position.pitch || 0);
           mat4.rotateZ(mnMatrix, mnMatrix, -parent.position.roll || 0);
+        }
+        if (typeof parent == Weapon) {
+          this.gl.uniform1f()
         }
         if (locations.mMatrix != null) this.gl.uniformMatrix4fv(locations.mMatrix, false, mMatrix);
         if (locations.mnMatrix) this.gl.uniformMatrix4fv(locations.mnMatrix, false, mnMatrix);
@@ -3083,6 +3145,12 @@ class Player extends PhysicalObject {
 class Weapon extends PhysicalObject {
   static gravity = 0.00001
   static weaponSpecs
+
+  // splat variables (passed into vertex shader as uniforms)
+  hitPoint = new Float32Array([0, 0, 0])
+  hitNormal = new Float32Array([0, 0, 1])
+  splatCounter = 0
+
   constructor(geometryInfos, type, collidableObjects, owner, position) {
     super(position.x, position.y, position.z, 0, 0, { center: [0, 0, 0], radius: .5 }, "sphere", collidableObjects)
     this.position.pitch = position.pitch || 0
