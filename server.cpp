@@ -868,7 +868,7 @@ int main() {
             cout << "NEW ROOM: " << roomId << endl;
 
             //string filename = "full_starting_map (" + toString(roomId) + ").obj";
-            string filename = "kitchenmap8.obj";
+            string filename = "kitchenmap9.obj";
             //if (roomId == "6") filename = "kitchenmap5.obj";
             //if (roomId == "7") filename = "collision_test_map.obj";
             //if (roomId == "8") filename = "collision_test_map_2.obj";
