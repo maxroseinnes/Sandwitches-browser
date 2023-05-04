@@ -184,7 +184,7 @@ var webgl = {
       name: "darkGray",
       url: "https://i.imgur.com/YvgHLWE.png",
       normalMap: "./assets/normalMaps/13060-normal.jpg",
-      gloss: 4
+      gloss: 10
     },
     {
       name: "granite",
