@@ -379,7 +379,7 @@ var playerGeometry = {
 
 var weaponGeometry = {
     tomato: obj.parseWavefront(fetchObj("weapons/bestTomatoInTheWorld.obj"), false),
-    olive: obj.parseWavefront(fetchObj("weapons/low_poly_olive.obj"), false),
+    olive: obj.parseWavefront(fetchObj("weapons/smoothOlive.obj"), false),
     pickle: obj.parseWavefront(fetchObj("weapons/small_horizontal_cylinder.obj"), false),
     sausage: obj.parseWavefront(fetchObj("weapons/sausage.obj"), false),
     pan: obj.parseWavefront(fetchObj("weapons/panbutbetterwithmeat.obj"), false),

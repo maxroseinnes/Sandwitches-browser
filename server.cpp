@@ -655,6 +655,8 @@ vector<queueSpot> ffaQueue;
 mutex mtx;
 
 int main() {
+    cout << "RUNNING" << endl;
+
     srand(now());
 
     string weaponInfoText = getFileText("public/weapon-specs.json");
@@ -673,6 +675,7 @@ int main() {
         weaponSpecs.insert({toString(i->first), currentSpecs});
     }
 
+    cout << "RUNNING" << endl;
     int lobbyRoomsCount = 2;
     for (int i = 0; i < lobbyRoomsCount; i++) {
         rooms.lobbyRooms[i] = LobbyRoom("full_starting_map (3).obj");
@@ -682,7 +685,8 @@ int main() {
     for (int i = 0; i < ffaRoomsCount; i++) {
         rooms.ffaRooms[i] = FFARoom("full_starting_map (5).obj");
     }
-    
+
+    cout << "RUNNING" << endl;
 
 
     printf("----------------------\nSTARTING SERVER\n");
@@ -868,7 +872,7 @@ int main() {
             cout << "NEW ROOM: " << roomId << endl;
 
             //string filename = "full_starting_map (" + toString(roomId) + ").obj";
-            string filename = "kitchenmap9.obj";
+            string filename = "kitchenmap12.obj";
             //if (roomId == "6") filename = "kitchenmap5.obj";
             //if (roomId == "7") filename = "collision_test_map.obj";
             //if (roomId == "8") filename = "collision_test_map_2.obj";

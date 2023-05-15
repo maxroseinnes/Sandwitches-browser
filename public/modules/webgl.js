@@ -233,6 +233,12 @@ var webgl = {
       url: "https://i.imgur.com/eMPSlp8.png",
       normalMap: "./assets/normalMaps/13060-normal.jpg",
       gloss: 2
+    },
+    {
+      name: "window",
+      url: "",
+      normalMap: "",
+      gloss: 2
     }
 
 
@@ -577,13 +583,6 @@ var webgl = {
     uniform float uCrouchValue;
     uniform float uLean;
 
-    // splat uniforms
-    uniform vec3 hitPoint;
-    uniform vec3 hitNormal;
-    uniform float weaponRadius;
-    uniform float splatRadius;
-    uniform float splatCounter; // 0 -> 1
-
     uniform mat4 mMatrix;
     uniform mat4 mnMatrix;
     uniform vec2 uTextureLocation;
@@ -616,14 +615,6 @@ var webgl = {
 
         normal.z = aVertNormal.z * cos(uLean * modelPosition.y / 3.0) - aVertNormal.y * sin(uLean * modelPosition.y / 3.0);
         normal.y = aVertNormal.z * sin(uLean * modelPosition.y / 3.0) + aVertNormal.y * cos(uLean * modelPosition.y / 3.0);
-
-      }
-
-      if (splatCounter) {
-        // calculate plane direction 
-        // if normal is <1, 0, 0>, increase by <-.5, .5, .5>
-        
-        
 
       }
 
@@ -932,13 +923,6 @@ var webgl = {
     uniform mat4 mMatrix;
     uniform mat4 mnMatrix;
 
-    // splat uniforms
-    uniform vec3 hitPoint;
-    uniform vec3 hitNormal;
-    uniform float weaponRadius;
-    uniform float splatRadius;
-    uniform float splatCounter; // 0 -> 1
-
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
 
@@ -1017,13 +1001,6 @@ var webgl = {
     uniform float uLean;
     uniform mat4 mMatrix;
     uniform mat4 mnMatrix;
-
-    // splat uniforms
-    uniform vec3 hitPoint;
-    uniform vec3 hitNormal;
-    uniform float weaponRadius;
-    uniform float splatRadius;
-    uniform float splatCounter; // 0 -> 1
 
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
@@ -1127,13 +1104,6 @@ var webgl = {
 
     uniform mat4 pMatrix;
     uniform mat4 tMatrix;
-
-    // splat uniforms
-    uniform vec3 hitPoint;
-    uniform vec3 hitNormal;
-    uniform float weaponRadius;
-    uniform float splatRadius;
-    uniform float splatCounter; // 0 -> 1
 
     varying lowp vec3 vNormal;
   
@@ -1702,9 +1672,7 @@ var webgl = {
         offset: this.gl.getUniformLocation(this.shadowProgram, "uOffset"),
         hitPoint: this.gl.getUniformLocation(this.shadowProgram, "hitPoint"),
         hitNormal: this.gl.getUniformLocation(this.shadowProgram, "hitNormal"),
-        weaponRadius: this.gl.getUniformLocation(this.shadowProgram, "weaponRadius"),
-        splatRadius: this.gl.getUniformLocation(this.shadowProgram, "splatRadius"),
-        splatCounter: this.gl.getUniformLocation(this.shadowProgram, "splatCounter")
+        weaponRadius: this.gl.getUniformLocation(this.shadowProgram, "weaponRadius")
       }, {
         endWithTransparent: true,
         excludeTransparentModels: true
@@ -1745,9 +1713,7 @@ var webgl = {
         offset: this.gl.getUniformLocation(this.volumetricProgram, "uOffset"),
         hitPoint: this.gl.getUniformLocation(this.volumetricProgram, "hitPoint"),
         hitNormal: this.gl.getUniformLocation(this.volumetricProgram, "hitNormal"),
-        weaponRadius: this.gl.getUniformLocation(this.volumetricProgram, "weaponRadius"),
-        splatRadius: this.gl.getUniformLocation(this.volumetricProgram, "splatRadius"),
-        splatCounter: this.gl.getUniformLocation(this.volumetricProgram, "splatCounter")
+        weaponRadius: this.gl.getUniformLocation(this.volumetricProgram, "weaponRadius")
       }, {
         endWithTransparent: true,
         excludeTransparentModels: true
@@ -1783,9 +1749,7 @@ var webgl = {
       offset: this.gl.getUniformLocation(this.normalRenderProgram, "uOffset"),
       hitPoint: this.gl.getUniformLocation(this.normalRenderProgram, "hitPoint"),
       hitNormal: this.gl.getUniformLocation(this.normalRenderProgram, "hitNormal"),
-      weaponRadius: this.gl.getUniformLocation(this.normalRenderProgram, "weaponRadius"),
-      splatRadius: this.gl.getUniformLocation(this.normalRenderProgram, "splatRadius"),
-      splatCounter: this.gl.getUniformLocation(this.normalRenderProgram, "splatCounter")
+      weaponRadius: this.gl.getUniformLocation(this.normalRenderProgram, "weaponRadius")
     }, {
       endWithTransparent: true,
       excludeTransparentModels: true
@@ -1885,8 +1849,6 @@ var webgl = {
       hitPoint: this.gl.getUniformLocation(this.program, "hitPoint"),
       hitNormal: this.gl.getUniformLocation(this.program, "hitNormal"),
       weaponRadius: this.gl.getUniformLocation(this.program, "weaponRadius"),
-      splatRadius: this.gl.getUniformLocation(this.program, "splatRadius"),
-      splatCounter: this.gl.getUniformLocation(this.program, "splatCounter"),
       glossValue: this.gl.getUniformLocation(this.program, "uGlossValue"),
       shadowable: this.gl.getUniformLocation(this.program, "uShadowable"),
       textureLocation: this.gl.getUniformLocation(this.program, "uTextureLocation")
@@ -3145,11 +3107,6 @@ class Player extends PhysicalObject {
 class Weapon extends PhysicalObject {
   static gravity = 0.00001
   static weaponSpecs
-
-  // splat variables (passed into vertex shader as uniforms)
-  hitPoint = new Float32Array([0, 0, 0])
-  hitNormal = new Float32Array([0, 0, 1])
-  splatCounter = 0
 
   constructor(geometryInfos, type, collidableObjects, owner, position) {
     super(position.x, position.y, position.z, 0, 0, { center: [0, 0, 0], radius: .5 }, "sphere", collidableObjects)
