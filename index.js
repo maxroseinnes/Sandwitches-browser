@@ -680,7 +680,7 @@ class Room {
     // Compile player data into an array
     let playersData = {}
     for (let id in this.players) if (this.players[id]) {
-      if (this.players[id].position.y < -11.5) {
+      if (this.players[id].position.y < -11.5 && this.players[id].health != 0) {
         this.players[id].health = 0
         this.players[id].socket.emit("youDied", {id: id, cause: "void"})
 
@@ -937,7 +937,8 @@ const collisionUpdate = setInterval(() => {
             } else {
               if (room.players[weapon.ownerId]) {
                 room.players[weapon.ownerId].killCount++
-                let deathMessage = player.name + " was killed by " + room.players[weapon.ownerId].name
+                console.log("aeiou".includes("a"))
+                let deathMessage = player.name + " was killed by " + room.players[weapon.ownerId].name + " with a" + ("aeiou".includes(weapon.type[0]) ? "n " : " ") + weapon.type;
                 room.broadcast("chatMessage", deathMessage, null)
               }
               player.socket.emit("youDied", {id: playerId, cause: "killed"})
@@ -1021,10 +1022,10 @@ function kickPlayer(id, socket) {
 }
 
 socketServer.on("connection", (socket) => {
-  if (socket.handshake.address == "10.176.62.26" || socket.handshake.address == "10.176.60.126") {
+  /*if (socket.handshake.address == "10.176.62.26" || socket.handshake.address == "10.176.60.126") {
     return
-  }
-  console.log(socket.handshake.address)
+  }*/
+  //console.log(socket.handshake.address)
   /*socket.emit("pingRequest")
   socket.on("ping", () => {
     socket.emit("ping")
