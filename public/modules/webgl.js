@@ -172,7 +172,75 @@ var webgl = {
       url: "./assets/textures/anchovyTex.png",
       normalMap: "./assets/normalMaps/flat.jpeg",
       gloss: 10
+    },
+    // KITCHEN MAP TEXTURES
+    {
+      name: "cornerCounter",
+      url: "https://i.imgur.com/i19QI9P.jpeg",
+      normalMap: "./assets/normalMaps/flat.jpeg",
+      gloss: 2
+    },
+    {
+      name: "darkGray",
+      url: "https://i.imgur.com/YvgHLWE.png",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 10
+    },
+    {
+      name: "granite",
+      url: "https://i.imgur.com/gz0AQGg.jpeg",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 5
+    },
+    {
+      name: "island",
+      url: "https://i.imgur.com/hQKFip0.jpeg",
+      normalMap: "./assets/normalMaps/flat.jpeg",
+      gloss: 2
+    },
+    {
+      name: "knob",
+      url: "https://i.imgur.com/86LN4Kh.png",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 10
+    },
+    {
+      name: "oven",
+      url: "https://i.imgur.com/8hVMj3w.png",
+      normalMap: "./assets/normalMaps/flat.jpeg",
+      gloss: 5
+    },
+    {
+      name: "wall",
+      url: "https://i.imgur.com/IbzA1rV.png",
+      normalMap: "./assets/normalMaps/flat.jpeg",
+      gloss: 2
+    },
+    {
+      name: "windowWall",
+      url: "https://i.imgur.com/hhUpotg.png",
+      normalMap: "./assets/normalMaps/flat.jpeg",
+      gloss: 2
+    },
+    {
+      name: "gray",
+      url: "https://i.imgur.com/kjeR6Nh.png",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 2
+    },
+    {
+      name: "fridge",
+      url: "https://i.imgur.com/eMPSlp8.png",
+      normalMap: "./assets/normalMaps/13060-normal.jpg",
+      gloss: 2
+    },
+    {
+      name: "window",
+      url: "./assets/textures/transparent.png",
+      normalMap: "./assets/textures/transparent.png",
+      gloss: 2
     }
+
 
 
   ],
@@ -215,7 +283,7 @@ var webgl = {
 
     sunPosition: [-50, 100, 25],
     sunAnglePitch: Math.PI * (1 / 5),
-    sunAngleYaw: Math.PI * (1 / 3),
+    sunAngleYaw: Math.PI * (3 / 5),
 
     heaven: false,
 

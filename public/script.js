@@ -95,7 +95,6 @@ const joinGameButton = document.getElementById("joinGameButton")
 
 joinRoomButton.onclick = () => {
     if (roomKeyInput.value == lobbyId) return
-    //lobbyId = roomKeyInput.value
     joinRoom(roomKeyInput.value)
 
 }
@@ -107,10 +106,7 @@ joinGameButton.onclick = () => {
     })
 }
 
-//lobbyId = 4
-//joinRoom() // go to room 4 first
-
-var myWeapons = [
+var myWeapons = [ // list that will appear in weapon selection
     "olive",
     "pickle",
     "tomato",
@@ -153,7 +149,6 @@ const jumpNoise = new Audio("./assets/wet_wriggling_noises/smb_jump-super.wav")
 const pauseNoise = new Audio("./assets/wet_wriggling_noises/smb_pause.wav")
 const stepNoise = new Audio("./assets/wet_wriggling_noises/slime-squish-14539.mp3")
 const headBumpNoise = new Audio("./assets/wet_wriggling_noises/head_bump.wav")
-const oofNoise = new Audio("./assets/wet_wriggling_noises/roblox_oof.mp3")
 const hitmarkerNoise = new Audio("./assets/wet_wriggling_noises/hitmarker.mp3")
 
 var setVolume = () => {
@@ -179,10 +174,8 @@ volumeSlider.onchange = () => {
 }
 
 
-// MAP ORGANIZATION //
 
-
-//var inventory
+// UPDATING HUD //
 
 var updateCrosshair = () => {
     let width = effectsCanvas.width
@@ -244,8 +237,6 @@ var updateHUD = () => {
         weaponsContainer.appendChild(weaponSlot)
     }
 
-    //ctx.fillStyle = "yellow"
-    //for (let i = 0; i < 5; i += .1) ctx.strokeRect(width - (weaponSelectors.length + 1) * slotSize - i + player.inventory.currentSelection * slotSize, height - slotSize * 2 - i, slotSize + i * 2, slotSize + i * 2)
 }
 
 var changeWeaponSelection = (selection) => {
@@ -349,7 +340,6 @@ function closeChatbox() {
 
 
 var leaderboardList = document.getElementById("leaderboard")
-//var playerInfos = {}
 
 function addPlayerToHUD(id, name) {
     leaderboard[id] = document.createElement("li")
@@ -408,33 +398,11 @@ function tick() {
     if (player != null) {
         socket.emit("playerUpdate", { id: player.id, position: player.position, state: player.state, currentWeaponType: player.inventory.currentWeapon.type });
     }
-    //console.log("wet wriggling noises" + (ticks % 2 == 0 ? "" : " "))
     lastTickTimes.splice(0, 0, currentTickTime)
     currentTickTime = Date.now()
 }
 
 // Socket events //
-/*var time;
-var pingTests = [];
-socket.on("pingRequest", () => {
-    socket.emit("ping");
-    time = new Date().getTime();
-})
-
-socket.on("ping", () => {
-    if (pingTests.length < 5) {
-        pingTests.push(new Date().getTime() - time);
-        time = new Date().getTime();
-        socket.emit("ping");
-    } else {
-        var sum = 0
-        for (let i = 0; i < pingTests.length; i++) {
-            sum += pingTests[i];
-        }
-        socket.emit("pingTestComplete", sum / pingTests.length)
-    }
-})*/
-
 var tickInterval
 socket.on("startTicking", (TPS) => {
     tickInterval = setInterval(tick, 1000 / TPS);
@@ -488,6 +456,8 @@ socket.on("map", (mapInfo) => {
         let colliders = generatePlatforms(faceGeometry)
         for (let i in colliders) {
             let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
+            //console.log(platform.dimensions)
+            //platform.models.main = new Model(platform, platformGeometry.basic, .5, "bread", 0, 0, 0, 0.0)
             platform.dimensions = colliders[i].dimensions
             platforms.push(platform)
         }
@@ -517,18 +487,44 @@ socket.on("map", (mapInfo) => {
         }
 
         let mapModelGeometry = obj.parseWavefront(mapObj, true, true)
+        let matches = {
+            "Tree": "tree",
+            "Plane": "grass",
+            "Road": "asphalt",
+            "Barn": "barnWood",
+            "Fence": "whiteWood",
+            "Building": "houseWood",
+            "Cube": "barnWood",
+            "Ladder": "whiteWood",
+            "Loft": "barnWood",
+            "BigBuilding": "barnWood",
+            "Corner": "cornerCounter",
+            "Fridge": "darkGray",
+            "Microwave": "darkGray",
+            "Plate": "oven",
+            "Counter": "granite",
+            "Island": "island",
+            "Oven": "oven",
+            "Burners": "knob",
+            "Guards": "knob",
+            "Handle": "knob",
+            "Knob": "knob",
+            "Wall": "wall",
+            "Left_Wall": "windowWall",
+        }
         for (let name in mapModelGeometry) {
-            let texture = "wood"
-            if (name.indexOf("Tree") != -1) texture = "tree"
-            if (name.indexOf("Plane") != -1) texture = "grass"
-            if (name.indexOf("Road") != -1) texture = "asphalt"
-            if (name.indexOf("Barn") != -1) texture = "barnWood"
-            if (name.indexOf("Fence") != -1) texture = "whiteWood"
-            if (name.indexOf("Building") != -1) texture = "houseWood"
-            if (name.indexOf("Cube") != -1) texture = "barnWood"
-            if (name.indexOf("Ladder") != -1) texture = "whiteWood"
-            if (name.indexOf("Loft") != -1) texture = "barnWood"
-            if (name.indexOf("BigBuilding") != -1) texture = "barnWood"
+            let exists = false
+            let texture
+            if (mapModelGeometry[name].material != undefined) {
+                texture = mapModelGeometry[name].material.slice(0, -3)
+                for (let currentTexture in webgl.textures) {
+                    if (currentTexture == texture) {
+                        exists = true
+                        break;
+                    }
+                }
+            }
+            if (!exists) texture = "wood"
             mapModels.push(new Model({}, mapModelGeometry[name], 1, texture, 0, 0, 0))
 
         }
@@ -575,31 +571,10 @@ socket.on("leaderboard", (leaderboardInfo) => {
     var leaderboardList = document.getElementById("leaderboard")
     leaderboardList.innerHTML = ""
 
-    //console.log(leaderboardInfo)
-    // Need to make the list order itself every time
-    /*for (let i = 0; i < leaderboardInfo.length; i++) {
-        let playerInfo = leaderboardInfo[i]
-        
-        if (otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) continue
-
-        console.log(otherPlayers[playerInfo.id]  ? true : false)
-        let name
-        if (playerInfo.id == player.id) {
-            name = player.name
-        } else if (!otherPlayers[playerInfo.id] || !leaderboard[playerInfo.id]) {
-            continue
-        } else {
-            console.log("test")
-            name = otherPlayers[playerInfo.id].name
-        }
-
-        changePlayerStringInHUD(playerInfo.id, name + ": " + playerInfo.killCount + " 💀")
-    }*/
     for (let i = leaderboardInfo.length - 1; i >= 0; i--) {
         let playerInfo = leaderboardInfo[i]
         let listItem = document.createElement("li")
         let name
-        //console.log(playerInfo.id == player.id)
         if (playerInfo.id == player.id) {
             name = player.name
         } else if (otherPlayers[playerInfo.id] != null) {
@@ -608,7 +583,7 @@ socket.on("leaderboard", (leaderboardInfo) => {
 
         let skulls = ""
         for (let i = 0; i < playerInfo.killCount; i++) {
-            skulls += "💀"
+            //skulls += "💀"
         }
         listItem.textContent = name + ": " + playerInfo.killCount + " kills " + skulls
         leaderboardList.appendChild(listItem)
@@ -876,7 +851,7 @@ new Model(platforms[0], {
     ]
 }, 1, null, 0, 0, 0, true, false)
 */
-var testEmitter = new ParticleEmitter([0, 0, 0], 11, {color: [1, 1, 0], size: 100, type: 3, lifespan: 10000, primeType: 2, opacityType: 1})
+var pollenEmitter = new ParticleEmitter([0, 0, 0], 11, {color: [1, 1, 0], size: 100, type: 3, lifespan: 10000, primeType: 2, opacityType: 1})
 
 
 
@@ -1083,7 +1058,6 @@ function fixedUpdate() {
         if (player.onGround || (Date.now() - player.timeOfLastOnGround <= 100 && player.hasHitGroundSinceLastJump)) {
             player.velocity.y = Player.jumpForce
             player.timeOfLastJump = Date.now()
-            console.log("jumnp")
             player.hasHitGroundSinceLastJump = false
         }
     }
@@ -1142,7 +1116,7 @@ function fixedUpdate() {
 
 
     if (player.alive) player.calculatePosition(deltaTime, headBumpNoise)
-    //if (player) testEmitter.position = [player.position.x, player.position.y+3.25, player.position.z]
+    //if (player) pollenEmitter.position = [player.position.x, player.position.y+3.25, player.position.z]
 
     if (!player.lastOnGround && player.onGround) {
         let splatVolume = Math.abs(player.lastVelocity.y) * 50 - .75
@@ -1561,7 +1535,7 @@ document.getElementById("hud").addEventListener('touchmove', (event) => {
 // -- menu -- //
 startButton.onclick = () => {
     if (menu.style.opacity == 0) return
-    window.setTimeout(() => {testEmitter.unprimed = true}, 10);
+    window.setTimeout(() => {pollenEmitter.unprimed = true}, 10);
 
     if (!player) {
         //alert("join a room first")

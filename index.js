@@ -117,7 +117,7 @@ const weaponSpecs = {
     manaCost: 5,
     damage: 10,
     chargeTime: 0,
-    projectileCount: 5,
+    projectileCount: 1,
     burstInterval: .5
   },
   pickle: {
@@ -316,13 +316,13 @@ var maps = {
   testMap3: {
     floorTexture: "",
     platforms: [],
-    mapFile: "full_starting_map (3).obj"
+    mapFile: "full_starting_map (5).obj"
   },
 
   testMap4: {
     floorTexture: "",
     platforms: [],
-    mapFile: "full_starting_map (5).obj"
+    mapFile: "kitchenmap13.obj"
   }
 
 
@@ -680,7 +680,7 @@ class Room {
     // Compile player data into an array
     let playersData = {}
     for (let id in this.players) if (this.players[id]) {
-      if (this.players[id].position.y < -100) {
+      if (this.players[id].position.y < -11.5) {
         this.players[id].health = 0
         this.players[id].socket.emit("youDied", {id: id, cause: "void"})
 
@@ -959,8 +959,8 @@ const collisionUpdate = setInterval(() => {
 var lobbyQueue = []
 var ffaQueue = []
 
-const maxFFAPlayers = 2 // max players per ffa room
-const maxLobbyPlayers = 3 // max players per ffa lobby
+const maxFFAPlayers = 5 // max players per ffa room
+const maxLobbyPlayers = 5 // max players per ffa lobby
 
 const ffaUpdate = setInterval(() => {
   for (let i in rooms.lobbyRooms) {
