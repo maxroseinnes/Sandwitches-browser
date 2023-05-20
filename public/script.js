@@ -456,8 +456,6 @@ socket.on("map", (mapInfo) => {
         let colliders = generatePlatforms(faceGeometry)
         for (let i in colliders) {
             let platform = new Platform(null, null, colliders[i].position.x, colliders[i].position.y, colliders[i].position.z, 1)
-            //console.log(platform.dimensions)
-            //platform.models.main = new Model(platform, platformGeometry.basic, .5, "bread", 0, 0, 0, 0.0)
             platform.dimensions = colliders[i].dimensions
             platforms.push(platform)
         }
@@ -530,6 +528,9 @@ socket.on("map", (mapInfo) => {
         }
 
         console.log(mapModelGeometry)
+
+        if (mapInfo.mapFile == "full_starting_map (3).obj") webgl.settings.sunAngleYaw = Math.PI * (1 / 3)
+        else webgl.settings.sunAngleYaw = Math.PI * (3 / 5)
 
 
 

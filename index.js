@@ -316,13 +316,13 @@ var maps = {
   testMap3: {
     floorTexture: "",
     platforms: [],
-    mapFile: "full_starting_map (5).obj"
+    mapFile: "full_starting_map (3).obj"
   },
 
   testMap4: {
     floorTexture: "",
     platforms: [],
-    mapFile: "kitchenmap13.obj"
+    mapFile: "kitchenmapFinal.obj"
   }
 
 
